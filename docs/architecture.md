@@ -18,6 +18,8 @@ flowchart TB
     DB[(PostgreSQL)]
     Storage[Object Storage]
     Email[Email Provider]
+    Push[Web Push Service]
+    Worker[Notification Worker]
 
     Client --> API
     API --> Auth
@@ -26,6 +28,9 @@ flowchart TB
     Repo --> DB
     Domain --> Storage
     Domain --> Email
+    Worker --> DB
+    Worker --> Email
+    Worker --> Push
 ```
 
 ## Architecture Choice
@@ -130,6 +135,7 @@ server/
 | Clubs | Club pages, coordinators, join-interest forms |
 | Mentorship | Alumni profiles, mentorship requests |
 | Reports | CSV exports, dashboard summaries |
+| Notifications | In-app notifications, email/push outbox, delivery status |
 | Admin | User import, verification, roles, moderation |
 
 ## Request Flow
@@ -179,4 +185,3 @@ Only split after real pressure appears:
 - File processing/export worker
 
 Until then, keep one well-structured Go service.
-

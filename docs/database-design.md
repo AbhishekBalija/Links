@@ -33,6 +33,7 @@ erDiagram
     USER ||--o{ EVENT_RSVP : makes
     USER ||--o{ OPPORTUNITY_APPLICATION : submits
     USER ||--o{ AUDIT_LOG : performs
+    USER ||--o{ NOTIFICATION : receives
 
     DEPARTMENT ||--o{ STUDENT_IDENTITY : contains
     DEPARTMENT ||--o{ EVENT : hosts
@@ -44,6 +45,7 @@ erDiagram
 
     OPPORTUNITY ||--o{ OPPORTUNITY_APPLICATION : receives
     CLUB ||--o{ CLUB_INTEREST : receives
+    NOTIFICATION ||--o{ NOTIFICATION_OUTBOX : delivers
 ```
 
 ## Core Tables
@@ -283,6 +285,57 @@ audit_logs (
 )
 ```
 
+### notifications
+
+```sql
+notifications (
+  id uuid primary key,
+  user_id uuid not null references users(id),
+  type text not null,
+  priority text not null,
+  title text not null,
+  body text not null,
+  action_url text,
+  resource_type text,
+  resource_id uuid,
+  read_at timestamptz,
+  created_at timestamptz not null
+)
+```
+
+### notification_outbox
+
+```sql
+notification_outbox (
+  id uuid primary key,
+  notification_id uuid references notifications(id),
+  channel text not null,
+  status text not null,
+  attempts int not null default 0,
+  next_attempt_at timestamptz,
+  last_error text,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+)
+```
+
+### push_subscriptions
+
+```sql
+push_subscriptions (
+  id uuid primary key,
+  user_id uuid not null references users(id),
+  endpoint text not null,
+  p256dh_key text not null,
+  auth_key text not null,
+  user_agent text,
+  is_active boolean not null default true,
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  unique (user_id, endpoint)
+)
+```
+
 ## Important Indexes
 
 ```sql
@@ -300,6 +353,9 @@ create index idx_opportunities_status_deadline on opportunities (status, deadlin
 create index idx_opportunity_applications_opportunity on opportunity_applications (opportunity_id, status);
 create index idx_opportunity_applications_student on opportunity_applications (student_id, status);
 create index idx_audit_logs_resource on audit_logs (resource_type, resource_id, created_at desc);
+create index idx_notifications_user_created on notifications (user_id, created_at desc);
+create index idx_notifications_user_unread on notifications (user_id, read_at) where read_at is null;
+create index idx_notification_outbox_status_next on notification_outbox (status, next_attempt_at);
 ```
 
 ## Connection Pool Defaults
@@ -312,4 +368,3 @@ MaxIdleConns: 5-10
 ConnMaxLifetime: 30-60 minutes
 ConnMaxIdleTime: 5-10 minutes
 ```
-

@@ -48,6 +48,9 @@ Track:
 - Shortlisting changes
 - CSV exports
 - File upload failures
+- Notification outbox backlog
+- Email delivery failures
+- Web push delivery failures
 
 ## Health Checks
 
@@ -72,6 +75,8 @@ Alert on:
 - High DB latency
 - Export failures
 - Email failures
+- Notification worker failures
+- Large pending notification backlog
 - Unusual applicant data access
 
 ## Tracing
@@ -79,4 +84,3 @@ Alert on:
 Distributed tracing is not required in MVP.
 
 Use request IDs from day one. Add OpenTelemetry later when the system grows.
-

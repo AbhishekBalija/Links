@@ -60,7 +60,7 @@ Add workers when synchronous work becomes slow.
 
 Worker candidates:
 
-- Email notifications
+- Email and web push notifications
 - CSV export generation
 - Scheduled deadline reminders
 - Image processing
@@ -90,4 +90,3 @@ flowchart TB
     Cache -->|Yes| Redis[Add Cache]
     Cache -->|No| Monitor[Keep Monitoring]
 ```
-

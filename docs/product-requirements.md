@@ -55,6 +55,7 @@ Must have:
 - Placement opportunities
 - Internal and external application tracking
 - Shortlisting and status updates
+- Notifications for placement links, important announcements, approvals, and status changes
 - CSV exports
 - Admin role management
 
@@ -63,7 +64,7 @@ Should have:
 - Clubs and department pages
 - Saved jobs/events
 - Alumni mentorship requests
-- Email notifications
+- In-app, email, and web push notifications
 - Media uploads
 - Search
 
@@ -141,4 +142,3 @@ flowchart LR
 - Faculty mentors are optional unless college policy requires them.
 - Placement officer owns placement opportunity workflows.
 - Applicant data is sensitive.
-

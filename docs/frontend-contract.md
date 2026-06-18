@@ -165,3 +165,25 @@ Frontend should validate before upload:
 
 Backend remains the final authority.
 
+## Notifications
+
+Frontend should support:
+
+- In-app notification list
+- Unread count
+- Mark notification as read
+- Mark all notifications as read
+- Push subscription registration after user permission
+- Notification preferences
+
+Important APIs:
+
+```text
+GET    /api/v1/notifications
+PATCH  /api/v1/notifications/:id/read
+PATCH  /api/v1/notifications/read-all
+GET    /api/v1/notification-preferences
+PATCH  /api/v1/notification-preferences
+POST   /api/v1/push-subscriptions
+DELETE /api/v1/push-subscriptions/:id
+```

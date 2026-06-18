@@ -157,6 +157,18 @@ POST  /api/v1/mentorship-requests
 PATCH /api/v1/mentorship-requests/:id
 ```
 
+## Notifications
+
+```text
+GET    /api/v1/notifications
+PATCH  /api/v1/notifications/:id/read
+PATCH  /api/v1/notifications/read-all
+GET    /api/v1/notification-preferences
+PATCH  /api/v1/notification-preferences
+POST   /api/v1/push-subscriptions
+DELETE /api/v1/push-subscriptions/:id
+```
+
 ## API Contract Rules
 
 - Every write endpoint must authenticate.
@@ -165,4 +177,3 @@ PATCH /api/v1/mentorship-requests/:id
 - Every CSV export must be audited.
 - Every request body must have a DTO.
 - Never return password hashes, refresh tokens, or private applicant notes to unauthorized users.
-

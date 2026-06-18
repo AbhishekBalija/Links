@@ -19,6 +19,8 @@ STORAGE_API_KEY
 EMAIL_PROVIDER
 EMAIL_API_KEY
 RATE_LIMIT_ENABLED
+VAPID_PUBLIC_KEY
+VAPID_PRIVATE_KEY
 ```
 
 ## Optional Environment Variables
@@ -71,4 +73,3 @@ if err != nil {
 ```
 
 Do not load config through `init()` side effects.
-

@@ -87,7 +87,7 @@ Deliverables:
 - Alumni profiles
 - Alumni USN verification
 - Mentorship requests
-- Email notifications
+- In-app, email, and web push notifications
 - Analytics dashboard
 - Accessibility pass
 - Mobile responsive polish
@@ -104,4 +104,3 @@ Deliverables:
 8. Event proposal and approval
 9. Placement applications and shortlisting
 10. CSV export
-
