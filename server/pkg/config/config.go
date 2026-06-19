@@ -2,21 +2,36 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
-func init() {
-	// Load .env.local file
-	if err := godotenv.Load(".env.local"); err != nil {
-		log.Println("⚠ No .env.local file found, using environment variables")
+// LoadEnv loads local development environment variables when the file exists.
+func LoadEnv() error {
+	if err := godotenv.Load(".env.local"); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("load .env.local: %w", err)
 	}
+	return nil
+}
+
+// GetPort returns the HTTP port used by the API.
+func GetPort() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return port
+	}
+	if port := os.Getenv("APP_PORT"); port != "" {
+		return port
+	}
+	return "8080"
 }
 
 // GetDatabaseDSN returns the PostgreSQL connection string
 func GetDatabaseDSN() string {
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		return databaseURL
+	}
+
 	host := os.Getenv("DB_HOST")
 	if host == "" {
 		host = "localhost"

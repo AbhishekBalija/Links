@@ -2,6 +2,18 @@
 
 ## Required Environment Variables
 
+For the current health-check-only backend, production needs:
+
+```text
+DATABASE_URL
+PORT
+GIN_MODE=release
+```
+
+Most hosts, including Render, provide `PORT` automatically.
+
+The full product will later need:
+
 ```text
 APP_ENV
 APP_PORT

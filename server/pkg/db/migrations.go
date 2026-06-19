@@ -16,6 +16,10 @@ func RunMigrations(db *gorm.DB, migrationsPath string) error {
 	// Get all .up.sql files
 	files, err := os.ReadDir(migrationsPath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("Migration directory not found, skipping migrations: %s", migrationsPath)
+			return nil
+		}
 		return fmt.Errorf("failed to read migrations directory: %w", err)
 	}
 
@@ -40,7 +44,7 @@ func RunMigrations(db *gorm.DB, migrationsPath string) error {
 			return fmt.Errorf("failed to execute migration %s: %w", migration, err)
 		}
 
-		log.Printf("✓ Migration applied: %s", migration)
+		log.Printf("Migration applied: %s", migration)
 	}
 
 	return nil

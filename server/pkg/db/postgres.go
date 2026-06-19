@@ -1,27 +1,15 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
-
-// User model for the database
-type User struct {
-	ID           uint   `gorm:"primaryKey"`
-	Username     string `gorm:"unique;not null"`
-	Email        string `gorm:"unique;not null"`
-	PasswordHash string `gorm:"column:password_hash;not null"`
-	FullName     string
-	Role         string    `gorm:"default:'student'"` // student, faculty, admin, alumni
-	CreatedAt    time.Time `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
-}
 
 // InitDB connects to PostgreSQL and runs migrations
 func InitDB(dsn string) error {
@@ -36,6 +24,24 @@ func InitDB(dsn string) error {
 	}
 
 	DB = db
-	log.Println("✓ Database connected and migrations applied")
+	log.Println("Database connected and migrations applied")
+	return nil
+}
+
+// Ping verifies that the database connection is alive.
+func Ping(ctx context.Context) error {
+	if DB == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	sqlDB, err := DB.DB()
+	if err != nil {
+		return fmt.Errorf("get database handle: %w", err)
+	}
+
+	if err := sqlDB.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping database: %w", err)
+	}
+
 	return nil
 }

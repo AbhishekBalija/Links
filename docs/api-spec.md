@@ -44,6 +44,42 @@ Error:
 | `RATE_LIMITED` | 429 |
 | `INTERNAL_ERROR` | 500 |
 
+## Health Checks
+
+These endpoints are intentionally unauthenticated so hosting platforms and uptime monitors can call them.
+
+```text
+GET /health
+GET /health/db
+```
+
+Expected `/health` response:
+
+```json
+{
+  "service": "links-api",
+  "status": "ok"
+}
+```
+
+Expected `/health/db` success response:
+
+```json
+{
+  "database": "connected",
+  "status": "ok"
+}
+```
+
+Expected `/health/db` failure response:
+
+```json
+{
+  "error": "database unavailable",
+  "status": "error"
+}
+```
+
 ## Pagination
 
 ```text

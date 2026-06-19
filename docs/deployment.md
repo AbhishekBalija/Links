@@ -10,6 +10,19 @@
 | Object storage | Cloudinary or S3-compatible storage |
 | Email | Resend |
 
+## Current Production Smoke Test
+
+The first production deploy should expose only:
+
+```text
+GET /health
+GET /health/db
+```
+
+Use `/health` to verify the API process is running.
+
+Use `/health/db` to verify the API can connect to the production PostgreSQL database.
+
 ## Environments
 
 - Local
@@ -50,10 +63,37 @@ flowchart LR
 1. Merge to main after CI passes.
 2. Deploy backend to staging.
 3. Run migrations on staging.
-4. Smoke test auth, health, DB connection.
+4. Smoke test `/health` and `/health/db`.
 5. Deploy frontend to staging.
 6. Promote to production.
 7. Run production smoke test.
+
+## Render Backend Deployment
+
+Recommended settings for the current backend:
+
+```text
+Root Directory: server
+Build Command: go build -o bin/api ./cmd/api
+Start Command: ./bin/api
+Health Check Path: /health
+```
+
+Set production environment variables:
+
+```text
+DATABASE_URL=<your Neon/Postgres connection string>
+GIN_MODE=release
+```
+
+Render provides `PORT` automatically. The server reads `PORT`, then `APP_PORT`, then falls back to `8080`.
+
+After deploy, verify:
+
+```text
+https://<your-backend-url>/health
+https://<your-backend-url>/health/db
+```
 
 ## Rollback
 
@@ -77,4 +117,3 @@ Consider Kubernetes only when:
 - Multiple workers/services exist.
 - Traffic requires horizontal scaling.
 - The team can operate Kubernetes safely.
-
