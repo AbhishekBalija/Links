@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
@@ -6,6 +6,14 @@ import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [apiStatus, setApiStatus] = useState<string>('checking...')
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then((res) => res.json())
+      .then((data) => setApiStatus(JSON.stringify(data)))
+      .catch((err) => setApiStatus(`error: ${err.message}`))
+  }, [])
 
   return (
     <>
@@ -28,6 +36,9 @@ function App() {
         >
           Count is {count}
         </button>
+        <p className="api-status">
+          API status: <code>{apiStatus}</code>
+        </p>
       </section>
 
       <div className="ticks"></div>

@@ -29,4 +29,12 @@ dist-ssr
 *.sln
 *.sw?
 
+# Agent skills
+.agents/
+
+# Go build artifacts
+bin/
+server/api
+*.exe
+
 My_Plan.md

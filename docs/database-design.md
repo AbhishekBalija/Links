@@ -336,6 +336,95 @@ push_subscriptions (
 )
 ```
 
+### clubs
+
+```sql
+clubs (
+  id uuid primary key,
+  slug text unique not null,
+  name text not null,
+  description text,
+  department_id uuid references departments(id),
+  coordinator_user_id uuid references users(id),
+  faculty_advisor_id uuid references users(id),
+  logo_url text,
+  status text not null,
+  created_by uuid references users(id),
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+)
+```
+
+Slug should be normalized to lowercase before storage. `status` is constrained to
+known values (for example `active`, `inactive`) with a check constraint.
+
+### club_interests
+
+```sql
+club_interests (
+  id uuid primary key,
+  club_id uuid not null references clubs(id),
+  user_id uuid not null references users(id),
+  message text,
+  status text not null,
+  decided_by uuid references users(id),
+  decided_at timestamptz,
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  unique (club_id, user_id)
+)
+```
+
+`status` tracks the join-interest lifecycle (for example `pending`, `accepted`,
+`rejected`, `withdrawn`) with a check constraint. One active interest per user per club
+is enforced by the unique index.
+
+### alumni_profiles
+
+```sql
+alumni_profiles (
+  user_id uuid primary key references users(id),
+  usn text,
+  department_id uuid references departments(id),
+  graduation_year int not null,
+  current_company text,
+  current_role text,
+  current_location text,
+  is_mentor_available boolean not null default false,
+  verification_status text not null,
+  verified_by uuid references users(id),
+  verified_at timestamptz,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+)
+```
+
+USN should be normalized to uppercase before storage when present. Per ADR-007 and the
+plan, alumni verification uses USN first and falls back to admin verification, captured
+by `verification_status` (for example `pending`, `verified`, `rejected`).
+
+### mentorship_requests
+
+```sql
+mentorship_requests (
+  id uuid primary key,
+  student_id uuid not null references users(id),
+  mentor_id uuid not null references users(id),
+  topic text,
+  message text,
+  status text not null,
+  responded_at timestamptz,
+  response_note text,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+)
+```
+
+`mentor_id` references the mentoring user (an alumni account with
+`alumni_profiles.is_mentor_available = true`). `status` follows the request lifecycle
+(for example `pending`, `accepted`, `declined`, `completed`, `cancelled`) with a check
+constraint.
+
 ## Important Indexes
 
 ```sql
@@ -356,6 +445,14 @@ create index idx_audit_logs_resource on audit_logs (resource_type, resource_id, 
 create index idx_notifications_user_created on notifications (user_id, created_at desc);
 create index idx_notifications_user_unread on notifications (user_id, read_at) where read_at is null;
 create index idx_notification_outbox_status_next on notification_outbox (status, next_attempt_at);
+create unique index idx_clubs_slug on clubs (lower(slug));
+create index idx_clubs_department on clubs (department_id);
+create index idx_club_interests_club_status on club_interests (club_id, status);
+create index idx_club_interests_user on club_interests (user_id);
+create unique index idx_alumni_profiles_usn on alumni_profiles (lower(usn)) where usn is not null;
+create index idx_alumni_profiles_mentor on alumni_profiles (is_mentor_available) where is_mentor_available = true;
+create index idx_mentorship_requests_mentor_status on mentorship_requests (mentor_id, status);
+create index idx_mentorship_requests_student on mentorship_requests (student_id, status);
 ```
 
 ## Connection Pool Defaults

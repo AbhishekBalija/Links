@@ -26,14 +26,16 @@ func main() {
 		log.Fatalf("Proxy configuration failed: %v", err)
 	}
 
-	r.GET("/health", func(c *gin.Context) {
+	api := r.Group("/api")
+
+	api.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
 			"service": "links-api",
 		})
 	})
 
-	r.GET("/health/db", func(c *gin.Context) {
+	api.GET("/health/db", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
 

@@ -1,112 +1,112 @@
 # Deployment
 
-## MVP Deployment Targets
+## Deployment Architecture
 
-| Component | Recommended |
-|---|---|
-| Frontend | Vercel |
-| Backend | Render |
-| Database | Neon PostgreSQL |
-| Object storage | Cloudinary or S3-compatible storage |
-| Email | Resend |
+LINKS is deployed as a single Vercel project using [Vercel Services](https://vercel.com/docs/services). The monorepo contains:
 
-## Current Production Smoke Test
+| Service | Root Directory | Framework | Public Route |
+|---------|----------------|-----------|--------------|
+| Frontend | `client/` | Vite + React | `/` |
+| Backend API | `server/` | Go + Gin | `/api/*` |
 
-The first production deploy should expose only:
+The database remains on **Neon PostgreSQL**. Both frontend and backend share the same Vercel project domain, so the browser calls the API using relative paths (`/api/health`) with no CORS.
 
-```text
-GET /health
-GET /health/db
+## Why Vercel Services?
+
+- One project, one deployment, one domain
+- No CORS between frontend and backend
+- No forced 15-minute sleep like Render free tier
+- Frontend and backend deploy together on every git push
+
+## Root `vercel.json`
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "client/",
+      "framework": "vite"
+    },
+    "api": {
+      "root": "server/",
+      "framework": "go",
+      "buildCommand": "go build -o bin/api ./cmd/api",
+      "outputDirectory": "bin"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}
 ```
 
-Use `/health` to verify the API process is running.
+## Environment Variables
 
-Use `/health/db` to verify the API can connect to the production PostgreSQL database.
+Set these in the Vercel project dashboard. They apply to both services.
 
-## Environments
+| Variable | Environment | Description |
+|----------|-------------|-------------|
+| `DATABASE_URL` | Production | Neon PostgreSQL connection string |
+| `GIN_MODE` | Production | `release` |
 
-- Local
-- Staging
-- Production
+No `VITE_API_URL` or `FRONTEND_URL` is needed because both services share the same domain.
 
-Production should require:
+## Smoke Test
 
-- Passing CI
-- Migration review
-- Environment validation
-- Rollback plan
+After deploying, verify:
 
-## Docker
+```text
+GET https://<project>.vercel.app/
+GET https://<project>.vercel.app/api/health
+GET https://<project>.vercel.app/api/health/db
+```
 
-Backend Dockerfile should:
+## Local Development
 
-- Use multi-stage build
-- Run as non-root user
-- Copy only required files
-- Expose configured port
-- Use env vars
+Run all services together with Vercel CLI:
 
-## Startup Order
+```bash
+vercel dev
+```
 
-```mermaid
-flowchart LR
-    Config[Load Config] --> Logger[Init Logger]
-    Logger --> DB[Connect DB]
-    DB --> Migrate[Run Migrations]
-    Migrate --> Services[Build Services]
-    Services --> Router[Build Router]
-    Router --> Server[Start HTTP Server]
+Or run them separately:
+
+```bash
+# Terminal 1: backend
+cd server
+go run ./cmd/api
+
+# Terminal 2: frontend
+cd client
+bun run dev
 ```
 
 ## Release Process
 
-1. Merge to main after CI passes.
-2. Deploy backend to staging.
-3. Run migrations on staging.
-4. Smoke test `/health` and `/health/db`.
-5. Deploy frontend to staging.
-6. Promote to production.
-7. Run production smoke test.
-
-## Render Backend Deployment
-
-Recommended settings for the current backend:
-
-```text
-Root Directory: server
-Build Command: go build -o bin/api ./cmd/api
-Start Command: ./bin/api
-Health Check Path: /health
-```
-
-Set production environment variables:
-
-```text
-DATABASE_URL=<your Neon/Postgres connection string>
-GIN_MODE=release
-```
-
-Render provides `PORT` automatically. The server reads `PORT`, then `APP_PORT`, then falls back to `8080`.
-
-After deploy, verify:
-
-```text
-https://<your-backend-url>/health
-https://<your-backend-url>/health/db
-```
+1. Open a PR with changes.
+2. Vercel creates a preview deployment.
+3. Smoke test preview URLs.
+4. Merge to `main`.
+5. Vercel deploys to production.
+6. Run production smoke tests.
 
 ## Rollback
 
-Backend rollback:
-
-- Redeploy previous backend image.
+- Redeploy a previous Vercel deployment from the dashboard.
 - Avoid destructive migrations.
-- Use backwards-compatible DB changes where possible.
+- Prefer forward fixes for production database issues.
 
-Database rollback:
+## Docker
 
-- Prefer forward fixes for production.
-- Use down migrations only when safe and tested.
+Not required for Vercel Services. For local parity or future self-hosting, a multi-stage Dockerfile should:
+
+- Use the official Go image
+- Run as a non-root user
+- Copy only required files
+- Expose the configured port
+- Use environment variables
 
 ## Kubernetes
 
@@ -114,6 +114,10 @@ Kubernetes is not needed for MVP.
 
 Consider Kubernetes only when:
 
-- Multiple workers/services exist.
+- Multiple workers/services exist beyond the Vercel project.
 - Traffic requires horizontal scaling.
 - The team can operate Kubernetes safely.
+
+## Previous Deployment Notes
+
+Earlier deployments used a separate Render backend (`links-d1b5.onrender.com`) and a separate Vercel frontend (`links-campus.vercel.app`). This was migrated to Vercel Services to avoid Render's free-tier sleep behavior and to simplify the deployment surface.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "client/",
+      "framework": "vite"
+    },
+    "api": {
+      "root": "server/",
+      "framework": "go",
+      "buildCommand": "go build -o bin/api ./cmd/api",
+      "outputDirectory": "bin"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}

@@ -9,7 +9,39 @@ Always start by reading:
 1. `My_Plan.md`
 2. `docs/product-requirements.md`
 3. `docs/architecture.md`
-4. The specific docs related to the task
+4. `docs/PROGRESS.md` ⚠️ **MANDATORY** - Check current phase and what's in progress before starting
+5. The specific docs related to the task
+
+## ⚠️ CRITICAL: Before Implementing Anything
+
+**You MUST read and follow this workflow:**
+
+1. **Check Phase Status** - Read `docs/PROGRESS.md` to understand:
+   - What phase the project is in
+   - What's already completed ✅
+   - What's currently in progress 🔄
+   - What's blocked ⚠️
+
+2. **Verify You're Not Duplicating Work** - Check if the feature you're about to build is already in progress or completed
+
+3. **Read Relevant Docs** - Use the "Task-to-Doc Map" below to read all context for your specific task
+
+4. **Implementation Phase**:
+   - Build the feature following backend/frontend expectations
+   - Run the "AI Agent Checklist" from `docs/PROGRESS.md` BEFORE marking complete
+   - Verify all checks pass (code standards, tests, error handling, auth, etc.)
+
+5. **Update PROGRESS.md** - Before submitting code:
+   - Move feature from section to "Ready for Dev Verification" in `docs/PROGRESS.md`
+   - List what files were updated
+   - Include implementation notes for the dev to understand what to test
+
+6. **Dev Must Verify** - Only the dev can mark a feature as ✅ complete in `docs/PROGRESS.md`
+   - The dev tests locally
+   - The dev confirms it works as described
+   - The dev adds verification date and sign-off
+
+**If you skip reading `docs/PROGRESS.md` first, you risk duplicating work or missing critical context.**
 
 ## Task-to-Doc Map
 
