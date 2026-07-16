@@ -2,14 +2,17 @@
 
 ## Deployment Architecture
 
-LINKS is deployed as a single Vercel project using [Vercel Services](https://vercel.com/docs/services). The monorepo contains:
+LINKS is deployed as a single Vercel project using
+[Vercel Services](https://vercel.com/docs/services). The monorepo contains:
 
-| Service | Root Directory | Framework | Public Route |
-|---------|----------------|-----------|--------------|
-| Frontend | `client/` | Vite + React | `/` |
-| Backend API | `server/` | Go + Gin | `/api/*` |
+| Service     | Root Directory | Framework    | Public Route |
+| ----------- | -------------- | ------------ | ------------ |
+| Frontend    | `client/`      | Vite + React | `/`          |
+| Backend API | `server/`      | Go + Gin     | `/api/*`     |
 
-The database remains on **Neon PostgreSQL**. Both frontend and backend share the same Vercel project domain, so the browser calls the API using relative paths (`/api/health`) with no CORS.
+The database remains on **Neon PostgreSQL**, with separate development and production branches. Both frontend and backend
+share the same Vercel project domain, so the browser calls the API using
+relative paths (`/api/health`) with no CORS.
 
 ## Why Vercel Services?
 
@@ -46,12 +49,13 @@ The database remains on **Neon PostgreSQL**. Both frontend and backend share the
 
 Set these in the Vercel project dashboard. They apply to both services.
 
-| Variable | Environment | Description |
-|----------|-------------|-------------|
-| `DATABASE_URL` | Production | Neon PostgreSQL connection string |
-| `GIN_MODE` | Production | `release` |
+| Variable       | Environment | Description                       |
+| -------------- | ----------- | --------------------------------- |
+| `DATABASE_URL` | Production  | Neon PostgreSQL connection string |
+| `GIN_MODE`     | Production  | `release`                         |
 
-No `VITE_API_URL` or `FRONTEND_URL` is needed because both services share the same domain.
+No `VITE_API_URL` or `FRONTEND_URL` is needed because both services share the
+same domain.
 
 ## Smoke Test
 
@@ -60,7 +64,7 @@ After deploying, verify:
 ```text
 GET https://<project>.vercel.app/
 GET https://<project>.vercel.app/api/health
-GET https://<project>.vercel.app/api/health/db
+GET https://<project>.vercel.app/api/ready
 ```
 
 ## Local Development
@@ -85,7 +89,8 @@ bun run dev
 
 ## Release Process
 
-> `master` is protected by a GitHub ruleset that blocks direct pushes. All changes must go through a pull request.
+> `master` is protected by a GitHub ruleset that blocks direct pushes. All
+> changes must go through a pull request.
 
 1. Create a feature/fix/chore branch off `master`.
 2. Open a PR into `master`.
@@ -104,7 +109,8 @@ bun run dev
 
 ## Docker
 
-Not required for Vercel Services. For local parity or future self-hosting, a multi-stage Dockerfile should:
+Not required for Vercel Services. For local parity or future self-hosting, a
+multi-stage Dockerfile should:
 
 - Use the official Go image
 - Run as a non-root user
@@ -124,4 +130,7 @@ Consider Kubernetes only when:
 
 ## Previous Deployment Notes
 
-Earlier deployments used a separate Render backend (`links-d1b5.onrender.com`) and a separate Vercel frontend (`links-campus.vercel.app`). This was migrated to Vercel Services to avoid Render's free-tier sleep behavior and to simplify the deployment surface.
+Earlier deployments used a separate Render backend (`links-d1b5.onrender.com`)
+and a separate Vercel frontend (`links-campus.vercel.app`). This was migrated to
+Vercel Services to avoid Render's free-tier sleep behavior and to simplify the
+deployment surface.

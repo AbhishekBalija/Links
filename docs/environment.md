@@ -6,11 +6,11 @@ For the current health-check-only backend, production needs:
 
 ```text
 DATABASE_URL
-PORT
+APP_ENV=production
 GIN_MODE=release
 ```
 
-Most hosts, including Render, provide `PORT` automatically.
+`PORT` is optional: the host may provide it. `APP_PORT` is the local fallback.
 
 The full product will later need:
 
@@ -53,7 +53,7 @@ EXPORT_ROW_LIMIT
 - No secrets in Git.
 - Validate config on startup.
 - Fail fast when required config is missing.
-- Use `.env.local` only for local development.
+- Use `server/.env.local` only for local development.
 - Use different secrets per environment.
 - Never log secret values.
 - Rotate JWT and cookie secrets using a planned process.

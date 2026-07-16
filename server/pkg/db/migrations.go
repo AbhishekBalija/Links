@@ -1,51 +1,82 @@
 package db
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
 
-// RunMigrations executes all migration files in order
-func RunMigrations(db *gorm.DB, migrationsPath string) error {
-	// Get all .up.sql files
-	files, err := os.ReadDir(migrationsPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Printf("Migration directory not found, skipping migrations: %s", migrationsPath)
-			return nil
-		}
-		return fmt.Errorf("failed to read migrations directory: %w", err)
+const migrationTable = "schema_migrations"
+
+// RunMigrations records every successful migration so startup never reapplies it.
+func RunMigrations(ctx context.Context, database *gorm.DB, migrationsPath string) error {
+	if err := database.WithContext(ctx).Exec(`
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version text PRIMARY KEY,
+			applied_at timestamptz NOT NULL
+		)
+	`).Error; err != nil {
+		return fmt.Errorf("create migration table: %w", err)
 	}
 
-	var migrations []string
+	migrations, err := migrationFiles(migrationsPath)
+	if err != nil {
+		return err
+	}
+
+	for _, migration := range migrations {
+		if err := applyMigration(ctx, database, migrationsPath, migration); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func migrationFiles(migrationsPath string) ([]string, error) {
+	files, err := os.ReadDir(migrationsPath)
+	if err != nil {
+		return nil, fmt.Errorf("read migrations directory: %w", err)
+	}
+
+	migrations := []string{}
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".up.sql") {
 			migrations = append(migrations, file.Name())
 		}
 	}
-
-	// Sort to ensure they run in order
 	sort.Strings(migrations)
+	return migrations, nil
+}
 
-	for _, migration := range migrations {
-		fullPath := filepath.Join(migrationsPath, migration)
-		content, err := os.ReadFile(fullPath)
-		if err != nil {
-			return fmt.Errorf("failed to read migration %s: %w", migration, err)
-		}
-
-		if err := db.Exec(string(content)).Error; err != nil {
-			return fmt.Errorf("failed to execute migration %s: %w", migration, err)
-		}
-
-		log.Printf("Migration applied: %s", migration)
+func applyMigration(ctx context.Context, database *gorm.DB, migrationsPath, migration string) error {
+	content, err := os.ReadFile(filepath.Join(migrationsPath, migration))
+	if err != nil {
+		return fmt.Errorf("read migration %q: %w", migration, err)
 	}
 
-	return nil
+	return database.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table(migrationTable).Where("version = ?", migration).Count(&count).Error; err != nil {
+			return fmt.Errorf("check migration %q: %w", migration, err)
+		}
+		if count > 0 {
+			return nil
+		}
+		if err := tx.Exec(string(content)).Error; err != nil {
+			return fmt.Errorf("execute migration %q: %w", migration, err)
+		}
+		if err := tx.Table(migrationTable).Create(map[string]any{
+			"version":    migration,
+			"applied_at": time.Now().UTC(),
+		}).Error; err != nil {
+			return fmt.Errorf("record migration %q: %w", migration, err)
+		}
+		return nil
+	})
 }

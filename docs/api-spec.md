@@ -9,6 +9,8 @@
 - Enforce authorization in services/policies.
 - Do not expose database models directly.
 
+Health endpoints are an unauthenticated infrastructure exception and remain under `/api` rather than `/api/v1`.
+
 ## Response Envelope
 
 Success:
@@ -49,11 +51,11 @@ Error:
 These endpoints are intentionally unauthenticated so hosting platforms and uptime monitors can call them.
 
 ```text
-GET /health
-GET /health/db
+GET /api/health
+GET /api/ready
 ```
 
-Expected `/health` response:
+Expected `/api/health` response:
 
 ```json
 {
@@ -62,7 +64,7 @@ Expected `/health` response:
 }
 ```
 
-Expected `/health/db` success response:
+Expected `/api/ready` success response:
 
 ```json
 {
@@ -71,12 +73,14 @@ Expected `/health/db` success response:
 }
 ```
 
-Expected `/health/db` failure response:
+Expected `/api/ready` failure response:
 
 ```json
 {
-  "error": "database unavailable",
-  "status": "error"
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "database unavailable"
+  }
 }
 ```
 
@@ -112,6 +116,17 @@ PATCH /api/v1/me/profile
 GET   /api/v1/profiles/:username
 GET   /api/v1/users
 GET   /api/v1/users/:id
+```
+
+`username` is a unique, immutable profile handle. It is distinct from the user's UUID.
+
+## Dashboards, Search, and Reports
+
+```text
+GET /api/v1/dashboard
+GET /api/v1/search?q=...
+GET /api/v1/reports/placement
+GET /api/v1/reports/events
 ```
 
 ## Admin Users
@@ -162,6 +177,7 @@ POST  /api/v1/opportunities/:id/apply
 GET   /api/v1/opportunities/:id/applications
 PATCH /api/v1/opportunity-applications/:id/status
 POST  /api/v1/opportunities/:id/save
+DELETE /api/v1/opportunities/:id/save
 GET   /api/v1/opportunities/:id/export
 ```
 

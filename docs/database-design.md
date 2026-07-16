@@ -88,6 +88,7 @@ USN should be normalized to uppercase before storage.
 ```sql
 profiles (
   user_id uuid primary key references users(id),
+  username text unique not null,
   full_name text not null,
   headline text,
   bio text,
@@ -102,6 +103,8 @@ profiles (
   updated_at timestamptz not null
 )
 ```
+
+`username` is an immutable, lowercase public handle used by `GET /api/v1/profiles/:username`.
 
 ### departments
 
@@ -319,6 +322,43 @@ notification_outbox (
 )
 ```
 
+### notification_preferences
+
+```sql
+notification_preferences (
+  user_id uuid primary key references users(id),
+  email_enabled boolean not null default true,
+  push_enabled boolean not null default false,
+  placement_alerts boolean not null default true,
+  event_alerts boolean not null default true,
+  announcement_alerts boolean not null default true,
+  digest_enabled boolean not null default false,
+  updated_at timestamptz not null
+)
+```
+
+### saved_opportunities
+
+```sql
+saved_opportunities (
+  user_id uuid not null references users(id),
+  opportunity_id uuid not null references opportunities(id),
+  created_at timestamptz not null,
+  primary key (user_id, opportunity_id)
+)
+```
+
+### saved_events
+
+```sql
+saved_events (
+  user_id uuid not null references users(id),
+  event_id uuid not null references events(id),
+  created_at timestamptz not null,
+  primary key (user_id, event_id)
+)
+```
+
 ### push_subscriptions
 
 ```sql
@@ -444,6 +484,7 @@ create index idx_opportunity_applications_student on opportunity_applications (s
 create index idx_audit_logs_resource on audit_logs (resource_type, resource_id, created_at desc);
 create index idx_notifications_user_created on notifications (user_id, created_at desc);
 create index idx_notifications_user_unread on notifications (user_id, read_at) where read_at is null;
+create unique index idx_profiles_username on profiles (lower(username));
 create index idx_notification_outbox_status_next on notification_outbox (status, next_attempt_at);
 create unique index idx_clubs_slug on clubs (lower(slug));
 create index idx_clubs_department on clubs (department_id);

@@ -3,45 +3,70 @@ package db
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
-// InitDB connects to PostgreSQL and runs migrations
-func InitDB(dsn string) error {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Run migrations from migration files
-	if err := RunMigrations(db, "migrations"); err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	DB = db
-	log.Println("Database connected and migrations applied")
-	return nil
+// Database owns the application's database connection pool.
+type Database struct {
+	gormDB *gorm.DB
 }
 
-// Ping verifies that the database connection is alive.
-func Ping(ctx context.Context) error {
-	if DB == nil {
-		return fmt.Errorf("database is not initialized")
+// New opens and configures a PostgreSQL connection.
+func New(cfg config.Config) (*Database, error) {
+	gormDB, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	sqlDB, err := DB.DB()
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		return nil, fmt.Errorf("get database handle: %w", err)
+	}
+	sqlDB.SetMaxOpenConns(cfg.DatabasePool.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.DatabasePool.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(cfg.DatabasePool.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(cfg.DatabasePool.ConnMaxIdleTime)
+
+	return &Database{gormDB: gormDB}, nil
+}
+
+// Migrate applies each unapplied SQL migration exactly once.
+func (d *Database) Migrate(ctx context.Context, migrationsPath string) error {
+	if d == nil || d.gormDB == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	return RunMigrations(ctx, d.gormDB, migrationsPath)
+}
+
+// Ping verifies that PostgreSQL is available.
+func (d *Database) Ping(ctx context.Context) error {
+	if d == nil || d.gormDB == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	sqlDB, err := d.gormDB.DB()
 	if err != nil {
 		return fmt.Errorf("get database handle: %w", err)
 	}
-
 	if err := sqlDB.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping database: %w", err)
 	}
+	return nil
+}
 
+// Close closes the database pool during graceful shutdown.
+func (d *Database) Close() error {
+	if d == nil || d.gormDB == nil {
+		return nil
+	}
+	sqlDB, err := d.gormDB.DB()
+	if err != nil {
+		return fmt.Errorf("get database handle: %w", err)
+	}
+	if err := sqlDB.Close(); err != nil {
+		return fmt.Errorf("close database: %w", err)
+	}
 	return nil
 }

@@ -37,10 +37,10 @@ type ApiError = {
 
 Frontend should:
 
-- Call `POST /auth/login`.
+- Call `POST /api/v1/auth/login`.
 - Store access token only short-term.
 - Rely on secure refresh cookie if implemented.
-- Call `POST /auth/refresh` on access-token expiry.
+- Call `POST /api/v1/auth/refresh` on access-token expiry.
 - Clear local auth state on logout.
 
 ## Current User
