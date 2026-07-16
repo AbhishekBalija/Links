@@ -1,5 +1,30 @@
 # Agent Instructions for LINKS
 
+## Git Workflow (Standing Rule)
+
+All changes must go through a pull request. Direct pushes to `master` are blocked by a GitHub ruleset.
+
+### Branch Naming
+
+| Type | Prefix | Example |
+|------|--------|---------|
+| Feature | `feat/` | `feat/auth-system` |
+| Bug fix | `fix/` | `fix/login-redirect` |
+| Docs/tooling/config | `chore/` | `chore/ci-setup` |
+
+### Process
+
+1. Create a dedicated branch off `master` before writing any code.
+2. Make atomic, logically scoped commits with clear messages (what + why).
+3. Push the branch and open a PR into `master`.
+4. Let CodeRabbit's automated review run — do not merge until its comments are addressed or explicitly dismissed.
+5. If a task is ambiguous about whether it's "one feature," default to smaller/more branches over one giant one.
+
+### Commit Messages
+
+- Use imperative mood: "Add auth middleware" not "Added auth middleware".
+- Include the *why* in the body when the reason isn't obvious from the subject.
+
 Before making code, architecture, product, database, API, frontend, deployment, or security changes, read the project context first.
 
 ## Required Context
