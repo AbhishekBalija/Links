@@ -85,12 +85,16 @@ bun run dev
 
 ## Release Process
 
-1. Open a PR with changes.
-2. Vercel creates a preview deployment.
-3. Smoke test preview URLs.
-4. Merge to `main`.
-5. Vercel deploys to production.
-6. Run production smoke tests.
+> `master` is protected by a GitHub ruleset that blocks direct pushes. All changes must go through a pull request.
+
+1. Create a feature/fix/chore branch off `master`.
+2. Open a PR into `master`.
+3. Vercel creates a preview deployment.
+4. CodeRabbit runs automated review — address comments before merging.
+5. Smoke test preview URLs.
+6. Merge to `master`.
+7. Vercel deploys to production.
+8. Run production smoke tests.
 
 ## Rollback
 

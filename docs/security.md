@@ -144,3 +144,12 @@ Security test cases:
 - Suspended user cannot access APIs.
 - Private profile fields are hidden.
 
+## Public Repository Considerations
+
+The LINKS repository is public as of 2026-07-16. This affects the threat model in the following ways:
+
+- **Code visibility**: All source code, including security controls, is visible to potential attackers. Security must rely on proper implementation, not obscurity.
+- **Secrets hygiene**: Extra vigilance is required to ensure no secrets, API keys, or credentials are ever committed. Pre-commit hooks and CI secret scanning are recommended.
+- **Automated review**: CodeRabbit runs on every PR as an additional review layer, catching common security issues (injection patterns, hardcoded secrets, unsafe patterns) before merge.
+- **Branch protection**: The `master` branch is protected — all changes require a PR, preventing bypass of review controls.
+

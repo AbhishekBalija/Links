@@ -73,6 +73,12 @@ COOKIE_SECURE=false
 COOKIE_SAME_SITE=lax
 ```
 
+## Contributor Tooling
+
+### CodeRabbit
+
+CodeRabbit is configured as an automated PR reviewer on this repository. It runs automatically on every pull request — no local setup or API key is required from contributors. If CodeRabbit flags issues on your PR, address them before requesting a merge.
+
 ## Config Loading
 
 Use explicit config loading:
