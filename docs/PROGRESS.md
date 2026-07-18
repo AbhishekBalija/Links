@@ -59,6 +59,14 @@
 
 ---
 
+## 📋 Tracked Follow-ups (Non-Blocking)
+
+| Item | Description | Reference | Priority | Target Phase |
+|------|-------------|-----------|----------|--------------|
+| Refresh token hashing: bcrypt → SHA-256 | Refresh tokens currently use bcrypt (auth.md). Same DoS concern as activation tokens. Migrate to SHA-256 for fast, deterministic hashing of high-entropy tokens. | ADR-012 open follow-up | Low | Post-Phase 1 |
+
+---
+
 ## 🤖 AI Agent Checklist: What to Verify After Implementation
 
 **Before marking any feature as complete, the AI Agent MUST:**
