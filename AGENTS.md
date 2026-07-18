@@ -76,9 +76,9 @@ Use this map before working:
 |---|---|
 | Product planning | `My_Plan.md`, `docs/product-requirements.md`, `docs/roadmap.md`, `docs/decision-log.md` |
 | Backend architecture | `docs/architecture.md`, `docs/backend-standards.md`, `docs/decision-log.md` |
-| Database/schema/migrations | `docs/database-design.md`, `docs/backend-standards.md`, `docs/security.md` |
+| Database/schema/migrations | `docs/database-design.md`, `docs/backend-standards.md`, `docs/security.md`, `docs/college-info.md` |
 | API changes | `docs/api-spec.md`, `docs/auth.md`, `docs/frontend-contract.md` |
-| Authentication/RBAC | `docs/auth.md`, `docs/security.md`, `docs/database-design.md` |
+| Authentication/RBAC | `docs/auth.md`, `docs/security.md`, `docs/database-design.md`, `docs/college-info.md` |
 | Frontend work | `docs/frontend-ux-ui.md`, `docs/frontend-contract.md`, `docs/product-requirements.md`, `docs/api-spec.md` |
 | Notifications | `docs/notifications.md`, `docs/product-requirements.md`, `docs/frontend-ux-ui.md`, `docs/backend-standards.md` |
 | Deployment/config | `docs/deployment.md`, `docs/environment.md`, `docs/monitoring.md` |
