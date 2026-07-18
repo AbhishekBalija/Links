@@ -15,6 +15,14 @@ func LoadEnv() error {
 	return nil
 }
 
+// GetEnv returns the value of an environment variable or a fallback default.
+func GetEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
 // GetPort returns the HTTP port used by the API.
 func GetPort() string {
 	if port := os.Getenv("PORT"); port != "" {

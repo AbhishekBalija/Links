@@ -8,6 +8,8 @@ import (
 
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
+	"github.com/getsentry/sentry-go"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,12 +18,23 @@ func main() {
 		log.Fatalf("Environment initialization failed: %v", err)
 	}
 
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              config.GetEnv("SENTRY_DSN", ""),
+		Environment:      config.GetEnv("APP_ENV", "development"),
+		EnableTracing:    true,
+		TracesSampleRate: 1.0, // drop to 0.1–0.2 once traffic grows
+	}); err != nil {
+		log.Printf("sentry.Init failed: %v", err)
+	}
+	defer sentry.Flush(2 * time.Second)
+
 	dsn := config.GetDatabaseDSN()
 	if err := db.InitDB(dsn); err != nil {
 		log.Fatalf("Database initialization failed: %v", err)
 	}
 
 	r := gin.Default()
+	r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 	if err := r.SetTrustedProxies(nil); err != nil {
 		log.Fatalf("Proxy configuration failed: %v", err)
 	}
