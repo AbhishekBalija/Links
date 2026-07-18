@@ -57,13 +57,13 @@ Track:
 Endpoints:
 
 ```text
-GET /health
-GET /ready
+GET /api/health
+GET /api/ready
 ```
 
-`/health` checks process liveness.
+`/api/health` checks process liveness.
 
-`/ready` checks database connectivity and required dependencies.
+`/api/ready` checks database connectivity only, unless the handler is explicitly extended to check additional required dependencies.
 
 ## Alerts
 

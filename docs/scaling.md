@@ -9,7 +9,7 @@ Start simple:
 - Object storage
 - Email provider
 - No Redis unless needed
-- No worker unless needed
+- No worker until asynchronous delivery, export generation, or measured latency requires one
 
 ## Performance Rules
 

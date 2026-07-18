@@ -454,13 +454,13 @@ Alert on:
 - Notification center UI
 - Unread count
 - Mark read/read all
-- Notification creation from placement/event/announcement actions
+- Notification creation alongside placement, event, and announcement actions. This begins when those modules ship, rather than as a standalone early feature.
 
 ### Phase 2: Email Notifications
 
 - Email provider integration
 - Outbox table
-- Worker process
+- Worker process. Per ADR-007, introduce it only when email delivery begins.
 - Email templates
 - Retry logic
 
@@ -479,4 +479,3 @@ Alert on:
 - Digest mode
 - Notification analytics
 - Smarter throttling
-

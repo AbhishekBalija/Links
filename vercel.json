@@ -7,7 +7,9 @@
     },
     "api": {
       "root": "server/",
-      "framework": "go"
+      "framework": "go",
+      "buildCommand": "go build -o bin/api ./cmd/api",
+      "outputDirectory": "bin"
     }
   },
   "rewrites": [

@@ -2,71 +2,99 @@ package main
 
 import (
 	"context"
-	"log"
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/AbhishekBalija/Links/server/internal/app"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	if err := config.LoadEnv(); err != nil {
-		log.Fatalf("Environment initialization failed: %v", err)
+	logger := newLogger()
+	if err := run(logger); err != nil {
+		logger.Error("API stopped", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run(logger *slog.Logger) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              config.GetEnv("SENTRY_DSN", ""),
 		Environment:      config.GetEnv("APP_ENV", "development"),
 		EnableTracing:    true,
-		TracesSampleRate: 1.0, // drop to 0.1–0.2 once traffic grows
+		TracesSampleRate: 1.0,
 	}); err != nil {
-		log.Printf("sentry.Init failed: %v", err)
+		logger.Warn("sentry.Init failed", "error", err)
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	dsn := config.GetDatabaseDSN()
-	if err := db.InitDB(dsn); err != nil {
-		log.Fatalf("Database initialization failed: %v", err)
+	database, err := db.New(cfg)
+	if err != nil {
+		return fmt.Errorf("connect database: %w", err)
+	}
+	defer database.Close()
+
+	startupContext, cancelStartup := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelStartup()
+	if err := database.Migrate(startupContext, "migrations"); err != nil {
+		return fmt.Errorf("run migrations: %w", err)
 	}
 
-	r := gin.Default()
-	r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
-	if err := r.SetTrustedProxies(nil); err != nil {
-		log.Fatalf("Proxy configuration failed: %v", err)
+	handler, err := app.NewServer(cfg, database, logger)
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
 	}
 
-	api := r.Group("/api")
+	handler.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 
-	api.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"service": "links-api",
-		})
-	})
+	server := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
 
-	api.GET("/health/db", func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-		defer cancel()
+	shutdownContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-		if err := db.Ping(ctx); err != nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status": "error",
-				"error":  "database unavailable",
-			})
-			return
+	serverErrors := make(chan error, 1)
+	go func() {
+		logger.Info("API started", "port", cfg.Port, "environment", cfg.AppEnv)
+		serverErrors <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErrors:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
 		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"status":   "ok",
-			"database": "connected",
-		})
-	})
-
-	if err := r.Run(":" + config.GetPort()); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		return fmt.Errorf("serve HTTP: %w", err)
+	case <-shutdownContext.Done():
+		shutdown, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdown); err != nil {
+			return fmt.Errorf("shutdown HTTP server: %w", err)
+		}
+		return nil
 	}
+}
+
+func newLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(os.Stdout, nil))
 }

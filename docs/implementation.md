@@ -58,9 +58,9 @@ Do this first, in this order, before Phase 0 starts:
 
 1. GitHub repository — mono-repo with `client/` and `server/` at the root, matching `architecture.md`'s recommended structure.
 2. Neon PostgreSQL project — get the connection string for at least a dev/staging database.
-3. Render account — for backend hosting later in Phase 0.
-4. Vercel account — for frontend hosting later in Phase 0.
-5. Generate JWT signing secrets and decide where they'll live per environment (local `.env.local`, Render env vars) — per `environment.md` rules: no secrets in git, different secrets per environment.
+3. Vercel account — for the frontend and backend Services deployment described in `deployment.md`.
+4. Generate JWT signing secrets and decide where they'll live per environment (local `.env.local`, Vercel environment variables) — per `environment.md` rules: no secrets in git, different secrets per environment.
+5. Decide whether the beta status of Vercel Services is acceptable before the first production deployment. If not, record a replacement hosting decision in `decision-log.md`.
 6. Resend account and Cloudinary/S3 account — these aren't needed until Phase 5 (email/push) and whenever media upload is built, so they can be deferred, but create the accounts early so you're not blocked mid-phase.
 
 None of this can be delegated — the agent has no way to create accounts or hold credentials.
@@ -98,17 +98,17 @@ Why this exact order: Phase 1 (auth + RBAC) gates literally everything else, sin
 | 4.4  | DB connection with pool settings from `database-design.md` defaults                                                                                                                | Agent                                                    |
 | 4.5  | Pick and wire a SQL migration tool (e.g. a migrate-style CLI) — this is a small technical decision not pinned in the docs                                                          | Agent proposes, you approve, log it in `decision-log.md` |
 | 4.6  | Standard success/error response envelope per `api-spec.md`                                                                                                                         | Agent                                                    |
-| 4.7  | `GET /health` and `GET /health/db` per `api-spec.md` and `deployment.md` smoke test                                                                                                | Agent                                                    |
+| 4.7  | `GET /api/health` and `GET /api/ready` per `api-spec.md` and `deployment.md` smoke test                                                                                            | Agent                                                    |
 | 4.8  | Minimal CI (build, vet, test on PR)                                                                                                                                                | Agent                                                    |
-| 4.9  | First production deploy: configure Render per `deployment.md` settings table, set `DATABASE_URL`/`GIN_MODE`/`PORT`                                                                 | **You**                                                  |
-| 4.10 | Verify `/health` and `/health/db` succeed against the real production database                                                                                                     | **You**                                                  |
-| 4.11 | Frontend scaffold: Vite + TS + Tailwind + shadcn/ui base, empty app-shell layout per `frontend-ux-ui.md` folder direction — no real screens                                        | Agent                                                    |
-| 4.12 | Deploy frontend to Vercel, verify the blank shell loads                                                                                                                            | **You**                                                  |
+| 4.9  | First preview deployment: configure Vercel Services per `deployment.md`, set `DATABASE_URL`, `APP_ENV`, and `GIN_MODE`                                                            | **You**                                                  |
+| 4.10 | Verify `/api/health` and `/api/ready` against the preview database                                                                                                                | **You**                                                  |
+| 4.11 | Frontend scaffold: Vite + TypeScript base and an empty app-shell layout per `frontend-ux-ui.md`; add Tailwind/shadcn only when the first product screen needs them              | Agent                                                    |
+| 4.12 | Verify the frontend and API share the same Vercel preview domain                                                                                                                   | **You**                                                  |
 
 **Definition of Done for Phase 0:**
 
 - Migrations run cleanly against a fresh database.
-- `/health` and `/health/db` return 200 in production.
+- `/api/health` and `/api/ready` return 200 in production.
 - CI is green on the repo.
 - No secret values exist anywhere in git history.
 - A request produces a structured log line with `request_id`.
@@ -218,11 +218,11 @@ This is the highest-risk phase. Every other module depends on its data model and
 
 **Docs to load:** `notifications.md` (full document), `database-design.md`, `security.md`, `scaling.md`.
 
-**Doc gap to close first:** the provided `database-design.md` doesn't include table definitions for `clubs`, `club_interests`, `alumni_profiles`, or `mentorship_requests` (it only references `club_id` from other tables). This needs to be designed before 9.2 can start.
+The required club, alumni, and mentorship tables are already defined in `database-design.md`. Review them against current college policy before building Phase 5.
 
 | Step | What                                                                                                                                                            | Who                                                                                                                                                                                           |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9.1  | Draft the missing club/alumni/mentorship schema, consistent with the rest of `database-design.md`'s conventions (UUID keys, `timestamptz`, explicit migrations) | Agent drafts; **you approve**, then it gets added to `database-design.md` and logged in `decision-log.md` per `AGENTS.md`'s documentation rule                                                |
+| 9.1  | Review existing club/alumni/mentorship tables in `database-design.md` against current college policy; add only approved gaps, preserving existing schema references and conventions (UUID keys, `timestamptz`, explicit migrations) | Agent drafts gaps if any; **you approve**, then updates go to `database-design.md` and `decision-log.md` per `AGENTS.md`'s documentation rule                                                |
 | 9.2  | Club pages + join-interest form                                                                                                                                 | Agent                                                                                                                                                                                         |
 | 9.3  | Alumni profile + USN-based verification (reusing Phase 1's logic)                                                                                               | Agent                                                                                                                                                                                         |
 | 9.4  | Mentorship request flow                                                                                                                                         | Agent                                                                                                                                                                                         |
