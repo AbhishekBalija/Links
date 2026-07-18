@@ -68,21 +68,15 @@ func LoadEnv() error {
 
 // GetEnv returns the value of an environment variable or a fallback default.
 func GetEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
+	return valueOrDefault(key, fallback)
 }
 
 // GetPort returns the HTTP port used by the API.
 func GetPort() string {
-	if port := os.Getenv("PORT"); port != "" {
+	if port := firstSet("PORT", "APP_PORT"); port != "" {
 		return port
 	}
-	if port := os.Getenv("APP_PORT"); port != "" {
-		return port
-	}
-	return "8080"
+	return defaultPort
 }
 
 // GetDatabaseDSN returns the PostgreSQL connection string.
