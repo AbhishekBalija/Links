@@ -61,6 +61,35 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// LoadEnv loads local development environment variables when the file exists.
+func LoadEnv() error {
+	return loadLocalEnv()
+}
+
+// GetEnv returns the value of an environment variable or a fallback default.
+func GetEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+// GetPort returns the HTTP port used by the API.
+func GetPort() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return port
+	}
+	if port := os.Getenv("APP_PORT"); port != "" {
+		return port
+	}
+	return "8080"
+}
+
+// GetDatabaseDSN returns the PostgreSQL connection string.
+func GetDatabaseDSN() string {
+	return databaseURL()
+}
+
 // Validate checks values that would otherwise cause unsafe or confusing runtime behavior.
 func (c Config) Validate() error {
 	if c.DatabaseURL == "" {

@@ -14,6 +14,8 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/app"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
+	"github.com/getsentry/sentry-go"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 )
 
 func main() {
@@ -29,6 +31,16 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
+
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              config.GetEnv("SENTRY_DSN", ""),
+		Environment:      config.GetEnv("APP_ENV", "development"),
+		EnableTracing:    true,
+		TracesSampleRate: 1.0,
+	}); err != nil {
+		logger.Warn("sentry.Init failed", "error", err)
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	database, err := db.New(cfg)
 	if err != nil {
@@ -46,6 +58,8 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
 	}
+
+	handler.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
