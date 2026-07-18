@@ -139,11 +139,15 @@ func valueOrDefault(key, fallback string) string {
 }
 
 func intValue(key string, fallback int) int {
-	value, err := strconv.Atoi(os.Getenv(key))
-	if err != nil || value == 0 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
 		return fallback
 	}
-	return value
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }
 
 func int64Value(key string, fallback int64) int64 {

@@ -50,12 +50,19 @@ Error:
 
 These endpoints are intentionally unauthenticated so hosting platforms and uptime monitors can call them.
 
+`/api/health` and `/api/ready` return raw JSON as exceptions to the global `{data, meta}` success envelope.
+
 ```text
 GET /api/health
 GET /api/ready
 ```
 
-Expected `/api/health` response:
+| Endpoint     | Success | Failure              |
+| ------------ | ------- | -------------------- |
+| `/api/health` | `200`  | n/a                  |
+| `/api/ready`  | `200`  | `503 Service Unavailable` |
+
+Expected `/api/health` response (`200`):
 
 ```json
 {
@@ -64,7 +71,7 @@ Expected `/api/health` response:
 }
 ```
 
-Expected `/api/ready` success response:
+Expected `/api/ready` success response (`200`):
 
 ```json
 {
@@ -73,7 +80,7 @@ Expected `/api/ready` success response:
 }
 ```
 
-Expected `/api/ready` failure response:
+Expected `/api/ready` failure response (`503`):
 
 ```json
 {

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"sort"
@@ -61,6 +62,10 @@ func applyMigration(ctx context.Context, database *gorm.DB, migrationsPath, migr
 	}
 
 	return database.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", migrationLockKey(migration)).Error; err != nil {
+			return fmt.Errorf("acquire migration lock for %q: %w", migration, err)
+		}
+
 		var count int64
 		if err := tx.Table(migrationTable).Where("version = ?", migration).Count(&count).Error; err != nil {
 			return fmt.Errorf("check migration %q: %w", migration, err)
@@ -79,4 +84,10 @@ func applyMigration(ctx context.Context, database *gorm.DB, migrationsPath, migr
 		}
 		return nil
 	})
+}
+
+func migrationLockKey(migration string) int64 {
+	hash := fnv.New64a()
+	_, _ = hash.Write([]byte(migration))
+	return int64(hash.Sum64())
 }

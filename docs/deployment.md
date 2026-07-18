@@ -49,10 +49,11 @@ relative paths (`/api/health`) with no CORS.
 
 Set these in the Vercel project dashboard. They apply to both services.
 
-| Variable       | Environment | Description                       |
-| -------------- | ----------- | --------------------------------- |
-| `DATABASE_URL` | Production  | Neon PostgreSQL connection string |
-| `GIN_MODE`     | Production  | `release`                         |
+| Variable       | Environment          | Description                       |
+| -------------- | -------------------- | --------------------------------- |
+| `APP_ENV`      | Preview, Production  | Runtime environment name          |
+| `DATABASE_URL` | Preview, Production  | Neon PostgreSQL connection string |
+| `GIN_MODE`     | Preview, Production  | `release`                         |
 
 No `VITE_API_URL` or `FRONTEND_URL` is needed because both services share the
 same domain.

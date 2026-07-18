@@ -63,7 +63,7 @@ GET /api/ready
 
 `/api/health` checks process liveness.
 
-`/api/ready` checks database connectivity and required dependencies.
+`/api/ready` checks database connectivity only, unless the handler is explicitly extended to check additional required dependencies.
 
 ## Alerts
 

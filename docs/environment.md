@@ -60,7 +60,7 @@ EXPORT_ROW_LIMIT
 
 ## Local Development
 
-Use local `.env.local` for developer machines.
+Use `server/.env.local` for developer machines.
 
 Example:
 
