@@ -84,7 +84,7 @@ account_activation_tokens (
 create index idx_activation_tokens_user on account_activation_tokens (user_id, expires_at);
 ```
 
-Tokens are stored hashed (same pattern as refresh tokens per `auth.md`). The raw token is emailed via a magic link; on activation the server hashes the presented token, compares to `token_hash`, marks `used_at`, hashes the user's chosen password, and flips `users.status` from `pending` to `active`.
+`token_hash` = `SHA-256(token)` (fast hash, not bcrypt/argon2). The token is a 32-byte `crypto/rand` value, `base64.RawURLEncoding`. On activation: server computes `SHA-256(presented_token)`, compares to `token_hash`, marks `used_at`, hashes user's chosen password with Argon2id/bcrypt, flips `users.status` from `pending` to `active`. Resend rate-limit uses this table: query by `user_id` order by `created_at desc`, reject if last token < 5 min old. No separate rate-limit table or Redis needed.
 
 ### student_identities
 

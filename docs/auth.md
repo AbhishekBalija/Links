@@ -51,22 +51,16 @@ Recommended:
 
 - Single-use, emailed via magic link to the user's Gmail
 - Lifetime: 7 days
-- Stored as `token_hash` (bcrypt/argon2) in `account_activation_tokens` table
-- On activation: verify hash, mark `used_at`, hash user's chosen password, flip `users.status` from `pending` to `active`
-- Same hashing pattern as refresh tokens
-- Resend endpoint rate-limited (max 1 request per 5 minutes per email)
+- Token format: 32 bytes `crypto/rand`, `base64.RawURLEncoding` (NOT a JWT, not UUIDv4)
+- Stored as `token_hash` = `SHA-256(token)` in `account_activation_tokens` table
+- On activation: verify SHA-256 hash, mark `used_at`, hash user's chosen password (Argon2id/bcrypt), flip `users.status` from `pending` to `active`
+- Resend endpoint rate-limited: query `account_activation_tokens` by `user_id` ordered by `created_at desc`, reject if last token < 5 minutes old. No new table/Redis needed.
 
-### Activation Token Details
+**Important — Hashing choice for tokens vs passwords:**
 
-- **Purpose:** First-time account setup for both entry paths (admin CSV import + student self-service access request)
-- **Entry paths converge here:** 
-  - Path A: Admin/HOD bulk CSV import for users on college Gmail/USN list
-  - Path B: Student self-service access request reviewed by HOD/Admin per ADR-004
-- Both paths create `users` row with `status = 'pending'`, then issue activation token
-- Token format: opaque random string (e.g., 32 bytes base64url), NOT a JWT
-- Hashing: bcrypt cost 12 (matching refresh token approach)
-- Index: `idx_activation_tokens_user (user_id, expires_at)` for cleanup queries
-- Expiry cleanup: Periodic job or opportunistic on resend attempt
+- **Passwords:** Argon2id (preferred) or bcrypt — slow, memory-hard, salted.
+- **Account activation tokens & Refresh tokens:** SHA-256 — fast, deterministic. Tokens are high-entropy random strings (32 bytes), so a fast hash is sufficient and avoids DoS risk on verification endpoints.
+- **Current note:** `auth.md` previously said refresh tokens use bcrypt. This is flagged for migration to SHA-256 in a follow-up PR (see ADR-012 open follow-up).
 
 JWT rules:
 
