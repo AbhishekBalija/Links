@@ -129,3 +129,29 @@ Trade-off:
 
 - Complex reports and targeting queries need deliberate SQL or carefully reviewed GORM queries.
 - The project may adopt `sqlc` later if query complexity makes generated typed SQL more valuable.
+
+## ADR-012: Account Activation via Signed Token
+
+**Date:** 2026-07-18
+
+**Decision:** Account activation uses a signed, single-use token emailed to the user's Gmail, valid 7 days, used to set a password and move status from `pending` to `active`.
+
+**Context:** Two entry paths converge on the same activation step:
+
+1. **Admin/HOD bulk CSV import** — for users already on the college's Gmail/USN list. The import creates `pending` users and queues activation emails.
+2. **Student self-service access request** — for everyone else. The request is reviewed by HOD/Admin per ADR-004, then an activation email is queued.
+
+Both paths use the identical token flow: generate a cryptographically random token, hash it for storage, email the raw token via a magic link, user submits token + password, server verifies hash, marks token used, hashes password, flips status to `active`.
+
+**Rationale:**
+
+- Email ownership proves identity without requiring an official college email domain.
+- Single-use + 7-day expiry limits blast radius of leaked links.
+- Hashing the token in DB (same pattern as refresh tokens per `auth.md`) prevents token theft from a DB dump.
+- Converging both entry paths on one activation step keeps the state machine simple.
+
+**Trade-offs:**
+
+- Requires email delivery (Resend/SMTP) before Phase 1 is fully usable.
+- Bulk import needs a background job or synchronous email send; decision on async vs sync deferred to implementation.
+- Rate limiting on resend-activation endpoint needed to avoid email abuse.

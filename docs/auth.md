@@ -47,6 +47,27 @@ Recommended:
 - Rotate refresh tokens on every refresh
 - Revoke tokens on logout, password reset, suspension, or role risk event
 
+**Account Activation Token (first-time setup):**
+
+- Single-use, emailed via magic link to the user's Gmail
+- Lifetime: 7 days
+- Stored as `token_hash` (bcrypt/argon2) in `account_activation_tokens` table
+- On activation: verify hash, mark `used_at`, hash user's chosen password, flip `users.status` from `pending` to `active`
+- Same hashing pattern as refresh tokens
+- Resend endpoint rate-limited (max 1 request per 5 minutes per email)
+
+### Activation Token Details
+
+- **Purpose:** First-time account setup for both entry paths (admin CSV import + student self-service access request)
+- **Entry paths converge here:** 
+  - Path A: Admin/HOD bulk CSV import for users on college Gmail/USN list
+  - Path B: Student self-service access request reviewed by HOD/Admin per ADR-004
+- Both paths create `users` row with `status = 'pending'`, then issue activation token
+- Token format: opaque random string (e.g., 32 bytes base64url), NOT a JWT
+- Hashing: bcrypt cost 12 (matching refresh token approach)
+- Index: `idx_activation_tokens_user (user_id, expires_at)` for cleanup queries
+- Expiry cleanup: Periodic job or opportunistic on resend attempt
+
 JWT rules:
 
 - Pin signing algorithm.

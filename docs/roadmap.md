@@ -26,6 +26,8 @@ Deliverables:
 - Profiles
 - Password hashing
 - Login and refresh token flow
+- Account activation token flow (signed, single-use, 7-day expiry, hashed storage)
+- Bulk CSV import endpoint for admin/HOD
 - Gmail invite/access request flow
 - Admin/HOD verification
 - Scoped role assignments

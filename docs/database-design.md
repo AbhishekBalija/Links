@@ -66,6 +66,26 @@ users (
 )
 ```
 
+### account_activation_tokens
+
+```sql
+account_activation_tokens (
+  id uuid primary key,
+  user_id uuid not null references users(id),
+  token_hash text not null,
+  purpose text not null default 'activate',
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null
+)
+```
+
+```sql
+create index idx_activation_tokens_user on account_activation_tokens (user_id, expires_at);
+```
+
+Tokens are stored hashed (same pattern as refresh tokens per `auth.md`). The raw token is emailed via a magic link; on activation the server hashes the presented token, compares to `token_hash`, marks `used_at`, hashes the user's chosen password, and flips `users.status` from `pending` to `active`.
+
 ### student_identities
 
 ```sql
