@@ -35,6 +35,7 @@
 | Feature             | Details                                                | Dev Verified | Verified Date | Verified By | Notes                       |
 | ------------------- | ------------------------------------------------------ | ------------ | ------------- | ----------- | --------------------------- |
 | Phase 0 foundation | App container, validated config, pool settings, migration history, logs, request IDs, health/readiness routes, and CI | ✅ Verified | 2026-07-16 | Abhishek Balija | Verified locally against Neon dev branch — all 11 test-plan steps passed |
+| Phase 1 doc prep | ADR-012 (activation token), account_activation_tokens table, /activate & /resend-activation endpoints, auth.md token details, roadmap.md deliverables updated | ✅ Verified | 2026-07-18 | Abhishek Balija | Docs-only PR; no code shipped; ready for Phase 1 implementation |
 
 ---
 
@@ -43,6 +44,7 @@
 | Feature               | Description                                     | Status      | Implementation Started | Expected Completion |
 | --------------------- | ----------------------------------------------- | ----------- | ---------------------- | ------------------- |
 | First migration | Create and review the Phase 1 identity schema migration | 📋 Planning | - | TBD |
+| Phase 1 doc prep | ADR-012, activation token table, endpoints, auth.md, roadmap.md | ✅ Done | 2026-07-18 | 2026-07-18 |
 
 > No authentication, user, or domain logic is implemented yet. That work belongs to
 > Phase 1 (Identity and Access) and has not started.
@@ -54,6 +56,14 @@
 | Issue    | Description | Root Cause | Status |
 | -------- | ----------- | ---------- | ------ |
 | None yet | -           | -          | -      |
+
+---
+
+## 📋 Tracked Follow-ups (Non-Blocking)
+
+| Item | Description | Reference | Priority | Target Phase |
+|------|-------------|-----------|----------|--------------|
+| Refresh token hashing: bcrypt → SHA-256 | Refresh tokens currently use bcrypt (auth.md). Same DoS concern as activation tokens. Migrate to SHA-256 for fast, deterministic hashing of high-entropy tokens. | ADR-012 open follow-up | Low | Post-Phase 1 |
 
 ---
 
@@ -100,9 +110,9 @@
 | Field                   | Value                                                      |
 | ----------------------- | ---------------------------------------------------------- |
 | **Last Verified By**    | Abhishek Balija                                            |
-| **Verification Date**   | 2026-07-16                                                 |
+| **Verification Date**   | 2026-07-18                                                 |
 | **Everything Working?** | ✅ Yes                                                      |
-| **Notes**               | Phase 0 foundation verified locally against Neon dev branch — all 11 test-plan steps passed |
+| **Notes**               | Phase 1 doc prep (ADR-012, activation token table, endpoints, auth.md, roadmap.md) verified — docs-only PR, no code shipped |
 | **Issues Found**        | None                                                        |
 
 ### Verification Process

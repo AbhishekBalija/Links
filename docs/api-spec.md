@@ -113,6 +113,8 @@ POST /api/v1/auth/request-access
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
+POST /api/v1/auth/activate
+POST /api/v1/auth/resend-activation
 ```
 
 ## Current User and Profiles
