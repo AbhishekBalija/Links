@@ -38,10 +38,27 @@ type LogoutResponse struct {
 	Message string `json:"message"`
 }
 
+type MeProfileResponse struct {
+	UserID    string               `json:"user_id"`
+	FullName  string               `json:"full_name"`
+	Username  string               `json:"username"`
+	Headline  *string              `json:"headline,omitempty"`
+	AvatarURL *string              `json:"avatar_url,omitempty"`
+}
+
+type MeStudentIdentityResponse struct {
+	USN       string  `json:"usn"`
+	BatchYear int     `json:"batch_year"`
+	RollNumber *string `json:"roll_number,omitempty"`
+}
+
 type MeResponse struct {
-	UserID string   `json:"user_id"`
-	Email  *string  `json:"email"`
-	Roles  []string `json:"roles"`
+	UserID          string                     `json:"user_id"`
+	Email           *string                    `json:"email"`
+	Phone           *string                    `json:"phone,omitempty"`
+	Roles           []string                   `json:"roles"`
+	Profile         *MeProfileResponse         `json:"profile,omitempty"`
+	StudentIdentity *MeStudentIdentityResponse `json:"student_identity,omitempty"`
 }
 
 type TokenClaims struct {

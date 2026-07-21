@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	"github.com/AbhishekBalija/Links/server/internal/profiles"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/gin-gonic/gin"
@@ -62,6 +63,11 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 
 	adminHandler := auth.NewAdminHandler(authService, policy)
 	adminHandler.RegisterAdminRoutes(v1)
+
+	profileRepo := profiles.NewGormProfileRepository(database.GORM())
+	profileService := profiles.NewService(profileRepo, userRepo)
+	profileHandler := profiles.NewHandler(profileService)
+	profileHandler.RegisterRoutes(api, v1, tokenCfg)
 
 	return router, nil
 }

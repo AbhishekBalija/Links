@@ -2,10 +2,13 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/AbhishekBalija/Links/server/internal/shared/errors"
+	"github.com/jackc/pgx/v5/pgconn"
+
+	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
 type authService struct {
@@ -41,7 +44,7 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		return nil, fmt.Errorf("check email: %w", err)
 	}
 	if existing != nil {
-		return nil, errors.NewConflict("email already registered")
+		return nil, apperrors.NewConflict("email already registered")
 	}
 
 	passwordHash, err := s.passwordHasher.Hash(input.Password)
@@ -56,7 +59,7 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 			return nil, fmt.Errorf("find department: %w", err)
 		}
 		if dept == nil {
-			return nil, errors.NewValidation("invalid department code", nil)
+			return nil, apperrors.NewValidation("invalid department code", nil)
 		}
 		deptID = dept.ID
 	}
@@ -74,17 +77,30 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 	}
 
 	profile := &Profile{
-		UserID:   user.ID,
-		Username: generateUsername(input.FullName),
-		FullName: input.FullName,
+		UserID:    user.ID,
+		FullName:  input.FullName,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	if err := s.userRepo.CreateProfile(ctx, profile); err != nil {
+	if err := s.createProfileWithRetry(ctx, profile); err != nil {
 		return nil, fmt.Errorf("create profile: %w", err)
 	}
 
 	if input.USN != "" {
+		usnCode, err := ValidateUSN(input.USN)
+		if err != nil {
+			return nil, apperrors.NewValidation("invalid USN: "+err.Error(), nil)
+		}
+		if deptID == "" {
+			dept, err := s.userRepo.FindDepartmentByCode(ctx, usnCode)
+			if err != nil {
+				return nil, fmt.Errorf("find department from USN: %w", err)
+			}
+			if dept == nil {
+				return nil, apperrors.NewValidation("department code "+usnCode+" from USN not found in system; contact admin", nil)
+			}
+			deptID = dept.ID
+		}
 		identity := &StudentIdentity{
 			UserID:       user.ID,
 			USN:          input.USN,
@@ -113,11 +129,11 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*LoginRespon
 		return nil, "", fmt.Errorf("find user: %w", err)
 	}
 	if user == nil {
-		return nil, "", errors.NewUnauthenticated("invalid credentials")
+		return nil, "", apperrors.NewUnauthenticated("invalid credentials")
 	}
 
 	if !user.Status.CanLogin() {
-		return nil, "", errors.NewUnauthenticated("account not active")
+		return nil, "", apperrors.NewUnauthenticated("account not active")
 	}
 
 	ok, err := s.passwordHasher.Verify(input.Password, user.PasswordHash)
@@ -125,7 +141,7 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*LoginRespon
 		return nil, "", fmt.Errorf("verify password: %w", err)
 	}
 	if !ok {
-		return nil, "", errors.NewUnauthenticated("invalid credentials")
+		return nil, "", apperrors.NewUnauthenticated("invalid credentials")
 	}
 
 	roles, err := s.userRepo.GetRoleAssignments(ctx, user.ID)
@@ -171,14 +187,14 @@ func (s *authService) Refresh(ctx context.Context, refreshTokenRaw string) (*Ref
 		return nil, "", fmt.Errorf("find refresh token: %w", err)
 	}
 	if stored == nil {
-		return nil, "", errors.NewUnauthenticated("invalid refresh token")
+		return nil, "", apperrors.NewUnauthenticated("invalid refresh token")
 	}
 
 	if stored.IsExpired() {
-		return nil, "", errors.NewUnauthenticated("refresh token expired")
+		return nil, "", apperrors.NewUnauthenticated("refresh token expired")
 	}
 	if stored.IsRevoked() {
-		return nil, "", errors.NewUnauthenticated("refresh token revoked")
+		return nil, "", apperrors.NewUnauthenticated("refresh token revoked")
 	}
 
 	user, err := s.userRepo.FindByID(ctx, stored.UserID)
@@ -186,7 +202,7 @@ func (s *authService) Refresh(ctx context.Context, refreshTokenRaw string) (*Ref
 		return nil, "", fmt.Errorf("find user: %w", err)
 	}
 	if user == nil || !user.Status.CanLogin() {
-		return nil, "", errors.NewUnauthenticated("user not active")
+		return nil, "", apperrors.NewUnauthenticated("user not active")
 	}
 
 	roles, err := s.userRepo.GetRoleAssignments(ctx, user.ID)
@@ -241,15 +257,15 @@ func (s *authService) ActivateAccount(ctx context.Context, token, password strin
 		return fmt.Errorf("find activation token: %w", err)
 	}
 	if activation == nil {
-		return errors.NewUnauthenticated("invalid or expired activation token")
+		return apperrors.NewUnauthenticated("invalid or expired activation token")
 	}
 
 	if activation.UsedAt != nil {
-		return errors.NewConflict("activation token already used")
+		return apperrors.NewConflict("activation token already used")
 	}
 
 	if time.Now().After(activation.ExpiresAt) {
-		return errors.NewUnauthenticated("activation token expired")
+		return apperrors.NewUnauthenticated("activation token expired")
 	}
 
 	passwordHash, err := s.passwordHasher.Hash(password)
@@ -262,7 +278,7 @@ func (s *authService) ActivateAccount(ctx context.Context, token, password strin
 		return fmt.Errorf("find user: %w", err)
 	}
 	if user == nil {
-		return errors.NewNotFound("user not found")
+		return apperrors.NewNotFound("user not found")
 	}
 
 	user.PasswordHash = passwordHash
@@ -287,7 +303,7 @@ func (s *authService) GetMe(ctx context.Context, userID string) (*MeResponse, er
 		return nil, fmt.Errorf("find user: %w", err)
 	}
 	if user == nil {
-		return nil, errors.NewNotFound("user not found")
+		return nil, apperrors.NewNotFound("user not found")
 	}
 
 	roles, err := s.userRepo.GetRoleAssignments(ctx, userID)
@@ -299,11 +315,36 @@ func (s *authService) GetMe(ctx context.Context, userID string) (*MeResponse, er
 		roleNames[i] = string(r.Role)
 	}
 
-	return &MeResponse{
+	resp := &MeResponse{
 		UserID: user.ID,
 		Email:  user.Email,
+		Phone:  user.Phone,
 		Roles:  roleNames,
-	}, nil
+	}
+
+	if user.Profile != nil {
+		resp.Profile = &MeProfileResponse{
+			UserID:    user.Profile.UserID,
+			FullName:  user.Profile.FullName,
+			Username:  user.Profile.Username,
+			Headline:  user.Profile.Headline,
+			AvatarURL: user.Profile.AvatarURL,
+		}
+	}
+
+	if user.StudentIdentity != nil {
+		var rn *string
+		if user.StudentIdentity.RollNumber != "" {
+			rn = &user.StudentIdentity.RollNumber
+		}
+		resp.StudentIdentity = &MeStudentIdentityResponse{
+			USN:        user.StudentIdentity.USN,
+			BatchYear:  user.StudentIdentity.BatchYear,
+			RollNumber: rn,
+		}
+	}
+
+	return resp, nil
 }
 
 func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, error) {
@@ -343,10 +384,10 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		return fmt.Errorf("find user: %w", err)
 	}
 	if user == nil {
-		return errors.NewNotFound("user not found")
+		return apperrors.NewNotFound("user not found")
 	}
 	if user.Status != UserStatusPending {
-		return errors.NewConflict("user is not in pending status")
+		return apperrors.NewConflict("user is not in pending status")
 	}
 
 	role := RoleStudent
@@ -398,16 +439,16 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		return fmt.Errorf("find user: %w", err)
 	}
 	if user == nil {
-		return errors.NewNotFound("user not found")
+		return apperrors.NewNotFound("user not found")
 	}
 
 	newStatus := UserStatus(status)
 	if newStatus == user.Status {
-		return errors.NewConflict("user already has status " + status)
+		return apperrors.NewConflict("user already has status " + status)
 	}
 
 	if newStatus == UserStatusActive && user.Status == UserStatusRejected {
-		return errors.NewValidation("cannot activate a rejected user", nil)
+		return apperrors.NewValidation("cannot activate a rejected user", nil)
 	}
 
 	user.Status = newStatus
@@ -438,6 +479,27 @@ func stringPtrOrNil(s string) *string {
 	return &s
 }
 
+func (s *authService) createProfileWithRetry(ctx context.Context, profile *Profile) error {
+	const maxAttempts = 5
+	for range maxAttempts {
+		profile.Username = generateUsername(profile.FullName)
+		err := s.userRepo.CreateProfile(ctx, profile)
+		if err == nil {
+			return nil
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			continue
+		}
+		return err
+	}
+	return fmt.Errorf("username generation failed after %d attempts", maxAttempts)
+}
+
+// generateUsername creates a unique-ish username from the user's full name.
+// TODO: This auto-generate approach will be replaced by a user-chosen username field
+// with a real-time availability check in a later phase. When that ships, delete this
+// function and the corresponding retry wrapper in createProfileWithRetry.
 func generateUsername(fullName string) string {
 	base := ""
 	for _, r := range fullName {

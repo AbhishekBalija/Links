@@ -38,7 +38,10 @@ func (r *GormUserRepository) FindByEmail(ctx context.Context, email string) (*Us
 
 func (r *GormUserRepository) FindByID(ctx context.Context, id string) (*User, error) {
 	var user User
-	err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error
+	err := r.db.WithContext(ctx).
+		Preload("Profile").
+		Preload("StudentIdentity").
+		First(&user, "id = ?", id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -51,6 +54,18 @@ func (r *GormUserRepository) Update(ctx context.Context, user *User) error {
 
 func (r *GormUserRepository) UpdateStatus(ctx context.Context, id string, status UserStatus) error {
 	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", id).Update("status", string(status)).Error
+}
+
+func (r *GormUserRepository) FindEmailByUserID(ctx context.Context, userID string) (*string, error) {
+	var email *string
+	err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Select("email").Scan(&email).Error
+	return email, err
+}
+
+func (r *GormUserRepository) FindPhoneByUserID(ctx context.Context, userID string) (*string, error) {
+	var phone *string
+	err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).Select("phone").Scan(&phone).Error
+	return phone, err
 }
 
 func (r *GormUserRepository) FindDepartmentByCode(ctx context.Context, code string) (*Department, error) {

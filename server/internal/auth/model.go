@@ -111,14 +111,22 @@ func (t RefreshToken) IsRevoked() bool {
 }
 
 // Profile represents the profiles table per docs/database-design.md § profiles.
-// Only the fields needed for auth/request-access are included here;
-// the full profile CRUD belongs in the profiles module.
+// Auth creates the initial row; the profiles module owns full CRUD.
 type Profile struct {
-	UserID    string    `gorm:"column:user_id;primaryKey"`
-	Username  string    `gorm:"column:username"`
-	FullName  string    `gorm:"column:full_name"`
-	CreatedAt time.Time `gorm:"column:created_at"`
-	UpdatedAt time.Time `gorm:"column:updated_at"`
+	UserID               string     `gorm:"column:user_id;primaryKey"`
+	Username             string     `gorm:"column:username;uniqueIndex"`
+	FullName             string     `gorm:"column:full_name"`
+	Headline             *string    `gorm:"column:headline"`
+	Bio                  *string    `gorm:"column:bio"`
+	AvatarURL            *string    `gorm:"column:avatar_url"`
+	PublicProfileEnabled bool       `gorm:"column:public_profile_enabled"`
+	ShowEmail            bool       `gorm:"column:show_email"`
+	ShowPhone            bool       `gorm:"column:show_phone"`
+	LinkedInURL          *string    `gorm:"column:linkedin_url"`
+	GitHubURL            *string    `gorm:"column:github_url"`
+	PortfolioURL         *string    `gorm:"column:portfolio_url"`
+	CreatedAt            time.Time  `gorm:"column:created_at"`
+	UpdatedAt            time.Time  `gorm:"column:updated_at"`
 }
 
 func (Profile) TableName() string { return "profiles" }
@@ -199,6 +207,8 @@ type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByID(ctx context.Context, id string) (*User, error)
+	FindEmailByUserID(ctx context.Context, userID string) (*string, error)
+	FindPhoneByUserID(ctx context.Context, userID string) (*string, error)
 	FindPendingUsers(ctx context.Context) ([]User, error)
 	Update(ctx context.Context, user *User) error
 	UpdateStatus(ctx context.Context, id string, status UserStatus) error
