@@ -162,10 +162,10 @@ flowchart TD
     HODReview -->|Reject| Rejected([status=rejected, audit logged])
     HODReview -->|Approve| SendInvite
 
-    SendInvite --> Token["Token: signed, single-use,<br/>user_id + purpose=activate + exp<br/>stored hashed"]
+    SendInvite --> Token["Token: opaque 32-byte random<br/>stored as SHA-256 hash in<br/>account_activation_tokens"]
     Token --> Expiry{Opened within 7 days?}
-    Expiry -->|No| Expired[Token invalid] --> Resend["POST /auth/resend-activation"] --> Token
-    Expiry -->|Yes| SetPassword["POST /auth/activate<br/>token + password"]
+    Expiry -->|No| Expired[Token invalid] --> Resend["POST /api/v1/auth/resend-activation"] --> Token
+    Expiry -->|Yes| SetPassword["POST /api/v1/auth/activate<br/>(single transaction)<br/>consume token +<br/>set password +<br/>flip to active"]
     SetPassword --> Active([status=active, audit logged])
     Active --> Login["POST /auth/login"]
     Login --> Tokens["Access token 10-15min +<br/>refresh cookie 7-30 days"]

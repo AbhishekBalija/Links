@@ -53,14 +53,13 @@ Recommended:
 - Lifetime: 7 days
 - Token format: 32 bytes `crypto/rand`, `base64.RawURLEncoding` (NOT a JWT, not UUIDv4)
 - Stored as `token_hash` = `SHA-256(token)` in `account_activation_tokens` table
-- On activation: verify SHA-256 hash, mark `used_at`, hash user's chosen password (Argon2id/bcrypt), flip `users.status` from `pending` to `active`
-- Resend endpoint rate-limited: query `account_activation_tokens` by `user_id` ordered by `created_at desc`, reject if last token < 5 minutes old. No new table/Redis needed.
+- On activation (single transaction): verify SHA-256 hash, hash user's chosen password (Argon2id/bcrypt), update `users.password_hash` and flip `users.status` to `active`, mark token `used_at`, check affected rows
+- Resend endpoint: transactionally revoke or mark all prior unused activation tokens before issuing a new one. Rate-limited: query `account_activation_tokens` by `user_id` ordered by `created_at desc`, reject if last token < 5 minutes old. Activation validation accepts only the latest non-revoked token.
 
 **Important — Hashing choice for tokens vs passwords:**
 
 - **Passwords:** Argon2id (preferred) or bcrypt — slow, memory-hard, salted.
 - **Account activation tokens & Refresh tokens:** SHA-256 — fast, deterministic. Tokens are high-entropy random strings (32 bytes), so a fast hash is sufficient and avoids DoS risk on verification endpoints.
-- **Current note:** `auth.md` previously said refresh tokens use bcrypt. This is flagged for migration to SHA-256 in a follow-up PR (see ADR-012 open follow-up).
 
 JWT rules:
 

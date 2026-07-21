@@ -81,7 +81,8 @@ Google Form in addition to the PDF policy.
 
 **Eligibility:** 2nd PUC / 12th / equivalent, English + PCM (or equivalent
 stream subject), minimum 45% aggregate (40% for SC/ST/Cat-1/2A/2B/3A/3B).
-Qualifying rank in CET or COMEDK required.
+Qualifying rank in CET or COMEDK required for CET and COMEDK admission routes
+respectively. Management route candidates need only meet the minimum eligibility.
 
 **Admission routes:**
 
@@ -142,5 +143,5 @@ hardcoded migrations.
 
 ---
 
-_Generated from https://mitt.edu.in/ — supplements the existing
-`docs/college-info.md`, doesn't replace it._
+_Generated from https://mitt.edu.in/ — intended as the primary college-info
+source for local dev, seed data, and integration test fixtures._
