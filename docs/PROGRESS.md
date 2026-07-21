@@ -1,29 +1,36 @@
 # LINKS Project Progress Tracker
 
-**Last Updated:** 2026-07-16
-**Current Phase:** Phase 0 — Foundation
+**Last Updated:** 2026-07-21
+**Current Phase:** Phase 1 — Identity and Access
 
 ---
 
 ## 📋 Current Phase Overview
 
-| Phase                   | Status         | Start Date | Expected End |
-| ----------------------- | -------------- | ---------- | ------------ |
-| **Phase 0: Foundation** | 🔄 In Progress | 2026-06-19 | TBD          |
+| Phase                              | Status         | Start Date | Expected End |
+| ---------------------------------- | -------------- | ---------- | ------------ |
+| **Phase 0: Foundation**            | ✅ Complete     | 2026-06-19 | 2026-07-16   |
+| **Phase 1: Identity and Access**   | 🔄 In Progress | 2026-07-18 | TBD          |
 
-> Phase numbering follows `roadmap.md` and `implementation.md`. Phase 0 is foundation
-> (no features). Phase 1 (Identity and Access) has not started.
+> Phase numbering follows `roadmap.md` and `implementation.md`.
 
-### Phase Goals (per `roadmap.md` Phase 0)
+### Phase Goals (per `roadmap.md` Phase 1 / `implementation.md` Step 5)
 
-- [x] Set up Phase 0 Go app container and dependency injection
-- [x] Database connection and pool settings
-- [x] Migration runner with migration history
-- [x] Health check endpoints
-- [x] Config validation (fail-fast on required vars)
-- [x] Structured logger and request-ID middleware
-- [x] Standard error response envelope per `api-spec.md`
-- [x] Basic CI (build, vet, test)
+- [x] 5.1 Identity schema migrations (`users`, `profiles`, `student_identities`, `departments`, `role_assignments`, `audit_logs`)
+- [x] 5.2 Password hashing (Argon2id)
+- [x] 5.3 Auth service: login, refresh, logout, request-access
+- [x] 5.4 JWT issuing + rotating, hashed refresh-token storage
+- [x] 5.5 Cookie strategy
+- [ ] 5.6 Auth middleware + actor extraction
+- [ ] 5.7 RBAC policy layer (scoped role_assignments per ADR-005)
+- [ ] 5.8 Admin/HOD verification + access-approval flow
+- [ ] 5.9 Gmail invite mechanics (open decision)
+- [ ] 5.10 Profile CRUD
+- [ ] 5.11 Real MITT USN format, department codes, batch-year ranges (dev supplies)
+- [ ] 5.12 Security test cases
+- [ ] 5.13 Frontend: Access Request + Login screens
+- [ ] 5.14 Frontend: auth context, silent refresh, protected routes
+- [ ] 5.15 Full manual run-through
 
 ---
 
@@ -36,6 +43,16 @@
 | ------------------- | ------------------------------------------------------ | ------------ | ------------- | ----------- | --------------------------- |
 | Phase 0 foundation | App container, validated config, pool settings, migration history, logs, request IDs, health/readiness routes, and CI | ✅ Verified | 2026-07-16 | Abhishek Balija | Verified locally against Neon dev branch — all 11 test-plan steps passed |
 | Phase 1 doc prep | ADR-012 (activation token), account_activation_tokens table, /activate & /resend-activation endpoints, auth.md token details, roadmap.md deliverables updated | ✅ Verified | 2026-07-18 | Abhishek Balija | Docs-only PR; no code shipped; ready for Phase 1 implementation |
+| 5.3–5.5 Auth service | Login, refresh, logout, request-access endpoints with JWT issuing/rotation, hashed refresh-token storage, and HTTP-only cookie strategy | ✅ Verified | 2026-07-21 | Abhishek Balija | All four endpoints verified locally. Includes Argon2id password hashing (5.2), JWT access tokens (15min TTL), SHA-256 hashed refresh tokens (7d rotation), secure HTTP-only cookies |
+
+---
+
+## 📦 Ready for Dev Verification
+
+| Feature | Description | Files Changed | Implementation Notes |
+| ------- | ----------- | ------------- | -------------------- |
+| 5.1 Identity schema migrations | 6 SQL migration files creating `departments`, `users`, `profiles`, `student_identities`, `role_assignments`, `audit_logs` with all indexes and CHECK constraints from `database-design.md` | `server/migrations/001_create_departments.up.sql` through `006_create_audit_logs.up.sql` | Tables follow `database-design.md` verbatim. Status CHECK on `users` matches `auth.md` state machine. Role CHECK on `role_assignments` matches `auth.md` roles. `departments.hod_user_id` FK deferred to migration 002 to avoid circular dep. All indexes from "Important Indexes" section included. Run server locally — migration runner auto-applies. Verify with `\dt` and `\d <table>`. |
+| 5.2 Password hashing (Argon2id) | Argon2id hash/verify + password strength validation (min 8 chars, uppercase, lowercase, digit) | `server/internal/auth/password.go`, `password_test.go`, `doc.go` | Argon2id params: 32MB memory, 1 iteration, 2 threads. PHC-format output. Constant-time comparison. All 7 tests pass. |
 
 ---
 
@@ -43,11 +60,7 @@
 
 | Feature               | Description                                     | Status      | Implementation Started | Expected Completion |
 | --------------------- | ----------------------------------------------- | ----------- | ---------------------- | ------------------- |
-| First migration | Create and review the Phase 1 identity schema migration | 📋 Planning | - | TBD |
-| Phase 1 doc prep | ADR-012, activation token table, endpoints, auth.md, roadmap.md | ✅ Done | 2026-07-18 | 2026-07-18 |
-
-> No authentication, user, or domain logic is implemented yet. That work belongs to
-> Phase 1 (Identity and Access) and has not started.
+| 5.6 Auth middleware   | Auth middleware + actor extraction               | 📋 Next     | -                      | TBD                 |
 
 ---
 
@@ -110,9 +123,9 @@
 | Field                   | Value                                                      |
 | ----------------------- | ---------------------------------------------------------- |
 | **Last Verified By**    | Abhishek Balija                                            |
-| **Verification Date**   | 2026-07-18                                                 |
+| **Verification Date**   | 2026-07-21                                                 |
 | **Everything Working?** | ✅ Yes                                                      |
-| **Notes**               | Phase 1 doc prep (ADR-012, activation token table, endpoints, auth.md, roadmap.md) verified — docs-only PR, no code shipped |
+| **Notes**               | Phase 1 doc prep (2026-07-18) + Phase 1 auth login/refresh/logout/request-access (2026-07-21) verified locally against Neon dev branch |
 | **Issues Found**        | None                                                        |
 
 ### Verification Process

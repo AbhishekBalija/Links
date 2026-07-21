@@ -56,6 +56,11 @@ func (d *Database) Ping(ctx context.Context) error {
 	return nil
 }
 
+// GORM returns the underlying gorm.DB for use by repository layers.
+func (d *Database) GORM() *gorm.DB {
+	return d.gormDB
+}
+
 // Close closes the database pool during graceful shutdown.
 func (d *Database) Close() error {
 	if d == nil || d.gormDB == nil {

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,26 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	api := router.Group("/api")
 	api.GET("/health", healthHandler)
 	api.GET("/ready", readinessHandler(database))
+
+	userRepo := auth.NewGormUserRepository(database.GORM())
+	refreshRepo := auth.NewGormRefreshTokenRepository(database.GORM())
+	activationRepo := auth.NewGormActivationTokenRepository(database.GORM())
+
+	authService := auth.NewAuthService(
+		userRepo,
+		refreshRepo,
+		activationRepo,
+		auth.TokenConfig{
+			AccessSecret:  cfg.Auth.JWTAccessSecret,
+			RefreshSecret: cfg.Auth.JWTRefreshSecret,
+			AccessTTL:     cfg.Auth.AccessTokenTTL,
+			RefreshTTL:    cfg.Auth.RefreshTokenTTL,
+		},
+		auth.NewArgon2PasswordHasher(),
+	)
+
+	authHandler := auth.NewHandler(authService, cfg.Cookie)
+	authHandler.RegisterRoutes(api)
 
 	return router, nil
 }

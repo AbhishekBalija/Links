@@ -20,6 +20,9 @@ type Config struct {
 	DatabasePool     DatabasePoolConfig
 	RequestBodyLimit int64
 	GINMode          string
+	Auth             AuthConfig
+	Cookie           CookieConfig
+	CORS             CORSConfig
 }
 
 // DatabasePoolConfig controls the database/sql pool used by GORM.
@@ -28,6 +31,31 @@ type DatabasePoolConfig struct {
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
 	ConnMaxIdleTime time.Duration
+}
+
+// AuthConfig holds JWT signing secrets and token lifetimes.
+// Per docs/environment.md: JWT_ACCESS_SECRET, JWT_REFRESH_SECRET,
+// ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL.
+// Per docs/auth.md § Token Strategy: access 10-15m, refresh 7-30d.
+type AuthConfig struct {
+	JWTAccessSecret  string
+	JWTRefreshSecret string
+	AccessTokenTTL   time.Duration
+	RefreshTokenTTL  time.Duration
+}
+
+// CookieConfig controls refresh-token cookie attributes.
+// Per docs/auth.md § Cookie Strategy and docs/environment.md:
+// COOKIE_SECURE, COOKIE_SAME_SITE.
+type CookieConfig struct {
+	Secure   bool
+	SameSite string
+}
+
+// CORSConfig controls allowed origins.
+// Per docs/environment.md: CORS_ALLOWED_ORIGINS.
+type CORSConfig struct {
+	AllowedOrigins []string
 }
 
 // Load loads local environment variables when present and validates runtime settings.
@@ -47,6 +75,19 @@ func Load() (Config, error) {
 			MaxIdleConns:    intValue("DB_MAX_IDLE_CONNS", 5),
 			ConnMaxLifetime: durationValue("DB_CONN_MAX_LIFETIME", 45*time.Minute),
 			ConnMaxIdleTime: durationValue("DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
+		},
+		Auth: AuthConfig{
+			JWTAccessSecret:  os.Getenv("JWT_ACCESS_SECRET"),
+			JWTRefreshSecret: os.Getenv("JWT_REFRESH_SECRET"),
+			AccessTokenTTL:   durationValue("ACCESS_TOKEN_TTL", 15*time.Minute),
+			RefreshTokenTTL:  durationValue("REFRESH_TOKEN_TTL", 7*24*time.Hour),
+		},
+		Cookie: CookieConfig{
+			Secure:   boolValue("COOKIE_SECURE", true),
+			SameSite: valueOrDefault("COOKIE_SAME_SITE", "lax"),
+		},
+		CORS: CORSConfig{
+			AllowedOrigins: csvValue("CORS_ALLOWED_ORIGINS"),
 		},
 	}
 
@@ -103,6 +144,17 @@ func (c Config) Validate() error {
 	}
 	if c.AppEnv == "production" && c.GINMode != "release" {
 		return fmt.Errorf("GIN_MODE must be release in production")
+	}
+
+	// Per docs/environment.md: JWT secrets are required for auth.
+	// Only skip validation in local dev when secrets aren't set yet.
+	if c.AppEnv != "local" {
+		if c.Auth.JWTAccessSecret == "" {
+			return fmt.Errorf("JWT_ACCESS_SECRET is required")
+		}
+		if c.Auth.JWTRefreshSecret == "" {
+			return fmt.Errorf("JWT_REFRESH_SECRET is required")
+		}
 	}
 
 	return nil
@@ -195,4 +247,32 @@ func durationValue(key string, fallback time.Duration) time.Duration {
 		return -1
 	}
 	return parsed
+}
+
+func boolValue(key string, fallback bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func csvValue(key string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return nil
+	}
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

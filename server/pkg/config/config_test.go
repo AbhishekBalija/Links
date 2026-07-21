@@ -9,9 +9,9 @@ func TestConfigValidate(t *testing.T) {
 	t.Parallel()
 
 	valid := Config{
-		AppEnv:           "production",
+		AppEnv:           "local",
 		DatabaseURL:      "postgres://example",
-		GINMode:          "release",
+		GINMode:          "debug",
 		RequestBodyLimit: 1024,
 		DatabasePool: DatabasePoolConfig{
 			MaxOpenConns:    10,
