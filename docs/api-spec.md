@@ -141,6 +141,7 @@ GET /api/v1/reports/events
 ## Admin Users
 
 ```text
+GET    /api/v1/admin/users/review-queue
 POST   /api/v1/admin/users
 POST   /api/v1/admin/users/import
 PATCH  /api/v1/admin/users/:id/verify

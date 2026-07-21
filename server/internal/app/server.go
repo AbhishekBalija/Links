@@ -34,22 +34,34 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	userRepo := auth.NewGormUserRepository(database.GORM())
 	refreshRepo := auth.NewGormRefreshTokenRepository(database.GORM())
 	activationRepo := auth.NewGormActivationTokenRepository(database.GORM())
+	auditLogRepo := auth.NewGormAuditLogRepository(database.GORM())
+
+	tokenCfg := auth.TokenConfig{
+		AccessSecret:  cfg.Auth.JWTAccessSecret,
+		RefreshSecret: cfg.Auth.JWTRefreshSecret,
+		AccessTTL:     cfg.Auth.AccessTokenTTL,
+		RefreshTTL:    cfg.Auth.RefreshTokenTTL,
+	}
 
 	authService := auth.NewAuthService(
 		userRepo,
 		refreshRepo,
 		activationRepo,
-		auth.TokenConfig{
-			AccessSecret:  cfg.Auth.JWTAccessSecret,
-			RefreshSecret: cfg.Auth.JWTRefreshSecret,
-			AccessTTL:     cfg.Auth.AccessTokenTTL,
-			RefreshTTL:    cfg.Auth.RefreshTokenTTL,
-		},
+		auditLogRepo,
+		tokenCfg,
 		auth.NewArgon2PasswordHasher(),
 	)
 
-	authHandler := auth.NewHandler(authService, cfg.Cookie)
+	policy := auth.NewPolicy()
+	authHandler := auth.NewHandler(authService, policy, cfg.Cookie)
 	authHandler.RegisterRoutes(api)
+
+	v1 := api.Group("/v1")
+	v1.Use(auth.RequireAuth(tokenCfg))
+	v1.GET("/me", authHandler.Me)
+
+	adminHandler := auth.NewAdminHandler(authService, policy)
+	adminHandler.RegisterAdminRoutes(v1)
 
 	return router, nil
 }

@@ -38,18 +38,67 @@ type LogoutResponse struct {
 	Message string `json:"message"`
 }
 
+type MeResponse struct {
+	UserID string   `json:"user_id"`
+	Email  *string  `json:"email"`
+	Roles  []string `json:"roles"`
+}
+
 type TokenClaims struct {
-	UserID string `json:"sub"`
-	Roles  []string  `json:"roles,omitempty"`
-	Issuer string    `json:"iss"`
-	Aud    string    `json:"aud"`
-	IAT    int64     `json:"iat"`
-	Exp    int64     `json:"exp"`
-	JTI    string    `json:"jti"`
+	UserID string   `json:"sub"`
+	Roles  []string `json:"roles,omitempty"`
+	Issuer string   `json:"iss"`
+	Aud    string   `json:"aud"`
+	IAT    int64    `json:"iat"`
+	Exp    int64    `json:"exp"`
+	JTI    string   `json:"jti"`
 }
 
 type RefreshTokenRaw struct {
 	Token     string
 	TokenHash string
 	ExpiresAt time.Time
+}
+
+type VerifyUserInput struct {
+	ScopeType string `json:"scope_type"`
+	ScopeID   string `json:"scope_id"`
+	Note      string `json:"note"`
+}
+
+type UpdateUserStatusInput struct {
+	Status string `json:"status" binding:"required,oneof=active suspended rejected"`
+	Note   string `json:"note"`
+}
+
+type PendingUserResponse struct {
+	ID              string                    `json:"id"`
+	Email           *string                   `json:"email"`
+	Profile         *PendingUserProfile       `json:"profile,omitempty"`
+	StudentIdentity *PendingUserStudentID     `json:"student_identity,omitempty"`
+	CreatedAt       time.Time                 `json:"created_at"`
+}
+
+type PendingUserProfile struct {
+	FullName string `json:"full_name"`
+	Username string `json:"username"`
+}
+
+type PendingUserStudentID struct {
+	USN            string `json:"usn"`
+	DepartmentCode string `json:"department_code,omitempty"`
+	BatchYear      int    `json:"batch_year"`
+}
+
+type ReviewQueueResponse struct {
+	Users []PendingUserResponse `json:"users"`
+	Total int                   `json:"total"`
+}
+
+type VerifyUserResponse struct {
+	Message string `json:"message"`
+}
+
+type UpdateUserStatusResponse struct {
+	Message string `json:"message"`
 }

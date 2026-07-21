@@ -50,11 +50,11 @@ func run(logger *slog.Logger) error {
 
 	// Disabled until Phase 1 migration SQL ships and Vercel includes the
 	// migrations directory in the API artifact (bin-only deploy breaks ./migrations).
-	// startupContext, cancelStartup := context.WithTimeout(context.Background(), 15*time.Second)
-	// defer cancelStartup()
-	// if err := database.Migrate(startupContext, "migrations"); err != nil {
-	// 	return fmt.Errorf("run migrations: %w", err)
-	// }
+	startupContext, cancelStartup := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancelStartup()
+	if err := database.Migrate(startupContext, "migrations"); err != nil {
+		return fmt.Errorf("run migrations: %w", err)
+	}
 
 	handler, err := app.NewServer(cfg, database, logger)
 	if err != nil {

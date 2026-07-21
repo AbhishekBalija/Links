@@ -12,6 +12,7 @@ type authService struct {
 	userRepo        UserRepository
 	refreshRepo     RefreshTokenRepository
 	activationRepo  ActivationTokenRepository
+	auditLogRepo    AuditLogRepository
 	tokenCfg        TokenConfig
 	passwordHasher  PasswordHasher
 }
@@ -20,6 +21,7 @@ func NewAuthService(
 	userRepo UserRepository,
 	refreshRepo RefreshTokenRepository,
 	activationRepo ActivationTokenRepository,
+	auditLogRepo AuditLogRepository,
 	tokenCfg TokenConfig,
 	passwordHasher PasswordHasher,
 ) AuthService {
@@ -27,6 +29,7 @@ func NewAuthService(
 		userRepo:        userRepo,
 		refreshRepo:     refreshRepo,
 		activationRepo:  activationRepo,
+		auditLogRepo:    auditLogRepo,
 		tokenCfg:        tokenCfg,
 		passwordHasher:  passwordHasher,
 	}
@@ -276,6 +279,163 @@ func (s *authService) ActivateAccount(ctx context.Context, token, password strin
 	}
 
 	return nil
+}
+
+func (s *authService) GetMe(ctx context.Context, userID string) (*MeResponse, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
+		return nil, errors.NewNotFound("user not found")
+	}
+
+	roles, err := s.userRepo.GetRoleAssignments(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get roles: %w", err)
+	}
+	roleNames := make([]string, len(roles))
+	for i, r := range roles {
+		roleNames[i] = string(r.Role)
+	}
+
+	return &MeResponse{
+		UserID: user.ID,
+		Email:  user.Email,
+		Roles:  roleNames,
+	}, nil
+}
+
+func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, error) {
+	users, err := s.userRepo.FindPendingUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find pending users: %w", err)
+	}
+
+	responses := make([]PendingUserResponse, 0, len(users))
+	for _, u := range users {
+		pur := PendingUserResponse{
+			ID:        u.ID,
+			Email:     u.Email,
+			CreatedAt: u.CreatedAt,
+		}
+		if u.Profile != nil {
+			pur.Profile = &PendingUserProfile{
+				FullName: u.Profile.FullName,
+				Username: u.Profile.Username,
+			}
+		}
+		if u.StudentIdentity != nil {
+			pur.StudentIdentity = &PendingUserStudentID{
+				USN:       u.StudentIdentity.USN,
+				BatchYear: u.StudentIdentity.BatchYear,
+			}
+		}
+		responses = append(responses, pur)
+	}
+
+	return &ReviewQueueResponse{Users: responses, Total: len(responses)}, nil
+}
+
+func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
+		return errors.NewNotFound("user not found")
+	}
+	if user.Status != UserStatusPending {
+		return errors.NewConflict("user is not in pending status")
+	}
+
+	role := RoleStudent
+	now := time.Now()
+	st := ScopeType(scopeType)
+	if st == "" {
+		st = ScopeGlobal
+	}
+	ra := &RoleAssignment{
+		UserID:     userID,
+		Role:       role,
+		ScopeType:  st,
+		ScopeID:    stringPtrOrNil(scopeID),
+		AssignedBy: &actorID,
+		StartsAt:   now,
+		CreatedAt:  now,
+	}
+	if err := s.userRepo.CreateRoleAssignment(ctx, ra); err != nil {
+		return fmt.Errorf("create role assignment: %w", err)
+	}
+
+	user.Status = UserStatusActive
+	user.IsVerified = true
+	user.UpdatedAt = now
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("update user: %w", err)
+	}
+
+	auditLog := &AuditLog{
+		ActorID:      &actorID,
+		Action:       "user_verified",
+		ResourceType: "user",
+		ResourceID:   &userID,
+		CreatedAt:    now,
+	}
+	if note != "" {
+		auditLog.Metadata = map[string]string{"note": note}
+	}
+	if err := s.auditLogRepo.Create(ctx, auditLog); err != nil {
+		return fmt.Errorf("create audit log: %w", err)
+	}
+
+	return nil
+}
+
+func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
+		return errors.NewNotFound("user not found")
+	}
+
+	newStatus := UserStatus(status)
+	if newStatus == user.Status {
+		return errors.NewConflict("user already has status " + status)
+	}
+
+	if newStatus == UserStatusActive && user.Status == UserStatusRejected {
+		return errors.NewValidation("cannot activate a rejected user", nil)
+	}
+
+	user.Status = newStatus
+	user.UpdatedAt = time.Now()
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("update user: %w", err)
+	}
+
+	auditLog := &AuditLog{
+		ActorID:      &actorID,
+		Action:       "user_status_changed",
+		ResourceType: "user",
+		ResourceID:   &userID,
+		CreatedAt:    time.Now(),
+		Metadata:     map[string]string{"new_status": status, "note": note},
+	}
+	if err := s.auditLogRepo.Create(ctx, auditLog); err != nil {
+		return fmt.Errorf("create audit log: %w", err)
+	}
+
+	return nil
+}
+
+func stringPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func generateUsername(fullName string) string {

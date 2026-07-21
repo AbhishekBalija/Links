@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -75,6 +76,24 @@ func (r *GormUserRepository) GetRoleAssignments(ctx context.Context, userID stri
 	return roles, err
 }
 
+func (r *GormUserRepository) FindPendingUsers(ctx context.Context) ([]User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).
+		Preload("Profile").
+		Preload("StudentIdentity").
+		Where("status = ?", UserStatusPending).
+		Order("created_at asc").
+		Find(&users).Error
+	return users, err
+}
+
+func (r *GormUserRepository) CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error {
+	if ra.ID == "" {
+		ra.ID = uuid.New().String()
+	}
+	return r.db.WithContext(ctx).Create(ra).Error
+}
+
 // GormRefreshTokenRepository implements RefreshTokenRepository using GORM.
 type GormRefreshTokenRepository struct {
 	db *gorm.DB
@@ -130,4 +149,28 @@ func (r *GormActivationTokenRepository) FindByHash(ctx context.Context, hash str
 func (r *GormActivationTokenRepository) MarkUsed(ctx context.Context, id string) error {
 	now := time.Now()
 	return r.db.WithContext(ctx).Model(&AccountActivationToken{}).Where("id = ?", id).Update("used_at", now).Error
+}
+
+// GormAuditLogRepository implements AuditLogRepository using GORM.
+type GormAuditLogRepository struct {
+	db *gorm.DB
+}
+
+func NewGormAuditLogRepository(db *gorm.DB) *GormAuditLogRepository {
+	return &GormAuditLogRepository{db: db}
+}
+
+func (r *GormAuditLogRepository) Create(ctx context.Context, log *AuditLog) error {
+	if log.ID == "" {
+		log.ID = uuid.New().String()
+	}
+	if log.Metadata != nil {
+		b, err := json.Marshal(log.Metadata)
+		if err != nil {
+			return err
+		}
+		s := string(b)
+		log.MetadataJSON = &s
+	}
+	return r.db.WithContext(ctx).Create(log).Error
 }

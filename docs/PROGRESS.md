@@ -21,9 +21,9 @@
 - [x] 5.3 Auth service: login, refresh, logout, request-access
 - [x] 5.4 JWT issuing + rotating, hashed refresh-token storage
 - [x] 5.5 Cookie strategy
-- [ ] 5.6 Auth middleware + actor extraction
-- [ ] 5.7 RBAC policy layer (scoped role_assignments per ADR-005)
-- [ ] 5.8 Admin/HOD verification + access-approval flow
+- [x] 5.6 Auth middleware + actor extraction
+- [x] 5.7 RBAC policy layer (scoped role_assignments per ADR-005)
+- [x] 5.8 Admin/HOD verification + access-approval flow
 - [ ] 5.9 Gmail invite mechanics (open decision)
 - [ ] 5.10 Profile CRUD
 - [ ] 5.11 Real MITT USN format, department codes, batch-year ranges (dev supplies)
@@ -53,14 +53,15 @@
 | ------- | ----------- | ------------- | -------------------- |
 | 5.1 Identity schema migrations | 6 SQL migration files creating `departments`, `users`, `profiles`, `student_identities`, `role_assignments`, `audit_logs` with all indexes and CHECK constraints from `database-design.md` | `server/migrations/001_create_departments.up.sql` through `006_create_audit_logs.up.sql` | Tables follow `database-design.md` verbatim. Status CHECK on `users` matches `auth.md` state machine. Role CHECK on `role_assignments` matches `auth.md` roles. `departments.hod_user_id` FK deferred to migration 002 to avoid circular dep. All indexes from "Important Indexes" section included. Run server locally — migration runner auto-applies. Verify with `\dt` and `\d <table>`. |
 | 5.2 Password hashing (Argon2id) | Argon2id hash/verify + password strength validation (min 8 chars, uppercase, lowercase, digit) | `server/internal/auth/password.go`, `password_test.go`, `doc.go` | Argon2id params: 32MB memory, 1 iteration, 2 threads. PHC-format output. Constant-time comparison. All 7 tests pass. |
+| 5.6 Auth middleware + actor extraction | `RequireAuth`/`OptionalAuth` middleware, `Actor` type, `GetActor` helper, `/api/v1/me` endpoint | `server/internal/auth/middleware.go`, `server/internal/auth/handler.go` (Me handler), `server/internal/app/server.go` | Middleware extracts JWT claims into `Actor` struct, sets it in Gin context. `GetActor(c)` retrieves it. Protected `/me` route wired in server.go. E2E test passes: request-access → activate via DB → login → /me returns user data → 401 without token. |
+| 5.7 RBAC policy layer | `Policy` struct with 11 `Permission` constants, role-to-permission grant map, `Authorize(actor, permission)`, `AuthorizeActor(c, policy, permission)` convenience | `server/internal/auth/policy.go`, `test/unit/auth/policy_test.go` | Permission constants from `auth.md` permission table. Grants map defined in `NewPolicy()`. `allRoles()` helper for public permissions. 5 unit tests pass: happy path, wrong role, unknown permission, nil actor, all helpers. |
+| 5.8 Admin/HOD verification + access-approval flow | Review queue, approve (verify + role assignment), status change (suspend/restore/reject), audit logging | `server/internal/auth/admin_handler.go`, `server/internal/auth/model.go` (AuditLog, interface additions), `server/internal/auth/repository.go` (FindPendingUsers, CreateRoleAssignment, GormAuditLogRepository), `server/internal/auth/service.go` (ReviewQueue, VerifyUser, UpdateUserStatus), `server/internal/auth/dto.go` (admin DTOs), `server/internal/app/server.go` (wiring) | Three endpoints under `/api/v1/admin/users/`. Protected by `PermissionManageUsersAndRoles` (admin + principal only). `GET /review-queue` lists pending users with profile and student identity preloaded. `PATCH /:id/verify` creates a `student` role assignment, flips status to `active`, records audit log. `PATCH /:id/status` changes status (reject/suspend/restore), validates transitions (cannot activate rejected user), records audit log. `GormAuditLogRepository` in `repository.go` handles JSON metadata serialization. Service validates: user existence, pending status for verify, no-op status change. Build + vet + existing tests pass. |
 
 ---
 
 ## 🔄 In Progress
 
-| Feature               | Description                                     | Status      | Implementation Started | Expected Completion |
-| --------------------- | ----------------------------------------------- | ----------- | ---------------------- | ------------------- |
-| 5.6 Auth middleware   | Auth middleware + actor extraction               | 📋 Next     | -                      | TBD                 |
+_Nothing currently in progress. Next: 5.9 Gmail invite mechanics (open decision) or 5.10 Profile CRUD._
 
 ---
 
@@ -158,3 +159,4 @@ When dev verifies a completed feature:
 - [API Specification](api-spec.md)
 - [Authentication](auth.md)
 - [Decision Log](decision-log.md)
+- [Postman Test Guide](postman-test-guide.md)

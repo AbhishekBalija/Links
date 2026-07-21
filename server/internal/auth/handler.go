@@ -15,11 +15,12 @@ const refreshCookieName = "refresh_token"
 
 type Handler struct {
 	service   AuthService
+	policy    *Policy
 	cookieCfg config.CookieConfig
 }
 
-func NewHandler(service AuthService, cookieCfg config.CookieConfig) *Handler {
-	return &Handler{service: service, cookieCfg: cookieCfg}
+func NewHandler(service AuthService, policy *Policy, cookieCfg config.CookieConfig) *Handler {
+	return &Handler{service: service, policy: policy, cookieCfg: cookieCfg}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -116,6 +117,27 @@ func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
 
 func (h *Handler) clearRefreshCookie(c *gin.Context) {
 	c.SetCookie(refreshCookieName, "", -1, "/", "", h.cookieCfg.Secure, true)
+}
+
+func (h *Handler) Me(c *gin.Context) {
+	actor := GetActor(c)
+	if actor == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return
+	}
+
+	if err := AuthorizeActor(c, h.policy, PermissionViewTargetedNotices); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return
+	}
+
+	resp, err := h.service.GetMe(c.Request.Context(), actor.UserID)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp, nil)
 }
 
 func writeError(c *gin.Context, err error) {
