@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/app"
+	"github.com/AbhishekBalija/Links/server/migrations"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/getsentry/sentry-go"
@@ -48,11 +49,11 @@ func run(logger *slog.Logger) error {
 	}
 	defer database.Close()
 
-	// Disabled until Phase 1 migration SQL ships and Vercel includes the
-	// migrations directory in the API artifact (bin-only deploy breaks ./migrations).
+	// Migrations are compiled into the binary via //go:embed in
+	// server/migrations/embed.go — no filesystem dependency at runtime.
 	startupContext, cancelStartup := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelStartup()
-	if err := database.Migrate(startupContext, "migrations"); err != nil {
+	if err := database.Migrate(startupContext, migrations.FS); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 

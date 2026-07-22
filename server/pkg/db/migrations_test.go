@@ -1,23 +1,21 @@
 package db
 
 import (
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
+	"testing/fstest"
 )
 
 func TestMigrationFilesReturnsSortedUpMigrations(t *testing.T) {
 	t.Parallel()
 
-	directory := t.TempDir()
-	for _, name := range []string{"002_second.up.sql", "001_first.up.sql", "003_ignore.down.sql"} {
-		if err := os.WriteFile(filepath.Join(directory, name), []byte("SELECT 1;"), 0o600); err != nil {
-			t.Fatalf("write test migration: %v", err)
-		}
+	fsys := fstest.MapFS{
+		"002_second.up.sql":     &fstest.MapFile{Data: []byte("SELECT 1;")},
+		"001_first.up.sql":      &fstest.MapFile{Data: []byte("SELECT 1;")},
+		"003_ignore.down.sql":   &fstest.MapFile{Data: []byte("SELECT 1;")},
 	}
 
-	files, err := migrationFiles(directory)
+	files, err := migrationFiles(fsys)
 	if err != nil {
 		t.Fatalf("read migration files: %v", err)
 	}

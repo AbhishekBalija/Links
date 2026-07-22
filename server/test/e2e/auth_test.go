@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/app"
+	"github.com/AbhishekBalija/Links/server/migrations"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/google/uuid"
@@ -71,8 +72,7 @@ func startServer(t *testing.T) *testServer {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	migrationsPath := filepath.Join(findServerRoot(), "migrations")
-	if err := database.Migrate(ctx, migrationsPath); err != nil {
+	if err := database.Migrate(ctx, migrations.FS); err != nil {
 		database.Close()
 		t.Fatalf("run migrations: %v", err)
 	}

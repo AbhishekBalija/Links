@@ -1,6 +1,6 @@
 # LINKS Project Progress Tracker
 
-**Last Updated:** 2026-07-23 (audit: Tier 0-1 complete, migration 009 added, CI e2e job wired)
+**Last Updated:** 2026-07-23 (embed migration fix, prod env vars, e2e test unused imports)
 **Current Phase:** Phase 1 — Identity and Access
 
 ---
@@ -90,7 +90,9 @@ _Ready for dev verification._
 | 2 | Missing migration 009 for `account_activation_tokens` | High | ✅ Resolved |
 | 2 | Phone field: `users.phone` exists in DB and appears in `/me` response but has no update endpoint | Medium | 📝 Documented — backend gap; the profile update PATCH doesn't set phone. Needs a `phone` field in UpdateProfileInput or a separate endpoint. |
 | 2 | Product questions (enumeration, USN optionality): ADR-013 accepts enumeration risk for MVP. USN is mandatory per ADR-003. | Low | ✅ Decided |
-| 3 | PROGRESS.md reconciliation with all changes | Low | 📝 In progress |
+| 3 | PROGRESS.md reconciliation with all changes | Low | ✅ Resolved |
+| 4 | `.env.prod.example` missing JWT secrets, weak warnings | High | ✅ Resolved |
+| 5 | E2e test unused imports | Low | ✅ Resolved |
 | Deferred | CSRF, CSP headers not configured | Low | 📝 Documented — not scoped for Phase 1 |
 | Deferred | CSV bulk import (Phase 2) + frontend activation UI deferred | Low | 📝 Documented — Phase 2 scope per roadmap |
 | Deferred | TanStack Query migration (API client currently uses raw fetch) | Low | 📝 Documented — post-MVP refactor |
@@ -191,6 +193,8 @@ When dev verifies a completed feature:
 | 2026-07-23 | `server_test.go` panics on empty `CORS.AllowedOrigins` | Test config didn't set `CORS`, causing nil-slice in gin cors middleware. | `server/internal/app/server_test.go` — added `CORS: config.CORSConfig{AllowedOrigins: []string{"*"}}` |
 | 2026-07-23 | 11 ESLint errors across 5 files (e2e tests + api client) | Unused imports, `as any` type casts, unused params. Fixed: removed unused `loginViaAPI` imports, removed unused `adminToken`/`request` vars, typed `window.__apiRequest` via `declare global` interface augmentation (`client.ts` + `silent-refresh.spec.ts`), used `void _dbURL` for intentionally-unused bootstrapAdmin param. | `client/src/shared/api/client.ts`, `client/e2e/helpers/auth.ts`, `client/e2e/scenarios/auth-guards.spec.ts`, `client/e2e/scenarios/full-flow.spec.ts`, `client/e2e/scenarios/silent-refresh.spec.ts` |
 | 2026-07-23 | CI missing e2e test job | Only `server` (go vet/test) and `client` (lint/build) jobs existed. Added `e2e` job with PostgreSQL service container, Go + Bun, Playwright install, and `playwright test` with `E2E_NEON_URL` env pointing to service. | `.github/workflows/ci.yml` — added `e2e` job |
+| 2026-07-23 | `.env.prod.example` missing `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`; weak warnings on `FRONTEND_URL`, `FROM_EMAIL` | Prod deploy would use default/localhost values for `FRONTEND_URL` and `@resend.dev` sandbox sender for `FROM_EMAIL`. Added commented-out JWT secret vars with generation command, + explicit warnings that FRONTEND_URL and FROM_EMAIL must be overridden for prod. | `server/.env.prod.example` |
+| 2026-07-23 | Migration embed fix for Vercel (migrations not in binary artifact) | `database.Migrate("migrations")` reads `.up.sql` from filesystem directory → crashes on Vercel where `migrations/` is not included in the `go build` artifact. Fix: `//go:embed *.sql` in `server/migrations/embed.go`, refactored `RunMigrations` to accept `fs.FS` (any embed, `os.DirFS`, or `fstest.MapFS`), updated `main.go`, `auth_test.go`, and `migrations_test.go`. Binary confirmed to contain embedded SQL. | `server/migrations/embed.go` (new), `server/pkg/db/migrations.go` (refactored to `fs.FS`), `server/pkg/db/postgres.go` (signature), `server/cmd/api/main.go` (caller), `server/test/e2e/auth_test.go` (caller), `server/pkg/db/migrations_test.go` (fstest.MapFS), `server/test/e2e/activation_security_test.go` (unused import), `server/test/e2e/security_test.go` (unused import) | | `database.Migrate("migrations")` reads `.up.sql` from filesystem directory → crashes on Vercel where `migrations/` is not included in the `go build` artifact. Fix: `//go:embed *.sql` in `server/migrations/embed.go`, refactored `RunMigrations` to accept `fs.FS` (any embed, `os.DirFS`, or `fstest.MapFS`), updated `main.go`, `auth_test.go`, and `migrations_test.go`. Binary confirmed to contain embedded SQL. | `server/migrations/embed.go` (new), `server/pkg/db/migrations.go` (refactored to `fs.FS`), `server/pkg/db/postgres.go` (signature), `server/cmd/api/main.go` (caller), `server/test/e2e/auth_test.go` (caller), `server/pkg/db/migrations_test.go` (fstest.MapFS), `server/test/e2e/activation_security_test.go` (unused import), `server/test/e2e/security_test.go` (unused import) |
 
 ---
 

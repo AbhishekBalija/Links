@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"os"
-	"path/filepath"
+	"io/fs"
 	"sort"
 	"strings"
 	"time"
@@ -16,7 +15,7 @@ import (
 const migrationTable = "schema_migrations"
 
 // RunMigrations records every successful migration so startup never reapplies it.
-func RunMigrations(ctx context.Context, database *gorm.DB, migrationsPath string) error {
+func RunMigrations(ctx context.Context, database *gorm.DB, fsys fs.FS) error {
 	if err := database.WithContext(ctx).Exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version text PRIMARY KEY,
@@ -26,37 +25,37 @@ func RunMigrations(ctx context.Context, database *gorm.DB, migrationsPath string
 		return fmt.Errorf("create migration table: %w", err)
 	}
 
-	migrations, err := migrationFiles(migrationsPath)
+	migrations, err := migrationFiles(fsys)
 	if err != nil {
 		return err
 	}
 
 	for _, migration := range migrations {
-		if err := applyMigration(ctx, database, migrationsPath, migration); err != nil {
+		if err := applyMigration(ctx, database, fsys, migration); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func migrationFiles(migrationsPath string) ([]string, error) {
-	files, err := os.ReadDir(migrationsPath)
+func migrationFiles(fsys fs.FS) ([]string, error) {
+	entries, err := fs.ReadDir(fsys, ".")
 	if err != nil {
-		return nil, fmt.Errorf("read migrations directory: %w", err)
+		return nil, fmt.Errorf("read migrations: %w", err)
 	}
 
 	migrations := []string{}
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".up.sql") {
-			migrations = append(migrations, file.Name())
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".up.sql") {
+			migrations = append(migrations, entry.Name())
 		}
 	}
 	sort.Strings(migrations)
 	return migrations, nil
 }
 
-func applyMigration(ctx context.Context, database *gorm.DB, migrationsPath, migration string) error {
-	content, err := os.ReadFile(filepath.Join(migrationsPath, migration))
+func applyMigration(ctx context.Context, database *gorm.DB, fsys fs.FS, migration string) error {
+	content, err := fs.ReadFile(fsys, migration)
 	if err != nil {
 		return fmt.Errorf("read migration %q: %w", migration, err)
 	}

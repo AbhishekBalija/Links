@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"io/fs"
 
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"gorm.io/driver/postgres"
@@ -34,11 +35,14 @@ func New(cfg config.Config) (*Database, error) {
 }
 
 // Migrate applies each unapplied SQL migration exactly once.
-func (d *Database) Migrate(ctx context.Context, migrationsPath string) error {
+// Accepts any fs.FS (embed.FS, os.DirFS, or test fstest.MapFS) so the
+// binary has zero filesystem dependency at runtime — all migrations are
+// compiled in via //go:embed.
+func (d *Database) Migrate(ctx context.Context, fsys fs.FS) error {
 	if d == nil || d.gormDB == nil {
 		return fmt.Errorf("database is not initialized")
 	}
-	return RunMigrations(ctx, d.gormDB, migrationsPath)
+	return RunMigrations(ctx, d.gormDB, fsys)
 }
 
 // Ping verifies that PostgreSQL is available.

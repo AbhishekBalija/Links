@@ -25,13 +25,15 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 
 	gin.SetMode(cfg.GINMode)
 	router := gin.New()
-	router.Use(
-		cors.New(cors.Config{
+	if len(cfg.CORS.AllowedOrigins) > 0 {
+		router.Use(cors.New(cors.Config{
 			AllowOrigins:     cfg.CORS.AllowedOrigins,
 			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 			AllowCredentials: true,
-		}),
+		}))
+	}
+	router.Use(
 		requestBodyLimit(cfg.RequestBodyLimit),
 		requestLogger(logger),
 		recovery(logger),
