@@ -38,3 +38,63 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: links_e2e
+          POSTGRES_USER: links
+          POSTGRES_PASSWORD: links
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.4'
+          cache-dependency-path: server/go.sum
+      - uses: oven-sh/setup-bun@v2
+      - name: Download Go modules
+        working-directory: server
+        run: go mod download
+      - name: Build API binary (pre-compiled for globalSetup — avoids `go run` latency)
+        working-directory: server
+        run: go build -o /tmp/links-api ./cmd/api
+      - name: Install client dependencies
+        working-directory: client
+        run: bun install --frozen-lockfile
+      - name: Install Playwright browsers
+        working-directory: client
+        run: bunx playwright install chromium
+      # globalSetup.ts handles: create test schema, start backend from
+      # pre-built /tmp/links-api binary (avoids `go run` compile latency),
+      # start Vite frontend (port 5174). E2E_BACKEND_BIN tells globalSetup
+      # to use the pre-built binary instead of `go run ./cmd/api`.
+      - name: Run e2e tests
+        working-directory: client
+        run: bunx playwright test --config e2e/playwright.config.ts
+        env:
+          E2E_NEON_URL: postgresql://links:links@localhost:5432/links_e2e?sslmode=disable
+          E2E_BACKEND_BIN: /tmp/links-api
+          JWT_ACCESS_SECRET: e2e-test-access-secret-not-for-production
+          JWT_REFRESH_SECRET: e2e-test-refresh-secret-not-for-production
+          APP_ENV: local
+          COOKIE_SECURE: 'false'
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: client/test-results/
+          retention-days: 7
+
