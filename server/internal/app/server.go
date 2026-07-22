@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"github.com/AbhishekBalija/Links/server/internal/profiles"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
@@ -44,6 +45,14 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		RefreshTTL:    cfg.Auth.RefreshTokenTTL,
 	}
 
+	var m mailer.Mailer
+	if cfg.Mailer.ResendAPIKey == "" {
+		logger.Warn("RESEND_API_KEY not set, using NoopMailer — no emails will be sent")
+		m = mailer.NoopMailer{}
+	} else {
+		m = mailer.NewResendMailer(cfg.Mailer.ResendAPIKey, cfg.Mailer.FromEmail)
+	}
+
 	authService := auth.NewAuthService(
 		userRepo,
 		refreshRepo,
@@ -51,6 +60,8 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		auditLogRepo,
 		tokenCfg,
 		auth.NewArgon2PasswordHasher(),
+		m,
+		cfg.Mailer.FrontendURL,
 	)
 
 	policy := auth.NewPolicy()

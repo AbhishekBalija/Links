@@ -152,6 +152,26 @@ func NewGormActivationTokenRepository(db *gorm.DB) *GormActivationTokenRepositor
 	return &GormActivationTokenRepository{db: db}
 }
 
+func (r *GormActivationTokenRepository) Create(ctx context.Context, token *AccountActivationToken) error {
+	return r.db.WithContext(ctx).Create(token).Error
+}
+
+func (r *GormActivationTokenRepository) FindLatestByUserID(ctx context.Context, userID string) (*AccountActivationToken, error) {
+	var token AccountActivationToken
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at desc").First(&token).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &token, err
+}
+
+func (r *GormActivationTokenRepository) RevokeAllUnusedByUserID(ctx context.Context, userID string) error {
+	return r.db.WithContext(ctx).Model(&AccountActivationToken{}).
+		Where("user_id = ? AND used_at IS NULL", userID).
+		UpdateColumn("used_at", time.Now()).
+		Error
+}
+
 func (r *GormActivationTokenRepository) FindByHash(ctx context.Context, hash string) (*AccountActivationToken, error) {
 	var token AccountActivationToken
 	err := r.db.WithContext(ctx).Where("token_hash = ?", hash).First(&token).Error

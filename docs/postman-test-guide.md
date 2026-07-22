@@ -44,17 +44,39 @@ Content-Type: application/json
 
 ---
 
-## 2. Activate User (via Database)
+## 2. Activate User
 
-The activation email flow isn't built yet. To test login, activate the user directly in the database.
+The activation email is sent via Resend on sign-up. The `/activate` endpoint sets the user's password
+and flips status to `active`.
 
-**SQL**
+**Request:** `POST /api/v1/auth/activate`
+
+```json
+{
+  "token": "<raw_activation_token_from_email>",
+  "password": "MySecurePass123"
+}
+```
+
+**Response:** `200`
+
+```json
+{
+  "data": {
+    "message": "account activated"
+  }
+}
+```
+
+**Note:** In local dev without a `RESEND_API_KEY`, no email is sent. To activate manually:
 
 ```sql
--- Activate user
 UPDATE users SET status = 'active', is_verified = true WHERE email = 'test@mitt.edu.in';
+```
 
--- Assign a role (required for RBAC)
+After activation, assign a role:
+
+```sql
 INSERT INTO role_assignments (id, user_id, role, scope_type, scope_id, assigned_by, starts_at, created_at)
 VALUES (gen_random_uuid(), '<user_id>', 'student', 'global', NULL, NULL, now(), now());
 ```
@@ -351,6 +373,90 @@ Valid status values: `active`, `suspended`, `rejected`.
 | Same status (no-op) | 409 | `CONFLICT` |
 | Activate rejected user | 400 | `VALIDATION_ERROR` |
 | Insufficient role | 403 | `FORBIDDEN` |
+
+---
+
+---
+
+## 11. Resend Activation
+
+Requests a new activation email. Silently returns success for non-existent or already-active emails (enumeration protection).
+
+**Request**
+
+```
+POST /api/v1/auth/resend-activation
+Content-Type: application/json
+
+{
+  "email": "pending@mitt.edu.in"
+}
+```
+
+**Success Response — `200 OK`** (identical for registered-pending, registered-active, and non-existent emails)
+
+```json
+{
+  "data": {
+    "message": "activation email sent"
+  }
+}
+```
+
+**Error Responses**
+
+| Scenario | Status | Code |
+|---|---|---|
+| Resend within 5 minutes of last send | 429 | `RATE_LIMITED` |
+
+---
+
+## 12. Activation Error Responses
+
+All activation failure modes return exactly **401 Unauthorized** with a generic message (no enumeration):
+
+| Scenario | Status | Response |
+|---|---|---|
+| Invalid token (no match) | 401 | `{"error":{"code":"UNAUTHENTICATED","message":"invalid or expired activation token"}}` |
+| Expired token | 401 | Same as above |
+| Already-used token | 401 | Same as above |
+| Malformed/short token | 401 | Same as above |
+| SQL injection / XSS in token | 401 | Same as above |
+
+---
+
+## 13. Live E2E Verification (2026-07-22)
+
+Full pipeline tested against Neon DB + Resend production API.
+
+| Step | Endpoint | Result |
+|---|---|---|
+| 1 | `POST /request-access` | `201` — user created, status `pending` |
+| 2 | DB: `account_activation_tokens` | Token inserted, `used_at` null, 7-day expiry |
+| 3 | Resend API | Email accepted and delivered to inbox |
+| 4 | Extract raw token from email link | Token extracted from URL query param |
+| 5 | `POST /activate` with raw token | `200` — `"account activated"` |
+| 6 | DB: `users` | `status=active`, `is_verified=true` |
+| 7 | `POST /login` with email + password | `200` — access token + refresh cookie |
+| 8 | `POST /resend-activation` (active user) | `200` — silently returns success |
+| 9 | `POST /resend-activation` (pending, cooldown expired) | Old token revoked, new token created, email sent |
+| 10 | `POST /resend-activation` (immediate second attempt) | `429 RATE_LIMITED` — 5-min cooldown enforced |
+
+### Resend Sandbox Note
+
+Resend's `onboarding@resend.dev` sandbox sender only delivers to the Resend account owner's email.  
+Production with a custom domain (`noreply@<domain>`) has no such restriction.  
+Gmail `+` aliases (e.g. `user+tag@gmail.com`) are rejected by the sandbox API — emails must use the exact owner address.
+
+### Activation Token Format
+
+| Property | Value |
+|---|---|
+| Source | 32 bytes from `crypto/rand` |
+| Encoding | `base64.RawURLEncoding` (no padding) |
+| Storage | SHA-256 hash in `account_activation_tokens.token_hash` |
+| Link | `FRONTEND_URL/activate?token=<raw>` |
+| Expiry | 7 days from creation |
 
 ---
 

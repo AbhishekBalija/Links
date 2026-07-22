@@ -23,6 +23,7 @@ type Config struct {
 	Auth             AuthConfig
 	Cookie           CookieConfig
 	CORS             CORSConfig
+	Mailer           MailerConfig
 }
 
 // DatabasePoolConfig controls the database/sql pool used by GORM.
@@ -58,6 +59,13 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
+// MailerConfig holds Resend API credentials for transactional emails.
+type MailerConfig struct {
+	ResendAPIKey string
+	FromEmail    string
+	FrontendURL  string
+}
+
 // Load loads local environment variables when present and validates runtime settings.
 func Load() (Config, error) {
 	if err := loadLocalEnv(); err != nil {
@@ -88,6 +96,11 @@ func Load() (Config, error) {
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: csvValue("CORS_ALLOWED_ORIGINS"),
+		},
+		Mailer: MailerConfig{
+			ResendAPIKey: os.Getenv("RESEND_API_KEY"),
+			FromEmail:    valueOrDefault("FROM_EMAIL", "onboarding@resend.dev"),
+			FrontendURL:  valueOrDefault("FRONTEND_URL", "http://localhost:5173"),
 		},
 	}
 

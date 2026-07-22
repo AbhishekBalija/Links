@@ -1,6 +1,6 @@
 # LINKS Project Progress Tracker
 
-**Last Updated:** 2026-07-21
+**Last Updated:** 2026-07-22
 **Current Phase:** Phase 1 — Identity and Access
 
 ---
@@ -24,7 +24,7 @@
 - [x] 5.6 Auth middleware + actor extraction
 - [x] 5.7 RBAC policy layer (scoped role_assignments per ADR-005)
 - [x] 5.8 Admin/HOD verification + access-approval flow
-- [ ] 5.9 Gmail invite mechanics (open decision)
+- [x] 5.9 Activation email via Resend (synchronous, MVP)
 - [x] 5.10 Profile CRUD
 - [x] 5.11 Real MITT USN format + department codes (VTU-confirmed: CS, AD, CI, CV, ME, EC)
 - [x] 5.12 Security test cases (auth-surface: USN hardening, enumeration, input validation)
@@ -58,13 +58,14 @@
 | 5.8 Admin/HOD verification + access-approval flow | Review queue, approve (verify + role assignment), status change (suspend/restore/reject), audit logging | `server/internal/auth/admin_handler.go`, `server/internal/auth/model.go` (AuditLog, interface additions), `server/internal/auth/repository.go` (FindPendingUsers, CreateRoleAssignment, GormAuditLogRepository), `server/internal/auth/service.go` (ReviewQueue, VerifyUser, UpdateUserStatus), `server/internal/auth/dto.go` (admin DTOs), `server/internal/app/server.go` (wiring) | Three endpoints under `/api/v1/admin/users/`. Protected by `PermissionManageUsersAndRoles` (admin + principal only). `GET /review-queue` lists pending users with profile and student identity preloaded. `PATCH /:id/verify` creates a `student` role assignment, flips status to `active`, records audit log. `PATCH /:id/status` changes status (reject/suspend/restore), validates transitions (cannot activate rejected user), records audit log. `GormAuditLogRepository` in `repository.go` handles JSON metadata serialization. Service validates: user existence, pending status for verify, no-op status change. Build + vet + existing tests pass. |
 | 5.10 Profile CRUD | Public profile by username, update own profile (headline, bio, avatar, social links, privacy toggles), expanded /api/v1/me with full profile data | `server/internal/profiles/` (model, repository, service, handler, dto), `server/internal/auth/model.go` (expanded Profile struct), `server/internal/auth/repository.go` (FindByID with Preload, FindEmailByUserID, FindPhoneByUserID), `server/internal/auth/dto.go` (MeResponse expanded with profile + student_identity), `server/internal/auth/service.go` (GetMe returns full profile), `server/internal/app/server.go` (wiring) | Two endpoints: `GET /api/v1/profiles/:username` (public, OptionalAuth — respects privacy toggles, returns 404 for disabled profiles), `PATCH /api/v1/me/profile` (authenticated — updates headline, bio, avatar_url, show_email, show_phone, linkedin_url, github_url, portfolio_url). Profile module follows architecture.md as `internal/profiles/`. `UserReader` interface decouples profiles service from auth package. `/api/v1/me` now includes profile and student_identity via GORM Preload. Build + vet + existing tests pass. E2E verified: profile read, update, privacy. |
 | 5.11 USN validation + department code map + seed migration | USN format validation (VTU 4MN<year><dept><roll>), confirmed department code map (CS, AD, CI, CV, ME, EC), wired into request-access flow, year-range validated dynamically (2005 to nowYear+2), seed migration inserts 6 departments | `server/internal/auth/usn.go`, `test/unit/auth/usn_test.go`, `server/internal/auth/service.go`, `server/migrations/008_seed_departments.up.sql` | Year-range computed against time.Now().Year() — never needs manual updates. CI provisional (flagged). MBA/MCA excluded. FK auto-resolve returns explicit error if department code structually valid but not in DB. Seed migration uses ON CONFLICT DO NOTHING for idempotency. 7 unit tests pass. |
-| 5.12 Security test cases (auth-surface) | USN hardening (SQL injection, null bytes, unicode, overrun, casing, boundary length), enumeration resistance, input validation (missing fields, garbage JSON, oversized payload, wrong content-type), timing check | `test/unit/auth/usn_security_test.go`, `test/e2e/security_test.go` | USN hardening: 6 tests (27 payloads) — pure function tests, no DB needed. Enumeration/input validation: 5 test functions (14 cases) — e2e-gated, hit real HTTP handler. Timing check logs warnings, doesn't fail. Activation token tests deferred — the activation API endpoint isn't wired yet (only service exists). |
+| 5.12 Security test cases (auth-surface) | USN hardening (SQL injection, null bytes, unicode, overrun, casing, boundary length), enumeration resistance, input validation (missing fields, garbage JSON, oversized payload, wrong content-type), timing check | `test/unit/auth/usn_security_test.go`, `test/e2e/security_test.go` | USN hardening: 6 tests (27 payloads) — pure function tests, no DB needed. Enumeration/input validation: 5 test functions (14 cases) — e2e-gated, hit real HTTP handler. Timing check logs warnings, doesn't fail. |
+| 5.9 Activation email + Resend mailer | Resend HTTP API mailer, /activate and /resend-activation endpoints, activation token creation hooked into RequestAccess flow, rate-limited resend (5 min cooldown), ADR-014 | `server/internal/mailer/mailer.go`, `server/internal/auth/handler.go` (2 new routes), `server/internal/auth/service.go` (ResendActivation, sendActivationEmail, generateActivationToken), `server/internal/auth/repository.go` (Create, FindLatestByUserID, RevokeAllUnusedByUserID), `server/internal/auth/dto.go` (ActivateInput, ResendActivationInput), `server/internal/auth/model.go` (interface additions), `server/internal/app/server.go` (mailer wiring), `server/pkg/config/config.go` (MailerConfig), `server/migrations/*` (no new migration — token table already exists) | Resend chosen over SendGrid/Mailgun/raw SMTP. Synchronous sending per ADR-014. NoopMailer when RESEND_API_KEY is empty (safe for local dev without creds). Activation token: 32 bytes crypto/rand, base64.RawURLEncoding, SHA-256 hash, 7-day expiry. Resend rate-limited: reject if last unused token < 5 min old. Revokes all prior unused tokens before issuing replacement. Build + vet + unit tests pass. |
 
 ---
 
 ## 🔄 In Progress
 
-_Nothing currently in progress. Next: 5.9 Gmail invite mechanics (open decision)._
+_Nothing currently in progress. Next: 5.13 Frontend: Access Request + Login screens._
 
 ---
 

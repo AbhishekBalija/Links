@@ -180,6 +180,7 @@ type AuthService interface {
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	ActivateAccount(ctx context.Context, token, password string) error
+	ResendActivation(ctx context.Context, email string) error
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
 	ReviewQueue(ctx context.Context) (*ReviewQueueResponse, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
@@ -229,8 +230,11 @@ type RefreshTokenRepository interface {
 
 // ActivationTokenRepository defines the interface for account activation tokens.
 type ActivationTokenRepository interface {
+	Create(ctx context.Context, token *AccountActivationToken) error
 	FindByHash(ctx context.Context, hash string) (*AccountActivationToken, error)
+	FindLatestByUserID(ctx context.Context, userID string) (*AccountActivationToken, error)
 	MarkUsed(ctx context.Context, id string) error
+	RevokeAllUnusedByUserID(ctx context.Context, userID string) error
 }
 
 // AuditLogRepository defines the interface for audit log persistence.

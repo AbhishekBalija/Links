@@ -2,12 +2,16 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -18,6 +22,8 @@ type authService struct {
 	auditLogRepo    AuditLogRepository
 	tokenCfg        TokenConfig
 	passwordHasher  PasswordHasher
+	mailer          mailer.Mailer
+	frontendURL     string
 }
 
 func NewAuthService(
@@ -27,6 +33,8 @@ func NewAuthService(
 	auditLogRepo AuditLogRepository,
 	tokenCfg TokenConfig,
 	passwordHasher PasswordHasher,
+	mailer mailer.Mailer,
+	frontendURL string,
 ) AuthService {
 	return &authService{
 		userRepo:        userRepo,
@@ -35,6 +43,8 @@ func NewAuthService(
 		auditLogRepo:    auditLogRepo,
 		tokenCfg:        tokenCfg,
 		passwordHasher:  passwordHasher,
+		mailer:          mailer,
+		frontendURL:     frontendURL,
 	}
 }
 
@@ -115,6 +125,10 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		if err := s.userRepo.CreateStudentIdentity(ctx, identity); err != nil {
 			return nil, fmt.Errorf("create student identity: %w", err)
 		}
+	}
+
+	if err := s.sendActivationEmail(ctx, user.ID, input.Email, profile.FullName); err != nil {
+		return nil, fmt.Errorf("send activation email: %w", err)
 	}
 
 	return &RequestAccessResponse{
@@ -256,16 +270,8 @@ func (s *authService) ActivateAccount(ctx context.Context, token, password strin
 	if err != nil {
 		return fmt.Errorf("find activation token: %w", err)
 	}
-	if activation == nil {
+	if activation == nil || activation.UsedAt != nil || time.Now().After(activation.ExpiresAt) {
 		return apperrors.NewUnauthenticated("invalid or expired activation token")
-	}
-
-	if activation.UsedAt != nil {
-		return apperrors.NewConflict("activation token already used")
-	}
-
-	if time.Now().After(activation.ExpiresAt) {
-		return apperrors.NewUnauthenticated("activation token expired")
 	}
 
 	passwordHash, err := s.passwordHasher.Hash(password)
@@ -295,6 +301,75 @@ func (s *authService) ActivateAccount(ctx context.Context, token, password strin
 	}
 
 	return nil
+}
+
+func (s *authService) ResendActivation(ctx context.Context, email string) error {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("find user: %w", err)
+	}
+	if user == nil || user.Status != UserStatusPending {
+		return nil
+	}
+
+	last, err := s.activationRepo.FindLatestByUserID(ctx, user.ID)
+	if err != nil {
+		return fmt.Errorf("find latest token: %w", err)
+	}
+	if last != nil && last.UsedAt == nil && time.Since(last.CreatedAt) < 5*time.Minute {
+		return apperrors.NewRateLimited("activation email was sent recently; try again later")
+	}
+
+	if err := s.activationRepo.RevokeAllUnusedByUserID(ctx, user.ID); err != nil {
+		return fmt.Errorf("revoke old tokens: %w", err)
+	}
+
+	fullName := ""
+	if user.Profile != nil {
+		fullName = user.Profile.FullName
+	}
+
+	if err := s.sendActivationEmail(ctx, user.ID, email, fullName); err != nil {
+		return fmt.Errorf("send activation email: %w", err)
+	}
+
+	return nil
+}
+
+func (s *authService) sendActivationEmail(ctx context.Context, userID, email, name string) error {
+	tokenRaw, tokenHash, err := generateActivationToken()
+	if err != nil {
+		return fmt.Errorf("generate token: %w", err)
+	}
+
+	token := &AccountActivationToken{
+		ID:        uuid.New().String(),
+		UserID:    userID,
+		TokenHash: tokenHash,
+		Purpose:   "activate",
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+	if err := s.activationRepo.Create(ctx, token); err != nil {
+		return fmt.Errorf("create activation token: %w", err)
+	}
+
+	activationLink := s.frontendURL + "/activate?token=" + tokenRaw
+	if err := s.mailer.SendActivationEmail(email, name, activationLink); err != nil {
+		return fmt.Errorf("send email: %w", err)
+	}
+
+	return nil
+}
+
+func generateActivationToken() (raw string, hash string, err error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", "", fmt.Errorf("generate random bytes: %w", err)
+	}
+	raw = base64.RawURLEncoding.EncodeToString(bytes)
+	hash = HashRefreshToken(raw)
+	return raw, hash, nil
 }
 
 func (s *authService) GetMe(ctx context.Context, userID string) (*MeResponse, error) {

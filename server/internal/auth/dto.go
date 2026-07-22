@@ -34,6 +34,15 @@ type RefreshResponse struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
+type ActivateInput struct {
+	Token    string `json:"token" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type ResendActivationInput struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
 type LogoutResponse struct {
 	Message string `json:"message"`
 }

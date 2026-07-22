@@ -29,6 +29,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	v1.POST("/login", h.Login)
 	v1.POST("/refresh", h.Refresh)
 	v1.POST("/logout", h.Logout)
+	v1.POST("/activate", h.Activate)
+	v1.POST("/resend-activation", h.ResendActivation)
 }
 
 func (h *Handler) RequestAccess(c *gin.Context) {
@@ -95,6 +97,36 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	h.clearRefreshCookie(c)
 	response.Success(c, http.StatusOK, LogoutResponse{Message: "logged out successfully"}, nil)
+}
+
+func (h *Handler) Activate(c *gin.Context) {
+	var input ActivateInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	if err := h.service.ActivateAccount(c.Request.Context(), input.Token, input.Password); err != nil {
+		writeError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, map[string]string{"message": "account activated"}, nil)
+}
+
+func (h *Handler) ResendActivation(c *gin.Context) {
+	var input ResendActivationInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	if err := h.service.ResendActivation(c.Request.Context(), input.Email); err != nil {
+		writeError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, map[string]string{"message": "activation email sent"}, nil)
 }
 
 func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
