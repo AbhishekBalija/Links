@@ -10,6 +10,7 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/profiles"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +25,17 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 
 	gin.SetMode(cfg.GINMode)
 	router := gin.New()
-	router.Use(requestBodyLimit(cfg.RequestBodyLimit), requestLogger(logger), recovery(logger))
+	router.Use(
+		cors.New(cors.Config{
+			AllowOrigins:     cfg.CORS.AllowedOrigins,
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+			AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+			AllowCredentials: true,
+		}),
+		requestBodyLimit(cfg.RequestBodyLimit),
+		requestLogger(logger),
+		recovery(logger),
+	)
 	if err := router.SetTrustedProxies(nil); err != nil {
 		return nil, err
 	}

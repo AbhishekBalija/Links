@@ -399,11 +399,18 @@ func (s *authService) GetMe(ctx context.Context, userID string) (*MeResponse, er
 
 	if user.Profile != nil {
 		resp.Profile = &MeProfileResponse{
-			UserID:    user.Profile.UserID,
-			FullName:  user.Profile.FullName,
-			Username:  user.Profile.Username,
-			Headline:  user.Profile.Headline,
-			AvatarURL: user.Profile.AvatarURL,
+			UserID:               user.Profile.UserID,
+			FullName:             user.Profile.FullName,
+			Username:             user.Profile.Username,
+			Headline:             user.Profile.Headline,
+			Bio:                  user.Profile.Bio,
+			AvatarURL:            user.Profile.AvatarURL,
+			PublicProfileEnabled: user.Profile.PublicProfileEnabled,
+			ShowEmail:            user.Profile.ShowEmail,
+			ShowPhone:            user.Profile.ShowPhone,
+			LinkedInURL:          user.Profile.LinkedInURL,
+			GitHubURL:            user.Profile.GitHubURL,
+			PortfolioURL:         user.Profile.PortfolioURL,
 		}
 	}
 

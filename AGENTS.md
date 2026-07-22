@@ -79,7 +79,7 @@ Use this map before working:
 | Database/schema/migrations | `docs/database-design.md`, `docs/backend-standards.md`, `docs/security.md`, `docs/college-info.md` |
 | API changes | `docs/api-spec.md`, `docs/auth.md`, `docs/frontend-contract.md` |
 | Authentication/RBAC | `docs/auth.md`, `docs/security.md`, `docs/database-design.md`, `docs/college-info.md` |
-| Frontend work | `docs/frontend-ux-ui.md`, `docs/frontend-contract.md`, `docs/product-requirements.md`, `docs/api-spec.md` |
+| Frontend work | `My_Plan.md`, `docs/frontend-ux-ui.md`, `docs/frontend-contract.md`, `docs/product-requirements.md`, `docs/api-spec.md` |
 | Notifications | `docs/notifications.md`, `docs/product-requirements.md`, `docs/frontend-ux-ui.md`, `docs/backend-standards.md` |
 | Deployment/config | `docs/deployment.md`, `docs/environment.md`, `docs/monitoring.md` |
 | Security/privacy | `docs/security.md`, `docs/auth.md`, `docs/backend-standards.md` |

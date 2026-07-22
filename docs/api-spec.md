@@ -129,6 +129,34 @@ GET   /api/v1/users/:id
 
 `username` is a unique, immutable profile handle. It is distinct from the user's UUID.
 
+### `GET /api/v1/me`
+
+Returns the authenticated user's identity, profile, and student identity.
+
+**Auth:** Requires valid bearer token (`RequireAuth` middleware). Does NOT gate on any business permission — returns `200` for any authenticated user regardless of role count. This is intentional (see ADR-015).
+
+**Responses:**
+
+| HTTP | Code | When |
+|------|------|------|
+| 200 | — | Authenticated — returns user payload |
+| 401 | `UNAUTHENTICATED` | No bearer token or invalid/expired token |
+
+**Example 200 response:**
+
+```json
+{
+  "data": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "status": "active",
+    "roles": ["student"],
+    "profile": { ... },
+    "student_identity": { ... }
+  }
+}
+```
+
 ## Dashboards, Search, and Reports
 
 ```text

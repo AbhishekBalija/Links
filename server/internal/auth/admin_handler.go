@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"io"
 	"net/http"
 
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
@@ -59,7 +60,7 @@ func (h *AdminHandler) VerifyUser(c *gin.Context) {
 	}
 
 	var input VerifyUserInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil && !errors.Is(err, io.EOF) {
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}

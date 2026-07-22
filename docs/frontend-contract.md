@@ -55,9 +55,10 @@ Expected data:
 type CurrentUser = {
   id: string
   email?: string
-  roles: RoleAssignment[]
+  status: string
+  roles: string[]
   profile: Profile
-  studentIdentity?: StudentIdentity
+  student_identity?: StudentIdentity
 }
 ```
 

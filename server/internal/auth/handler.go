@@ -158,11 +158,6 @@ func (h *Handler) Me(c *gin.Context) {
 		return
 	}
 
-	if err := AuthorizeActor(c, h.policy, PermissionViewTargetedNotices); err != nil {
-		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
-		return
-	}
-
 	resp, err := h.service.GetMe(c.Request.Context(), actor.UserID)
 	if err != nil {
 		writeError(c, err)
