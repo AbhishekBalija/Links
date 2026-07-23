@@ -100,7 +100,7 @@ func Load() (Config, error) {
 		Mailer: MailerConfig{
 			ResendAPIKey: os.Getenv("RESEND_API_KEY"),
 			FromEmail:    valueOrDefault("FROM_EMAIL", "onboarding@resend.dev"),
-			FrontendURL:  valueOrDefault("FRONTEND_URL", "http://localhost:5173"),
+			FrontendURL:  frontendURL(),
 		},
 	}
 
@@ -199,6 +199,21 @@ func databaseURL() string {
 		return fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s", host, port, user, database, sslMode)
 	}
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, database, sslMode)
+}
+
+func frontendURL() string {
+	if v := os.Getenv("FRONTEND_URL"); v != "" {
+		return v
+	}
+	if os.Getenv("VERCEL_ENV") == "production" {
+		if v := os.Getenv("VERCEL_PROJECT_PRODUCTION_URL"); v != "" {
+			return "https://" + v
+		}
+	}
+	if v := os.Getenv("VERCEL_URL"); v != "" {
+		return "https://" + v
+	}
+	return "http://localhost:5173"
 }
 
 func hasAny(keys ...string) bool {
