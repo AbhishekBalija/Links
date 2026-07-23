@@ -137,6 +137,7 @@ func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
 		sameSite = http.SameSiteNoneMode
 	}
 
+	c.SetSameSite(sameSite)
 	c.SetCookie(refreshCookieName, token,
 		int((7 * 24 * time.Hour).Seconds()),
 		"/",
@@ -144,7 +145,6 @@ func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
 		h.cookieCfg.Secure,
 		true,
 	)
-	c.SetSameSite(sameSite)
 }
 
 func (h *Handler) clearRefreshCookie(c *gin.Context) {
