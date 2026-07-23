@@ -147,7 +147,7 @@ export async function seedTestUser(email: string, passwordPlain: string): Promis
 
     // Create activation token
     const tokenRaw = randomBytes(32).toString('base64url')
-    const tokenHash = createHash('sha256').update(Buffer.from(tokenRaw, 'base64url')).digest('hex')
+    const tokenHash = createHash('sha256').update(tokenRaw).digest('hex')
     await client.query(
       `INSERT INTO account_activation_tokens (id, user_id, token_hash, purpose, expires_at, created_at)
        VALUES ($1, $2, $3, 'activate', $4, $5)`,
@@ -165,8 +165,16 @@ export async function seedTestUser(email: string, passwordPlain: string): Promis
 export async function replaceActivationToken(userId: string): Promise<string> {
   const client = await getSchemaClient()
   try {
+    const existingToken = await client.query<{ exists: boolean }>(
+      'SELECT EXISTS(SELECT 1 FROM account_activation_tokens WHERE user_id = $1) AS exists',
+      [userId],
+    )
+    if (!existingToken.rows[0]?.exists) {
+      throw new Error('approval did not create an activation token')
+    }
+
     const tokenRaw = randomBytes(32).toString('base64url')
-    const tokenHash = createHash('sha256').update(Buffer.from(tokenRaw, 'base64url')).digest('hex')
+    const tokenHash = createHash('sha256').update(tokenRaw).digest('hex')
     const now = new Date().toISOString()
 
     await client.query('DELETE FROM account_activation_tokens WHERE user_id = $1', [userId])
