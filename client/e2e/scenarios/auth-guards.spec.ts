@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getDatabaseURL } from '../helpers/db'
+import { getDatabaseURL, replaceActivationToken } from '../helpers/db'
 import {
   bootstrapAdmin,
   setupAdmin,
@@ -50,6 +50,12 @@ test.describe('Auth Guards', () => {
 
     const userId = await getUserIdByEmail(dbURL, STUDENT.email)
     await adminApproveUser(request, adminToken, userId)
+
+    const activationToken = await replaceActivationToken(userId)
+    const activationResponse = await request.post('/api/v1/auth/activate', {
+      data: { token: activationToken, password: STUDENT.password },
+    })
+    expect(activationResponse.ok()).toBeTruthy()
 
     // Login
     await loginViaUI(page, STUDENT.email, STUDENT.password)

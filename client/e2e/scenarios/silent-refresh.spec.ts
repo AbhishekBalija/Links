@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getDatabaseURL } from '../helpers/db'
+import { getDatabaseURL, replaceActivationToken } from '../helpers/db'
 
 declare global {
   interface Window {
@@ -46,6 +46,12 @@ test.describe('Silent Token Refresh', () => {
 
     const userId = await getUserIdByEmail(dbURL, USER.email)
     await adminApproveUser(request, adminToken, userId)
+
+    const activationToken = await replaceActivationToken(userId)
+    const activationResponse = await request.post('/api/v1/auth/activate', {
+      data: { token: activationToken, password: USER.password },
+    })
+    expect(activationResponse.ok()).toBeTruthy()
 
     // 2. Log in via UI — this sets refresh_token cookie in browser
     await loginViaUI(page, USER.email, USER.password)

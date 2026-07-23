@@ -93,12 +93,26 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
     await expect(page.locator('#portfolio')).toHaveValue('https://e2e-test.dev')
   })
 
-  test('7. Session persists on page refresh', async ({ page }) => {
+  test('7. Session persists on page refresh', async ({ page, context }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
     await expect(page.locator('h2')).toContainText('Welcome')
 
+    const refreshCookie = (await context.cookies()).find((cookie) => cookie.name === 'refresh_token')
+    expect(refreshCookie).toBeDefined()
+
+    const refreshResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return url.pathname === '/api/v1/auth/refresh' && response.request().method() === 'POST'
+    })
+
     await page.reload()
     await page.waitForLoadState('networkidle')
+
+    const response = await refreshResponse
+    expect(response.status()).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      data: { access_token: expect.any(String) },
+    })
 
     await expect(page.locator('h2')).toContainText('Welcome')
     await expect(page.locator('button:has-text("Log out")')).toBeVisible()
