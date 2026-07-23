@@ -16,14 +16,14 @@ import (
 )
 
 type authService struct {
-	userRepo        UserRepository
-	refreshRepo     RefreshTokenRepository
-	activationRepo  ActivationTokenRepository
-	auditLogRepo    AuditLogRepository
-	tokenCfg        TokenConfig
-	passwordHasher  PasswordHasher
-	mailer          mailer.Mailer
-	frontendURL     string
+	userRepo       UserRepository
+	refreshRepo    RefreshTokenRepository
+	activationRepo ActivationTokenRepository
+	auditLogRepo   AuditLogRepository
+	tokenCfg       TokenConfig
+	passwordHasher PasswordHasher
+	mailer         mailer.Mailer
+	frontendURL    string
 }
 
 func NewAuthService(
@@ -37,14 +37,14 @@ func NewAuthService(
 	frontendURL string,
 ) AuthService {
 	return &authService{
-		userRepo:        userRepo,
-		refreshRepo:     refreshRepo,
-		activationRepo:  activationRepo,
-		auditLogRepo:    auditLogRepo,
-		tokenCfg:        tokenCfg,
-		passwordHasher:  passwordHasher,
-		mailer:          mailer,
-		frontendURL:     frontendURL,
+		userRepo:       userRepo,
+		refreshRepo:    refreshRepo,
+		activationRepo: activationRepo,
+		auditLogRepo:   auditLogRepo,
+		tokenCfg:       tokenCfg,
+		passwordHasher: passwordHasher,
+		mailer:         mailer,
+		frontendURL:    frontendURL,
 	}
 }
 
@@ -125,10 +125,6 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		if err := s.userRepo.CreateStudentIdentity(ctx, identity); err != nil {
 			return nil, fmt.Errorf("create student identity: %w", err)
 		}
-	}
-
-	if err := s.sendActivationEmail(ctx, user.ID, input.Email, profile.FullName); err != nil {
-		return nil, fmt.Errorf("send activation email: %w", err)
 	}
 
 	return &RequestAccessResponse{
@@ -491,7 +487,8 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		return fmt.Errorf("create role assignment: %w", err)
 	}
 
-	user.Status = UserStatusActive
+	// Approval grants the role and permits activation; the activation link is
+	// the only transition that makes a self-service account active.
 	user.IsVerified = true
 	user.UpdatedAt = now
 	if err := s.userRepo.Update(ctx, user); err != nil {
@@ -510,6 +507,17 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 	}
 	if err := s.auditLogRepo.Create(ctx, auditLog); err != nil {
 		return fmt.Errorf("create audit log: %w", err)
+	}
+
+	fullName := ""
+	if user.Profile != nil {
+		fullName = user.Profile.FullName
+	}
+	if user.Email == nil {
+		return fmt.Errorf("verified user has no email")
+	}
+	if err := s.sendActivationEmail(ctx, user.ID, *user.Email, fullName); err != nil {
+		return fmt.Errorf("send activation email: %w", err)
 	}
 
 	return nil

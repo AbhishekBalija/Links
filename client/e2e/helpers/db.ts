@@ -160,6 +160,28 @@ export async function seedTestUser(email: string, passwordPlain: string): Promis
   }
 }
 
+// replaceActivationToken creates a known raw token for the activation endpoint
+// after the approval path has created its production token.
+export async function replaceActivationToken(userId: string): Promise<string> {
+  const client = await getSchemaClient()
+  try {
+    const tokenRaw = randomBytes(32).toString('base64url')
+    const tokenHash = createHash('sha256').update(Buffer.from(tokenRaw, 'base64url')).digest('hex')
+    const now = new Date().toISOString()
+
+    await client.query('DELETE FROM account_activation_tokens WHERE user_id = $1', [userId])
+    await client.query(
+      `INSERT INTO account_activation_tokens (id, user_id, token_hash, purpose, expires_at, created_at)
+       VALUES ($1, $2, $3, 'activate', $4, $5)`,
+      [uuidv4(), userId, tokenHash, new Date(Date.now() + 7 * 86400000).toISOString(), now],
+    )
+
+    return tokenRaw
+  } finally {
+    await client.end()
+  }
+}
+
 export async function activateUser(userId: string) {
   const client = await getSchemaClient()
   try {

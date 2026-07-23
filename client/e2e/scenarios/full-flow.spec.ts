@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getDatabaseURL } from '../helpers/db'
+import { getDatabaseURL, replaceActivationToken } from '../helpers/db'
 import {
   bootstrapAdmin,
   setupAdmin,
@@ -45,13 +45,27 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
     await adminApproveUser(request, adminToken, userId)
   })
 
-  test('3. Login and see Dashboard', async ({ page }) => {
+  test('3. Approved user must activate before logging in', async ({ request }) => {
+    const loginResponse = await request.post('/api/v1/auth/login', {
+      data: { email: STUDENT.email, password: STUDENT.password },
+    })
+    expect(loginResponse.status()).toBe(401)
+  })
+
+  test('4. Activate account, then login and see Dashboard', async ({ page, request }) => {
+    const userId = await getUserIdByEmail(dbURL, STUDENT.email)
+    const activationToken = await replaceActivationToken(userId)
+    const activationResponse = await request.post('/api/v1/auth/activate', {
+      data: { token: activationToken, password: STUDENT.password },
+    })
+    expect(activationResponse.ok()).toBeTruthy()
+
     await loginViaUI(page, STUDENT.email, STUDENT.password)
     await expect(page.locator('h2')).toContainText('Welcome')
     await expect(page.locator('strong')).toHaveText('student')
   })
 
-  test('4. Edit Profile — save values', async ({ page }) => {
+  test('5. Edit Profile — save values', async ({ page }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
     await page.click('a[href="/profile/edit"]')
     await page.waitForURL('**/profile/edit')
@@ -67,7 +81,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
     await expect(page.locator('h2')).toContainText('Welcome')
   })
 
-  test('5. Profile edits persist after navigation', async ({ page }) => {
+  test('6. Profile edits persist after navigation', async ({ page }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
     await page.click('a[href="/profile/edit"]')
     await page.waitForURL('**/profile/edit')
@@ -79,7 +93,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
     await expect(page.locator('#portfolio')).toHaveValue('https://e2e-test.dev')
   })
 
-  test('6. Session persists on page refresh', async ({ page }) => {
+  test('7. Session persists on page refresh', async ({ page }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
     await expect(page.locator('h2')).toContainText('Welcome')
 
@@ -90,7 +104,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
     await expect(page.locator('button:has-text("Log out")')).toBeVisible()
   })
 
-  test('7. Profile edits survive page refresh', async ({ page }) => {
+  test('8. Profile edits survive page refresh', async ({ page }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
     await page.click('a[href="/profile/edit"]')
     await page.waitForURL('**/profile/edit')
