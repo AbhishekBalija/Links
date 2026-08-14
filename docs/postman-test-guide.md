@@ -91,7 +91,7 @@ Authenticates and returns a JWT access token + HTTP-only refresh cookie.
 
 **Request**
 
-```
+```http
 POST /api/v1/auth/login
 Content-Type: application/json
 
