@@ -3,7 +3,6 @@ package auth
 import (
 	"errors"
 	"net/http"
-	"time"
 
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"

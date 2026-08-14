@@ -15,7 +15,7 @@ func TestHealthEndpoint(t *testing.T) {
 		config.Config{
 			GINMode:          "test",
 			RequestBodyLimit: 1024,
-			CORS:             config.CORSConfig{AllowedOrigins: []string{"*"}},
+			CORS:             config.CORSConfig{AllowedOrigins: []string{"http://localhost:5173"}},
 		},
 		&db.Database{},
 		slog.Default(),
