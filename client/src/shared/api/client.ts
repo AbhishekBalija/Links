@@ -135,6 +135,10 @@ export async function apiRequest<T>(
           const errPayload = 'error' in retryBody
             ? retryBody.error
             : { code: 'UNKNOWN', message: 'Unknown error' }
+          if (retryRes.status === 401) {
+            accessToken = null
+            onLogout?.()
+          }
           throw new ApiRequestError(retryRes.status, errPayload)
         }
 

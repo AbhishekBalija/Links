@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"time"
 )
@@ -86,6 +87,6 @@ func activationEmailHTML(name, link string) string {
 <p>Click the button below to activate your account and set your password.</p>
 <a href="%s" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px">Activate Account</a>
 <p style="margin-top:24px;font-size:12px;color:#666">This link expires in 7 days. If you did not request this, ignore this email.</p>
-</body>
-</html>`, name, link)
+	</body>
+	</html>`, html.EscapeString(name), html.EscapeString(link))
 }

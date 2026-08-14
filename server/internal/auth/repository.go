@@ -136,11 +136,11 @@ func (r *GormRefreshTokenRepository) FindByHash(ctx context.Context, hash string
 }
 
 func (r *GormRefreshTokenRepository) RevokeByHash(ctx context.Context, hash string) error {
-	return r.db.WithContext(ctx).Model(&RefreshToken{}).Where("token_hash = ?", hash).Update("revoked_at", "NOW()").Error
+	return r.db.WithContext(ctx).Model(&RefreshToken{}).Where("token_hash = ?", hash).Update("revoked_at", time.Now()).Error
 }
 
 func (r *GormRefreshTokenRepository) RevokeAllByUserID(ctx context.Context, userID string) error {
-	return r.db.WithContext(ctx).Model(&RefreshToken{}).Where("user_id = ?", userID).Update("revoked_at", "NOW()").Error
+	return r.db.WithContext(ctx).Model(&RefreshToken{}).Where("user_id = ?", userID).Update("revoked_at", time.Now()).Error
 }
 
 // GormActivationTokenRepository implements ActivationTokenRepository.

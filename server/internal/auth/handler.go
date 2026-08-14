@@ -17,10 +17,11 @@ type Handler struct {
 	service   AuthService
 	policy    *Policy
 	cookieCfg config.CookieConfig
+	tokenCfg  TokenConfig
 }
 
-func NewHandler(service AuthService, policy *Policy, cookieCfg config.CookieConfig) *Handler {
-	return &Handler{service: service, policy: policy, cookieCfg: cookieCfg}
+func NewHandler(service AuthService, policy *Policy, cookieCfg config.CookieConfig, tokenCfg TokenConfig) *Handler {
+	return &Handler{service: service, policy: policy, cookieCfg: cookieCfg, tokenCfg: tokenCfg}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -139,7 +140,7 @@ func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
 
 	c.SetSameSite(sameSite)
 	c.SetCookie(refreshCookieName, token,
-		int((7 * 24 * time.Hour).Seconds()),
+		int(h.tokenCfg.RefreshTTL.Seconds()),
 		"/",
 		"",
 		h.cookieCfg.Secure,

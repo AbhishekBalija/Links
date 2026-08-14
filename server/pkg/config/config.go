@@ -159,15 +159,13 @@ func (c Config) Validate() error {
 		return fmt.Errorf("GIN_MODE must be release in production")
 	}
 
-	// Per docs/environment.md: JWT secrets are required for auth.
-	// Only skip validation in local dev when secrets aren't set yet.
-	if c.AppEnv != "local" {
-		if c.Auth.JWTAccessSecret == "" {
-			return fmt.Errorf("JWT_ACCESS_SECRET is required")
-		}
-		if c.Auth.JWTRefreshSecret == "" {
-			return fmt.Errorf("JWT_REFRESH_SECRET is required")
-		}
+	// JWT secrets are required in every environment because auth routes are
+	// always registered and an empty HMAC key would make tokens forgeable.
+	if c.Auth.JWTAccessSecret == "" {
+		return fmt.Errorf("JWT_ACCESS_SECRET is required")
+	}
+	if c.Auth.JWTRefreshSecret == "" {
+		return fmt.Errorf("JWT_REFRESH_SECRET is required")
 	}
 
 	return nil

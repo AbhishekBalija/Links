@@ -540,6 +540,9 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 	if newStatus == UserStatusActive && user.Status == UserStatusRejected {
 		return apperrors.NewValidation("cannot activate a rejected user", nil)
 	}
+	if newStatus == UserStatusActive && user.Status == UserStatusPending {
+		return apperrors.NewValidation("use the verify endpoint to activate a pending user", nil)
+	}
 
 	user.Status = newStatus
 	user.UpdatedAt = time.Now()

@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS role_assignments (
   -- Scope types per ADR-005: scoped RBAC
   CONSTRAINT chk_role_assignments_scope_type CHECK (
     scope_type IN ('global', 'department', 'club')
+  ),
+  CONSTRAINT chk_role_assignments_scope_id CHECK (
+    (scope_type = 'global' AND scope_id IS NULL)
+    OR (scope_type IN ('department', 'club') AND scope_id IS NOT NULL)
   )
 );
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getDatabaseURL, replaceActivationToken } from '../helpers/db'
+import { getDatabaseURL, getSchemaClient, replaceActivationToken } from '../helpers/db'
 import {
   bootstrapAdmin,
   setupAdmin,
@@ -101,11 +101,12 @@ test.describe('Zero-Role User → /account-pending', () => {
     zeroRoleUserId = await getUserIdByEmail(dbURL, ZERO_ROLE.email)
     // Activate directly via DB, NOT via admin endpoint (which also assigns a role).
     // This keeps the user active with zero role assignments (tests ADR-015 /me fix).
-    const { Client } = await import('pg')
-    const dbClient = new Client({ connectionString: dbURL })
-    await dbClient.connect()
-    await dbClient.query(`UPDATE users SET status = 'active' WHERE id = $1`, [zeroRoleUserId])
-    await dbClient.end()
+    const dbClient = await getSchemaClient()
+    try {
+      await dbClient.query(`UPDATE users SET status = 'active' WHERE id = $1`, [zeroRoleUserId])
+    } finally {
+      await dbClient.end()
+    }
 
     // Login — should succeed (no permission gate on /me anymore per ADR-015)
     await loginViaUI(page, ZERO_ROLE.email, ZERO_ROLE.password)

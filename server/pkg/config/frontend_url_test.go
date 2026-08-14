@@ -1,15 +1,12 @@
 package config
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 func TestFrontendURL(t *testing.T) {
 	tests := []struct {
-		name     string
-		env      map[string]string
-		want     string
+		name string
+		env  map[string]string
+		want string
 	}{
 		{
 			name: "local dev — no VERCEL vars",
@@ -53,14 +50,12 @@ func TestFrontendURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.env {
-				os.Setenv(k, v)
+			for _, key := range []string{"FRONTEND_URL", "VERCEL_ENV", "VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_URL"} {
+				t.Setenv(key, "")
 			}
-			defer func() {
-				for k := range tt.env {
-					os.Unsetenv(k)
-				}
-			}()
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
 
 			got := frontendURL()
 			if got != tt.want {

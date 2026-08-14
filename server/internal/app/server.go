@@ -22,6 +22,11 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	if logger == nil {
 		return nil, errors.New("logger is required")
 	}
+	for _, origin := range cfg.CORS.AllowedOrigins {
+		if origin == "*" {
+			return nil, errors.New("CORS_ALLOWED_ORIGINS must list explicit origins when credentials are enabled")
+		}
+	}
 
 	gin.SetMode(cfg.GINMode)
 	router := gin.New()
@@ -78,7 +83,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	)
 
 	policy := auth.NewPolicy()
-	authHandler := auth.NewHandler(authService, policy, cfg.Cookie)
+	authHandler := auth.NewHandler(authService, policy, cfg.Cookie, tokenCfg)
 	authHandler.RegisterRoutes(api)
 
 	v1 := api.Group("/v1")

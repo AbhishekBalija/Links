@@ -18,10 +18,8 @@ var departmentCodes = map[string]string{
 	"CV": "Civil Engineering",
 	"ME": "Mechanical Engineering",
 	"EC": "Electronics & Communication Engineering",
-	// CI  = CSE (Artificial Intelligence & Machine Learning)
-	// PROVISIONAL: Structurally correct per VTU's CSE (AIML) naming, but not yet
-	// cross-checked against an actual MITT student USN. Remove this comment once
-	// confirmed via a real 4MNxxCIxxx sample.
+	// CI is accepted by the parser but is not seeded until MITT confirms an
+	// actual 4MNxxCIxxx student USN.
 	"CI": "CSE (Artificial Intelligence & Machine Learning)",
 }
 

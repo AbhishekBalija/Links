@@ -28,7 +28,7 @@ Content-Type: application/json
 ```json
 {
   "data": {
-    "user_id": "473b87ac-cc4a-4366-85bd-709d99830407",
+    "id": "473b87ac-cc4a-4366-85bd-709d99830407",
     "status": "pending"
   }
 }
@@ -139,7 +139,7 @@ Authorization: Bearer <access_token>
 ```json
 {
   "data": {
-    "user_id": "473b87ac-cc4a-4366-85bd-709d99830407",
+    "id": "473b87ac-cc4a-4366-85bd-709d99830407",
     "email": "test@mitt.edu.in",
     "roles": ["student"]
   }
@@ -239,13 +239,14 @@ INSERT INTO profiles (user_id, username, full_name, created_at, updated_at)
 VALUES ('<user_id>', 'admin', 'Admin', now(), now());
 ```
 
-Then login as admin:
+Then login as the local admin using the email and password you chose for this
+bootstrap. Do not use shared or production credentials in this guide:
 
 ```
 POST /api/v1/auth/login
 Content-Type: application/json
 
-{"email": "admin@mitt.edu.in", "password": "Admin@123"}
+{"email": "<LOCAL_ADMIN_EMAIL>", "password": "<LOCAL_ADMIN_PASSWORD>"}
 ```
 
 Copy the `access_token` from the response for all admin endpoint calls.

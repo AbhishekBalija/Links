@@ -12,6 +12,7 @@ func TestConfigValidate(t *testing.T) {
 		AppEnv:           "local",
 		DatabaseURL:      "postgres://example",
 		GINMode:          "debug",
+		Auth:             AuthConfig{JWTAccessSecret: "local-access-secret", JWTRefreshSecret: "local-refresh-secret"},
 		RequestBodyLimit: 1024,
 		DatabasePool: DatabasePoolConfig{
 			MaxOpenConns:    10,
