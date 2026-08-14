@@ -242,7 +242,7 @@ VALUES ('<user_id>', 'admin', 'Admin', now(), now());
 Then login as the local admin using the email and password you chose for this
 bootstrap. Do not use shared or production credentials in this guide:
 
-```
+```http
 POST /api/v1/auth/login
 Content-Type: application/json
 
