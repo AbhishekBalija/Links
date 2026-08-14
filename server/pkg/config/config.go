@@ -167,6 +167,9 @@ func (c Config) Validate() error {
 	if c.Auth.JWTRefreshSecret == "" {
 		return fmt.Errorf("JWT_REFRESH_SECRET is required")
 	}
+	if c.Cookie.SameSite == "none" && !c.Cookie.Secure {
+		return fmt.Errorf("COOKIE_SECURE must be true when COOKIE_SAME_SITE is none")
+	}
 
 	return nil
 }

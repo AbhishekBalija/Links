@@ -30,4 +30,10 @@ func TestConfigValidate(t *testing.T) {
 	if err := invalid.Validate(); err == nil {
 		t.Fatal("expected missing database URL to fail validation")
 	}
+
+	insecureNone := valid
+	insecureNone.Cookie = CookieConfig{SameSite: "none", Secure: false}
+	if err := insecureNone.Validate(); err == nil {
+		t.Fatal("expected SameSite=None without Secure to fail validation")
+	}
 }
