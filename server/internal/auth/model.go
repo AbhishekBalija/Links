@@ -225,6 +225,7 @@ type UserRepository interface {
 type RefreshTokenRepository interface {
 	Create(ctx context.Context, token *RefreshToken) error
 	FindByHash(ctx context.Context, hash string) (*RefreshToken, error)
+	RevokeIfActive(ctx context.Context, hash string) error
 	RevokeByHash(ctx context.Context, hash string) error
 	RevokeAllByUserID(ctx context.Context, userID string) error
 }
@@ -245,9 +246,10 @@ type AuditLogRepository interface {
 
 // AuthRepositories groups repositories that must share one database transaction.
 type AuthRepositories struct {
-	Users       UserRepository
-	Activations ActivationTokenRepository
-	AuditLogs   AuditLogRepository
+	Users         UserRepository
+	RefreshTokens RefreshTokenRepository
+	Activations   ActivationTokenRepository
+	AuditLogs     AuditLogRepository
 }
 
 // AuthUnitOfWork executes related auth writes atomically.

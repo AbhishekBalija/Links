@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -91,8 +92,13 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		}
 	}
 
+	var phone *string
+	if normalizedPhone := strings.TrimSpace(input.Phone); normalizedPhone != "" {
+		phone = &normalizedPhone
+	}
 	user := &User{
 		Email:        &input.Email,
+		Phone:        phone,
 		PasswordHash: passwordHash,
 		Status:       UserStatusPending,
 		IsVerified:   false,
@@ -117,10 +123,11 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		}
 
 		profile := &Profile{
-			UserID:    user.ID,
-			FullName:  input.FullName,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			UserID:               user.ID,
+			FullName:             input.FullName,
+			PublicProfileEnabled: true,
+			CreatedAt:            time.Now(),
+			UpdatedAt:            time.Now(),
 		}
 		if err := s.createProfileWithRetry(ctx, repos.Users, profile); err != nil {
 			return fmt.Errorf("create profile: %w", err)
@@ -213,60 +220,60 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*LoginRespon
 func (s *authService) Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error) {
 	hash := HashRefreshToken(refreshTokenRaw)
 
-	stored, err := s.refreshRepo.FindByHash(ctx, hash)
-	if err != nil {
-		return nil, "", fmt.Errorf("find refresh token: %w", err)
-	}
-	if stored == nil {
-		return nil, "", apperrors.NewUnauthenticated("invalid refresh token")
-	}
+	var accessToken string
+	var refreshRaw *RefreshTokenRaw
+	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+		stored, err := repos.RefreshTokens.FindByHash(ctx, hash)
+		if err != nil {
+			return fmt.Errorf("find refresh token: %w", err)
+		}
+		if stored == nil || stored.IsExpired() || stored.IsRevoked() {
+			return apperrors.NewUnauthenticated("invalid refresh token")
+		}
+		if err := repos.RefreshTokens.RevokeIfActive(ctx, hash); err != nil {
+			if errors.Is(err, errRefreshTokenUnavailable) {
+				return apperrors.NewUnauthenticated("invalid refresh token")
+			}
+			return fmt.Errorf("revoke old token: %w", err)
+		}
 
-	if stored.IsExpired() {
-		return nil, "", apperrors.NewUnauthenticated("refresh token expired")
-	}
-	if stored.IsRevoked() {
-		return nil, "", apperrors.NewUnauthenticated("refresh token revoked")
-	}
+		user, err := repos.Users.FindByID(ctx, stored.UserID)
+		if err != nil {
+			return fmt.Errorf("find user: %w", err)
+		}
+		if user == nil || !user.Status.CanLogin() {
+			return apperrors.NewUnauthenticated("user not active")
+		}
 
-	user, err := s.userRepo.FindByID(ctx, stored.UserID)
-	if err != nil {
-		return nil, "", fmt.Errorf("find user: %w", err)
-	}
-	if user == nil || !user.Status.CanLogin() {
-		return nil, "", apperrors.NewUnauthenticated("user not active")
-	}
+		roles, err := repos.Users.GetRoleAssignments(ctx, user.ID)
+		if err != nil {
+			return fmt.Errorf("get roles: %w", err)
+		}
+		roleNames := make([]string, len(roles))
+		for i, role := range roles {
+			roleNames[i] = string(role.Role)
+		}
 
-	roles, err := s.userRepo.GetRoleAssignments(ctx, user.ID)
-	if err != nil {
-		return nil, "", fmt.Errorf("get roles: %w", err)
-	}
-	roleNames := make([]string, len(roles))
-	for i, r := range roles {
-		roleNames[i] = string(r.Role)
-	}
-
-	if err := s.refreshRepo.RevokeByHash(ctx, hash); err != nil {
-		return nil, "", fmt.Errorf("revoke old token: %w", err)
-	}
-
-	accessToken, err := GenerateAccessToken(user.ID, roleNames, s.tokenCfg)
-	if err != nil {
-		return nil, "", fmt.Errorf("generate access token: %w", err)
-	}
-
-	refreshRaw, err := GenerateRefreshTokenRaw(s.tokenCfg)
-	if err != nil {
-		return nil, "", fmt.Errorf("generate refresh token: %w", err)
-	}
-
-	newRefreshToken := &RefreshToken{
-		UserID:    user.ID,
-		TokenHash: refreshRaw.TokenHash,
-		ExpiresAt: refreshRaw.ExpiresAt,
-		CreatedAt: time.Now(),
-	}
-	if err := s.refreshRepo.Create(ctx, newRefreshToken); err != nil {
-		return nil, "", fmt.Errorf("store refresh token: %w", err)
+		accessToken, err = GenerateAccessToken(user.ID, roleNames, s.tokenCfg)
+		if err != nil {
+			return fmt.Errorf("generate access token: %w", err)
+		}
+		refreshRaw, err = GenerateRefreshTokenRaw(s.tokenCfg)
+		if err != nil {
+			return fmt.Errorf("generate refresh token: %w", err)
+		}
+		newRefreshToken := &RefreshToken{
+			UserID:    user.ID,
+			TokenHash: refreshRaw.TokenHash,
+			ExpiresAt: refreshRaw.ExpiresAt,
+			CreatedAt: time.Now(),
+		}
+		if err := repos.RefreshTokens.Create(ctx, newRefreshToken); err != nil {
+			return fmt.Errorf("store refresh token: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, "", err
 	}
 
 	return &RefreshResponse{

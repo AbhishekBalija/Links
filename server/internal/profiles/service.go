@@ -3,6 +3,7 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
@@ -43,6 +44,10 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerI
 }
 
 func (s *Service) UpdateMyProfile(ctx context.Context, userID string, input UpdateProfileInput) (*ProfileResponse, error) {
+	if err := validateProfileURLs(input); err != nil {
+		return nil, err
+	}
+
 	var profile *Profile
 	if err := s.unitOfWork.WithinTransaction(ctx, func(repos Repositories) error {
 		var err error
@@ -85,6 +90,30 @@ func (s *Service) UpdateMyProfile(ctx context.Context, userID string, input Upda
 	}
 
 	return s.profileToResponse(ctx, profile, true), nil
+}
+
+func validateProfileURLs(input UpdateProfileInput) error {
+	fields := []struct {
+		name  string
+		value *string
+	}{
+		{name: "avatar_url", value: input.AvatarURL},
+		{name: "linkedin_url", value: input.LinkedInURL},
+		{name: "github_url", value: input.GitHubURL},
+		{name: "portfolio_url", value: input.PortfolioURL},
+	}
+
+	for _, field := range fields {
+		if field.value == nil || *field.value == "" {
+			continue
+		}
+		parsed, err := url.ParseRequestURI(*field.value)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return apperrors.NewValidation(field.name+" must be a valid HTTP or HTTPS URL", nil)
+		}
+	}
+
+	return nil
 }
 
 func (s *Service) profileToResponse(ctx context.Context, p *Profile, includePrivate bool) *ProfileResponse {

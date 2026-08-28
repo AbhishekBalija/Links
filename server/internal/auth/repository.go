@@ -13,6 +13,7 @@ import (
 )
 
 var errActivationTokenUnavailable = errors.New("activation token is unavailable")
+var errRefreshTokenUnavailable = errors.New("refresh token is unavailable")
 
 // GormAuthUnitOfWork creates transaction-scoped auth repositories.
 type GormAuthUnitOfWork struct {
@@ -26,9 +27,10 @@ func NewGormAuthUnitOfWork(db *gorm.DB) *GormAuthUnitOfWork {
 func (u *GormAuthUnitOfWork) WithinTransaction(ctx context.Context, fn func(AuthRepositories) error) error {
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(AuthRepositories{
-			Users:       NewGormUserRepository(tx),
-			Activations: NewGormActivationTokenRepository(tx),
-			AuditLogs:   NewGormAuditLogRepository(tx),
+			Users:         NewGormUserRepository(tx),
+			RefreshTokens: NewGormRefreshTokenRepository(tx),
+			Activations:   NewGormActivationTokenRepository(tx),
+			AuditLogs:     NewGormAuditLogRepository(tx),
 		})
 	})
 }
@@ -173,6 +175,21 @@ func (r *GormRefreshTokenRepository) FindByHash(ctx context.Context, hash string
 
 func (r *GormRefreshTokenRepository) RevokeByHash(ctx context.Context, hash string) error {
 	return r.db.WithContext(ctx).Model(&RefreshToken{}).Where("token_hash = ?", hash).Update("revoked_at", time.Now()).Error
+}
+
+func (r *GormRefreshTokenRepository) RevokeIfActive(ctx context.Context, hash string) error {
+	now := time.Now()
+	result := r.db.WithContext(ctx).
+		Model(&RefreshToken{}).
+		Where("token_hash = ? AND revoked_at IS NULL AND expires_at > ?", hash, now).
+		Update("revoked_at", now)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("%w: token already revoked, expired, or missing", errRefreshTokenUnavailable)
+	}
+	return nil
 }
 
 func (r *GormRefreshTokenRepository) RevokeAllByUserID(ctx context.Context, userID string) error {

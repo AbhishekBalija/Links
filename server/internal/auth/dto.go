@@ -11,7 +11,7 @@ type RequestAccessInput struct {
 	USN            string `json:"usn,omitempty"`
 	DepartmentCode string `json:"department_code,omitempty"`
 	BatchYear      *int   `json:"batch_year,omitempty"`
-	Phone          string `json:"phone,omitempty"`
+	Phone          string `json:"phone,omitempty" binding:"omitempty,max=32"`
 }
 
 type LoginInput struct {
