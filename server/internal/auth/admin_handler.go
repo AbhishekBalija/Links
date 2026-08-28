@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 
-	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -27,6 +26,11 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *AdminHandler) ReviewQueue(c *gin.Context) {
+	if GetActor(c) == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return
+	}
+
 	if err := AuthorizeActor(c, h.policy, PermissionManageUsersAndRoles); err != nil {
 		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
 		return
@@ -66,11 +70,6 @@ func (h *AdminHandler) VerifyUser(c *gin.Context) {
 	}
 
 	if err := h.service.VerifyUser(c.Request.Context(), actor.UserID, userID, input.ScopeType, input.ScopeID, input.Note); err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			response.Error(c, appErr.HTTPStatus, appErr.Code, appErr.Message, appErr.Details)
-			return
-		}
 		writeError(c, err)
 		return
 	}
@@ -103,11 +102,6 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateUserStatus(c.Request.Context(), actor.UserID, userID, input.Status, input.Note); err != nil {
-		var appErr *apperrors.AppError
-		if errors.As(err, &appErr) {
-			response.Error(c, appErr.HTTPStatus, appErr.Code, appErr.Message, appErr.Details)
-			return
-		}
 		writeError(c, err)
 		return
 	}

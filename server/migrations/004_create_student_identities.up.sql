@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS student_identities (
   user_id        UUID PRIMARY KEY REFERENCES users(id),
-  usn            TEXT UNIQUE NOT NULL,
+  usn            TEXT NOT NULL,
   department_id  UUID REFERENCES departments(id),
   batch_year     INT NOT NULL,
   admission_year INT,

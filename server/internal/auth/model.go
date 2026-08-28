@@ -8,17 +8,17 @@ import (
 // User represents the users table per docs/database-design.md § users.
 // Per docs/backend-standards.md § Domain State: use typed statuses.
 type User struct {
-	ID              string            `gorm:"column:id;primaryKey"`
-	Email           *string           `gorm:"column:email"`
-	Phone           *string           `gorm:"column:phone"`
-	PasswordHash    string            `gorm:"column:password_hash"`
-	Status          UserStatus        `gorm:"column:status"`
-	IsVerified      bool              `gorm:"column:is_verified"`
-	CreatedBy       *string           `gorm:"column:created_by"`
-	CreatedAt       time.Time         `gorm:"column:created_at"`
-	UpdatedAt       time.Time         `gorm:"column:updated_at"`
-	Profile         *Profile          `gorm:"foreignKey:UserID;references:ID"`
-	StudentIdentity *StudentIdentity  `gorm:"foreignKey:UserID;references:ID"`
+	ID              string           `gorm:"column:id;primaryKey"`
+	Email           *string          `gorm:"column:email"`
+	Phone           *string          `gorm:"column:phone"`
+	PasswordHash    string           `gorm:"column:password_hash"`
+	Status          UserStatus       `gorm:"column:status"`
+	IsVerified      bool             `gorm:"column:is_verified"`
+	CreatedBy       *string          `gorm:"column:created_by"`
+	CreatedAt       time.Time        `gorm:"column:created_at"`
+	UpdatedAt       time.Time        `gorm:"column:updated_at"`
+	Profile         *Profile         `gorm:"foreignKey:UserID;references:ID"`
+	StudentIdentity *StudentIdentity `gorm:"foreignKey:UserID;references:ID"`
 }
 
 // TableName returns the database table name.
@@ -47,15 +47,15 @@ func (s UserStatus) CanLogin() bool {
 // RoleAssignment represents the role_assignments table
 // per docs/database-design.md § role_assignments.
 type RoleAssignment struct {
-	ID         string    `gorm:"column:id;primaryKey"`
-	UserID     string    `gorm:"column:user_id"`
-	Role       Role      `gorm:"column:role"`
-	ScopeType  ScopeType `gorm:"column:scope_type"`
-	ScopeID    *string   `gorm:"column:scope_id"`
-	AssignedBy *string   `gorm:"column:assigned_by"`
-	StartsAt   time.Time `gorm:"column:starts_at"`
+	ID         string     `gorm:"column:id;primaryKey"`
+	UserID     string     `gorm:"column:user_id"`
+	Role       Role       `gorm:"column:role"`
+	ScopeType  ScopeType  `gorm:"column:scope_type"`
+	ScopeID    *string    `gorm:"column:scope_id"`
+	AssignedBy *string    `gorm:"column:assigned_by"`
+	StartsAt   time.Time  `gorm:"column:starts_at"`
 	EndsAt     *time.Time `gorm:"column:ends_at"`
-	CreatedAt  time.Time `gorm:"column:created_at"`
+	CreatedAt  time.Time  `gorm:"column:created_at"`
 }
 
 // TableName returns the database table name.
@@ -113,20 +113,20 @@ func (t RefreshToken) IsRevoked() bool {
 // Profile represents the profiles table per docs/database-design.md § profiles.
 // Auth creates the initial row; the profiles module owns full CRUD.
 type Profile struct {
-	UserID               string     `gorm:"column:user_id;primaryKey"`
-	Username             string     `gorm:"column:username;uniqueIndex"`
-	FullName             string     `gorm:"column:full_name"`
-	Headline             *string    `gorm:"column:headline"`
-	Bio                  *string    `gorm:"column:bio"`
-	AvatarURL            *string    `gorm:"column:avatar_url"`
-	PublicProfileEnabled bool       `gorm:"column:public_profile_enabled"`
-	ShowEmail            bool       `gorm:"column:show_email"`
-	ShowPhone            bool       `gorm:"column:show_phone"`
-	LinkedInURL          *string    `gorm:"column:linkedin_url"`
-	GitHubURL            *string    `gorm:"column:github_url"`
-	PortfolioURL         *string    `gorm:"column:portfolio_url"`
-	CreatedAt            time.Time  `gorm:"column:created_at"`
-	UpdatedAt            time.Time  `gorm:"column:updated_at"`
+	UserID               string    `gorm:"column:user_id;primaryKey"`
+	Username             string    `gorm:"column:username;uniqueIndex"`
+	FullName             string    `gorm:"column:full_name"`
+	Headline             *string   `gorm:"column:headline"`
+	Bio                  *string   `gorm:"column:bio"`
+	AvatarURL            *string   `gorm:"column:avatar_url"`
+	PublicProfileEnabled bool      `gorm:"column:public_profile_enabled"`
+	ShowEmail            bool      `gorm:"column:show_email"`
+	ShowPhone            bool      `gorm:"column:show_phone"`
+	LinkedInURL          *string   `gorm:"column:linkedin_url"`
+	GitHubURL            *string   `gorm:"column:github_url"`
+	PortfolioURL         *string   `gorm:"column:portfolio_url"`
+	CreatedAt            time.Time `gorm:"column:created_at"`
+	UpdatedAt            time.Time `gorm:"column:updated_at"`
 }
 
 func (Profile) TableName() string { return "profiles" }
@@ -208,6 +208,7 @@ type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByID(ctx context.Context, id string) (*User, error)
+	FindByIDForUpdate(ctx context.Context, id string) (*User, error)
 	FindEmailByUserID(ctx context.Context, userID string) (*string, error)
 	FindPhoneByUserID(ctx context.Context, userID string) (*string, error)
 	FindPendingUsers(ctx context.Context) ([]User, error)
@@ -240,4 +241,16 @@ type ActivationTokenRepository interface {
 // AuditLogRepository defines the interface for audit log persistence.
 type AuditLogRepository interface {
 	Create(ctx context.Context, log *AuditLog) error
+}
+
+// AuthRepositories groups repositories that must share one database transaction.
+type AuthRepositories struct {
+	Users       UserRepository
+	Activations ActivationTokenRepository
+	AuditLogs   AuditLogRepository
+}
+
+// AuthUnitOfWork executes related auth writes atomically.
+type AuthUnitOfWork interface {
+	WithinTransaction(ctx context.Context, fn func(AuthRepositories) error) error
 }

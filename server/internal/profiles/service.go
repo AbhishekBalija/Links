@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AbhishekBalija/Links/server/internal/auth"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -16,10 +17,11 @@ type UserReader interface {
 type Service struct {
 	repo       ProfileRepository
 	userReader UserReader
+	unitOfWork UnitOfWork
 }
 
-func NewService(repo ProfileRepository, userReader UserReader) *Service {
-	return &Service{repo: repo, userReader: userReader}
+func NewService(repo ProfileRepository, userReader UserReader, unitOfWork UnitOfWork) *Service {
+	return &Service{repo: repo, userReader: userReader, unitOfWork: unitOfWork}
 }
 
 func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerID *string) (*ProfileResponse, error) {
@@ -41,19 +43,45 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerI
 }
 
 func (s *Service) UpdateMyProfile(ctx context.Context, userID string, input UpdateProfileInput) (*ProfileResponse, error) {
-	profile, err := s.repo.FindByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("find profile: %w", err)
-	}
-	if profile == nil {
-		return nil, apperrors.NewNotFound("profile not found")
-	}
+	var profile *Profile
+	if err := s.unitOfWork.WithinTransaction(ctx, func(repos Repositories) error {
+		var err error
+		profile, err = repos.Profiles.FindByUserID(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("find profile: %w", err)
+		}
+		if profile == nil {
+			return apperrors.NewNotFound("profile not found")
+		}
 
-	applyUpdates(profile, input)
-	profile.UpdatedAt = time.Now()
+		oldShowEmail := profile.ShowEmail
+		oldShowPhone := profile.ShowPhone
+		applyUpdates(profile, input)
+		profile.UpdatedAt = time.Now()
 
-	if err := s.repo.Update(ctx, profile); err != nil {
-		return nil, fmt.Errorf("update profile: %w", err)
+		if err := repos.Profiles.Update(ctx, profile); err != nil {
+			return fmt.Errorf("update profile: %w", err)
+		}
+		if oldShowEmail != profile.ShowEmail || oldShowPhone != profile.ShowPhone {
+			auditLog := &auth.AuditLog{
+				ActorID:      &userID,
+				Action:       "profile_privacy_updated",
+				ResourceType: "profile",
+				ResourceID:   &userID,
+				Metadata: map[string]bool{
+					"show_email": profile.ShowEmail,
+					"show_phone": profile.ShowPhone,
+				},
+				CreatedAt: time.Now(),
+			}
+			if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
+				return fmt.Errorf("audit privacy update: %w", err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return s.profileToResponse(ctx, profile, true), nil

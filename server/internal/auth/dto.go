@@ -7,7 +7,7 @@ import (
 type RequestAccessInput struct {
 	Email          string `json:"email" binding:"required,email"`
 	Password       string `json:"password" binding:"required"`
-	FullName       string `json:"full_name" binding:"required"`
+	FullName       string `json:"full_name" binding:"required,max=200"`
 	USN            string `json:"usn,omitempty"`
 	DepartmentCode string `json:"department_code,omitempty"`
 	BatchYear      *int   `json:"batch_year,omitempty"`
@@ -63,8 +63,8 @@ type MeProfileResponse struct {
 }
 
 type MeStudentIdentityResponse struct {
-	USN       string  `json:"usn"`
-	BatchYear int     `json:"batch_year"`
+	USN        string  `json:"usn"`
+	BatchYear  int     `json:"batch_year"`
 	RollNumber *string `json:"roll_number,omitempty"`
 }
 
@@ -105,11 +105,11 @@ type UpdateUserStatusInput struct {
 }
 
 type PendingUserResponse struct {
-	ID              string                    `json:"id"`
-	Email           *string                   `json:"email"`
-	Profile         *PendingUserProfile       `json:"profile,omitempty"`
-	StudentIdentity *PendingUserStudentID     `json:"student_identity,omitempty"`
-	CreatedAt       time.Time                 `json:"created_at"`
+	ID              string                `json:"id"`
+	Email           *string               `json:"email"`
+	Profile         *PendingUserProfile   `json:"profile,omitempty"`
+	StudentIdentity *PendingUserStudentID `json:"student_identity,omitempty"`
+	CreatedAt       time.Time             `json:"created_at"`
 }
 
 type PendingUserProfile struct {

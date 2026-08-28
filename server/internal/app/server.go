@@ -54,7 +54,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	userRepo := auth.NewGormUserRepository(database.GORM())
 	refreshRepo := auth.NewGormRefreshTokenRepository(database.GORM())
 	activationRepo := auth.NewGormActivationTokenRepository(database.GORM())
-	auditLogRepo := auth.NewGormAuditLogRepository(database.GORM())
+	authUnitOfWork := auth.NewGormAuthUnitOfWork(database.GORM())
 
 	tokenCfg := auth.TokenConfig{
 		AccessSecret:  cfg.Auth.JWTAccessSecret,
@@ -75,7 +75,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		userRepo,
 		refreshRepo,
 		activationRepo,
-		auditLogRepo,
+		authUnitOfWork,
 		tokenCfg,
 		auth.NewArgon2PasswordHasher(),
 		m,
@@ -94,7 +94,8 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	adminHandler.RegisterAdminRoutes(v1)
 
 	profileRepo := profiles.NewGormProfileRepository(database.GORM())
-	profileService := profiles.NewService(profileRepo, userRepo)
+	profileUnitOfWork := profiles.NewGormUnitOfWork(database.GORM())
+	profileService := profiles.NewService(profileRepo, userRepo, profileUnitOfWork)
 	profileHandler := profiles.NewHandler(profileService)
 	profileHandler.RegisterRoutes(api, v1, tokenCfg)
 

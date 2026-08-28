@@ -4,11 +4,34 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var errActivationTokenUnavailable = errors.New("activation token is unavailable")
+
+// GormAuthUnitOfWork creates transaction-scoped auth repositories.
+type GormAuthUnitOfWork struct {
+	db *gorm.DB
+}
+
+func NewGormAuthUnitOfWork(db *gorm.DB) *GormAuthUnitOfWork {
+	return &GormAuthUnitOfWork{db: db}
+}
+
+func (u *GormAuthUnitOfWork) WithinTransaction(ctx context.Context, fn func(AuthRepositories) error) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(AuthRepositories{
+			Users:       NewGormUserRepository(tx),
+			Activations: NewGormActivationTokenRepository(tx),
+			AuditLogs:   NewGormAuditLogRepository(tx),
+		})
+	})
+}
 
 // GormUserRepository implements UserRepository using GORM.
 type GormUserRepository struct {
@@ -39,6 +62,19 @@ func (r *GormUserRepository) FindByEmail(ctx context.Context, email string) (*Us
 func (r *GormUserRepository) FindByID(ctx context.Context, id string) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).
+		Preload("Profile").
+		Preload("StudentIdentity").
+		First(&user, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &user, err
+}
+
+func (r *GormUserRepository) FindByIDForUpdate(ctx context.Context, id string) (*User, error) {
+	var user User
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Preload("Profile").
 		Preload("StudentIdentity").
 		First(&user, "id = ?", id).Error
@@ -183,7 +219,17 @@ func (r *GormActivationTokenRepository) FindByHash(ctx context.Context, hash str
 
 func (r *GormActivationTokenRepository) MarkUsed(ctx context.Context, id string) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&AccountActivationToken{}).Where("id = ?", id).Update("used_at", now).Error
+	result := r.db.WithContext(ctx).
+		Model(&AccountActivationToken{}).
+		Where("id = ? AND used_at IS NULL AND expires_at > ?", id, now).
+		Update("used_at", now)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("%w: token already used, expired, or missing", errActivationTokenUnavailable)
+	}
+	return nil
 }
 
 // GormAuditLogRepository implements AuditLogRepository using GORM.

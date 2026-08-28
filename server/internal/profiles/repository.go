@@ -4,8 +4,26 @@ import (
 	"context"
 	"errors"
 
+	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"gorm.io/gorm"
 )
+
+type GormUnitOfWork struct {
+	db *gorm.DB
+}
+
+func NewGormUnitOfWork(db *gorm.DB) *GormUnitOfWork {
+	return &GormUnitOfWork{db: db}
+}
+
+func (u *GormUnitOfWork) WithinTransaction(ctx context.Context, fn func(Repositories) error) error {
+	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(Repositories{
+			Profiles:  NewGormProfileRepository(tx),
+			AuditLogs: auth.NewGormAuditLogRepository(tx),
+		})
+	})
+}
 
 type GormProfileRepository struct {
 	db *gorm.DB

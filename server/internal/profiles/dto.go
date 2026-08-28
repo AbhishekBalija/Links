@@ -1,14 +1,14 @@
 package profiles
 
 type UpdateProfileInput struct {
-	Headline    *string `json:"headline"`
-	Bio         *string `json:"bio"`
-	AvatarURL   *string `json:"avatar_url"`
-	ShowEmail   *bool   `json:"show_email"`
-	ShowPhone   *bool   `json:"show_phone"`
-	LinkedInURL *string `json:"linkedin_url"`
-	GitHubURL   *string `json:"github_url"`
-	PortfolioURL *string `json:"portfolio_url"`
+	Headline     *string `json:"headline" binding:"omitempty,max=200"`
+	Bio          *string `json:"bio" binding:"omitempty,max=2000"`
+	AvatarURL    *string `json:"avatar_url" binding:"omitempty,max=2048,url"`
+	ShowEmail    *bool   `json:"show_email"`
+	ShowPhone    *bool   `json:"show_phone"`
+	LinkedInURL  *string `json:"linkedin_url" binding:"omitempty,max=2048,url"`
+	GitHubURL    *string `json:"github_url" binding:"omitempty,max=2048,url"`
+	PortfolioURL *string `json:"portfolio_url" binding:"omitempty,max=2048,url"`
 }
 
 type ProfileResponse struct {

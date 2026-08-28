@@ -19,7 +19,7 @@ type authService struct {
 	userRepo       UserRepository
 	refreshRepo    RefreshTokenRepository
 	activationRepo ActivationTokenRepository
-	auditLogRepo   AuditLogRepository
+	unitOfWork     AuthUnitOfWork
 	tokenCfg       TokenConfig
 	passwordHasher PasswordHasher
 	mailer         mailer.Mailer
@@ -30,7 +30,7 @@ func NewAuthService(
 	userRepo UserRepository,
 	refreshRepo RefreshTokenRepository,
 	activationRepo ActivationTokenRepository,
-	auditLogRepo AuditLogRepository,
+	unitOfWork AuthUnitOfWork,
 	tokenCfg TokenConfig,
 	passwordHasher PasswordHasher,
 	mailer mailer.Mailer,
@@ -40,7 +40,7 @@ func NewAuthService(
 		userRepo:       userRepo,
 		refreshRepo:    refreshRepo,
 		activationRepo: activationRepo,
-		auditLogRepo:   auditLogRepo,
+		unitOfWork:     unitOfWork,
 		tokenCfg:       tokenCfg,
 		passwordHasher: passwordHasher,
 		mailer:         mailer,
@@ -74,28 +74,6 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		deptID = dept.ID
 	}
 
-	user := &User{
-		Email:        &input.Email,
-		PasswordHash: passwordHash,
-		Status:       UserStatusPending,
-		IsVerified:   false,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
-	}
-
-	profile := &Profile{
-		UserID:    user.ID,
-		FullName:  input.FullName,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	if err := s.createProfileWithRetry(ctx, profile); err != nil {
-		return nil, fmt.Errorf("create profile: %w", err)
-	}
-
 	if input.USN != "" {
 		usnCode, err := ValidateUSN(input.USN)
 		if err != nil {
@@ -111,20 +89,63 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 			}
 			deptID = dept.ID
 		}
-		identity := &StudentIdentity{
-			UserID:       user.ID,
-			USN:          input.USN,
-			DepartmentID: deptID,
-			BatchYear:    0,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+	}
+
+	user := &User{
+		Email:        &input.Email,
+		PasswordHash: passwordHash,
+		Status:       UserStatusPending,
+		IsVerified:   false,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+		existing, err := repos.Users.FindByEmail(ctx, input.Email)
+		if err != nil {
+			return fmt.Errorf("recheck email: %w", err)
 		}
-		if input.BatchYear != nil {
-			identity.BatchYear = *input.BatchYear
+		if existing != nil {
+			return apperrors.NewConflict("email already registered")
 		}
-		if err := s.userRepo.CreateStudentIdentity(ctx, identity); err != nil {
-			return nil, fmt.Errorf("create student identity: %w", err)
+
+		if err := repos.Users.Create(ctx, user); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "idx_users_email" {
+				return apperrors.NewConflict("email already registered")
+			}
+			return fmt.Errorf("create user: %w", err)
 		}
+
+		profile := &Profile{
+			UserID:    user.ID,
+			FullName:  input.FullName,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		if err := s.createProfileWithRetry(ctx, repos.Users, profile); err != nil {
+			return fmt.Errorf("create profile: %w", err)
+		}
+
+		if input.USN != "" {
+			identity := &StudentIdentity{
+				UserID:       user.ID,
+				USN:          input.USN,
+				DepartmentID: deptID,
+				BatchYear:    0,
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			}
+			if input.BatchYear != nil {
+				identity.BatchYear = *input.BatchYear
+			}
+			if err := repos.Users.CreateStudentIdentity(ctx, identity); err != nil {
+				return fmt.Errorf("create student identity: %w", err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	return &RequestAccessResponse{
@@ -262,41 +283,44 @@ func (s *authService) Logout(ctx context.Context, refreshTokenRaw string) error 
 func (s *authService) ActivateAccount(ctx context.Context, token, password string) error {
 	hash := HashRefreshToken(token)
 
-	activation, err := s.activationRepo.FindByHash(ctx, hash)
-	if err != nil {
-		return fmt.Errorf("find activation token: %w", err)
-	}
-	if activation == nil || activation.UsedAt != nil || time.Now().After(activation.ExpiresAt) {
-		return apperrors.NewUnauthenticated("invalid or expired activation token")
-	}
-
 	passwordHash, err := s.passwordHasher.Hash(password)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	user, err := s.userRepo.FindByID(ctx, activation.UserID)
-	if err != nil {
-		return fmt.Errorf("find user: %w", err)
-	}
-	if user == nil {
-		return apperrors.NewNotFound("user not found")
-	}
+	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+		activation, err := repos.Activations.FindByHash(ctx, hash)
+		if err != nil {
+			return fmt.Errorf("find activation token: %w", err)
+		}
+		if activation == nil || activation.UsedAt != nil || time.Now().After(activation.ExpiresAt) {
+			return apperrors.NewUnauthenticated("invalid or expired activation token")
+		}
+		if err := repos.Activations.MarkUsed(ctx, activation.ID); err != nil {
+			if errors.Is(err, errActivationTokenUnavailable) {
+				return apperrors.NewUnauthenticated("invalid or expired activation token")
+			}
+			return fmt.Errorf("consume activation token: %w", err)
+		}
 
-	user.PasswordHash = passwordHash
-	user.Status = UserStatusActive
-	user.IsVerified = true
-	user.UpdatedAt = time.Now()
+		user, err := repos.Users.FindByID(ctx, activation.UserID)
+		if err != nil {
+			return fmt.Errorf("find user: %w", err)
+		}
+		if user == nil {
+			return apperrors.NewNotFound("user not found")
+		}
 
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
+		user.PasswordHash = passwordHash
+		user.Status = UserStatusActive
+		user.IsVerified = true
+		user.UpdatedAt = time.Now()
+		if err := repos.Users.Update(ctx, user); err != nil {
+			return fmt.Errorf("update user: %w", err)
+		}
 
-	if err := s.activationRepo.MarkUsed(ctx, activation.ID); err != nil {
-		return fmt.Errorf("mark token used: %w", err)
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (s *authService) ResendActivation(ctx context.Context, email string) error {
@@ -316,26 +340,41 @@ func (s *authService) ResendActivation(ctx context.Context, email string) error 
 		return apperrors.NewRateLimited("activation email was sent recently; try again later")
 	}
 
-	if err := s.activationRepo.RevokeAllUnusedByUserID(ctx, user.ID); err != nil {
-		return fmt.Errorf("revoke old tokens: %w", err)
-	}
-
 	fullName := ""
 	if user.Profile != nil {
 		fullName = user.Profile.FullName
 	}
 
-	if err := s.sendActivationEmail(ctx, user.ID, email, fullName); err != nil {
+	token, tokenRaw, err := newActivationToken(user.ID)
+	if err != nil {
+		return err
+	}
+	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+		if err := repos.Activations.RevokeAllUnusedByUserID(ctx, user.ID); err != nil {
+			return fmt.Errorf("revoke old tokens: %w", err)
+		}
+		if err := repos.Activations.Create(ctx, token); err != nil {
+			return fmt.Errorf("create activation token: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	if err := s.sendStoredActivationEmail(email, fullName, tokenRaw); err != nil {
+		if invalidateErr := s.invalidateActivationToken(ctx, token.ID); invalidateErr != nil {
+			return fmt.Errorf("send activation email: %v; invalidate failed token: %w", err, invalidateErr)
+		}
 		return fmt.Errorf("send activation email: %w", err)
 	}
 
 	return nil
 }
 
-func (s *authService) sendActivationEmail(ctx context.Context, userID, email, name string) error {
+func newActivationToken(userID string) (*AccountActivationToken, string, error) {
 	tokenRaw, tokenHash, err := generateActivationToken()
 	if err != nil {
-		return fmt.Errorf("generate token: %w", err)
+		return nil, "", fmt.Errorf("generate token: %w", err)
 	}
 
 	token := &AccountActivationToken{
@@ -346,16 +385,20 @@ func (s *authService) sendActivationEmail(ctx context.Context, userID, email, na
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 		CreatedAt: time.Now(),
 	}
-	if err := s.activationRepo.Create(ctx, token); err != nil {
-		return fmt.Errorf("create activation token: %w", err)
-	}
+	return token, tokenRaw, nil
+}
 
+func (s *authService) sendStoredActivationEmail(email, name, tokenRaw string) error {
 	activationLink := s.frontendURL + "/activate?token=" + tokenRaw
 	if err := s.mailer.SendActivationEmail(email, name, activationLink); err != nil {
 		return fmt.Errorf("send email: %w", err)
 	}
 
 	return nil
+}
+
+func (s *authService) invalidateActivationToken(ctx context.Context, tokenID string) error {
+	return s.activationRepo.MarkUsed(ctx, tokenID)
 }
 
 func generateActivationToken() (raw string, hash string, err error) {
@@ -445,9 +488,14 @@ func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, er
 			}
 		}
 		if u.StudentIdentity != nil {
+			departmentCode := ""
+			if code, err := ValidateUSN(u.StudentIdentity.USN); err == nil {
+				departmentCode = code
+			}
 			pur.StudentIdentity = &PendingUserStudentID{
-				USN:       u.StudentIdentity.USN,
-				BatchYear: u.StudentIdentity.BatchYear,
+				USN:            u.StudentIdentity.USN,
+				DepartmentCode: departmentCode,
+				BatchYear:      u.StudentIdentity.BatchYear,
 			}
 		}
 		responses = append(responses, pur)
@@ -457,66 +505,85 @@ func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, er
 }
 
 func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("find user: %w", err)
-	}
-	if user == nil {
-		return apperrors.NewNotFound("user not found")
-	}
-	if user.Status != UserStatusPending {
-		return apperrors.NewConflict("user is not in pending status")
-	}
-
 	role := RoleStudent
 	now := time.Now()
 	st := ScopeType(scopeType)
 	if st == "" {
 		st = ScopeGlobal
 	}
-	ra := &RoleAssignment{
-		UserID:     userID,
-		Role:       role,
-		ScopeType:  st,
-		ScopeID:    stringPtrOrNil(scopeID),
-		AssignedBy: &actorID,
-		StartsAt:   now,
-		CreatedAt:  now,
+	token, tokenRaw, err := newActivationToken(userID)
+	if err != nil {
+		return err
 	}
-	if err := s.userRepo.CreateRoleAssignment(ctx, ra); err != nil {
-		return fmt.Errorf("create role assignment: %w", err)
+	var email, fullName string
+	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("find user: %w", err)
+		}
+		if user == nil {
+			return apperrors.NewNotFound("user not found")
+		}
+		if user.Status != UserStatusPending {
+			return apperrors.NewConflict("user is not in pending status")
+		}
+		if user.IsVerified {
+			return apperrors.NewConflict("user is already verified")
+		}
+		if user.Email == nil {
+			return fmt.Errorf("verified user has no email")
+		}
+		email = *user.Email
+		if user.Profile != nil {
+			fullName = user.Profile.FullName
+		}
+
+		ra := &RoleAssignment{
+			UserID:     userID,
+			Role:       role,
+			ScopeType:  st,
+			ScopeID:    stringPtrOrNil(scopeID),
+			AssignedBy: &actorID,
+			StartsAt:   now,
+			CreatedAt:  now,
+		}
+		if err := repos.Users.CreateRoleAssignment(ctx, ra); err != nil {
+			return fmt.Errorf("create role assignment: %w", err)
+		}
+
+		// Approval grants the role and permits activation; the activation link is
+		// the only transition that makes a self-service account active.
+		user.IsVerified = true
+		user.UpdatedAt = now
+		if err := repos.Users.Update(ctx, user); err != nil {
+			return fmt.Errorf("update user: %w", err)
+		}
+
+		auditLog := &AuditLog{
+			ActorID:      &actorID,
+			Action:       "user_verified",
+			ResourceType: "user",
+			ResourceID:   &userID,
+			CreatedAt:    now,
+		}
+		if note != "" {
+			auditLog.Metadata = map[string]string{"note": note}
+		}
+		if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
+			return fmt.Errorf("create audit log: %w", err)
+		}
+		if err := repos.Activations.Create(ctx, token); err != nil {
+			return fmt.Errorf("create activation token: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
-	// Approval grants the role and permits activation; the activation link is
-	// the only transition that makes a self-service account active.
-	user.IsVerified = true
-	user.UpdatedAt = now
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
-
-	auditLog := &AuditLog{
-		ActorID:      &actorID,
-		Action:       "user_verified",
-		ResourceType: "user",
-		ResourceID:   &userID,
-		CreatedAt:    now,
-	}
-	if note != "" {
-		auditLog.Metadata = map[string]string{"note": note}
-	}
-	if err := s.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return fmt.Errorf("create audit log: %w", err)
-	}
-
-	fullName := ""
-	if user.Profile != nil {
-		fullName = user.Profile.FullName
-	}
-	if user.Email == nil {
-		return fmt.Errorf("verified user has no email")
-	}
-	if err := s.sendActivationEmail(ctx, user.ID, *user.Email, fullName); err != nil {
+	if err := s.sendStoredActivationEmail(email, fullName, tokenRaw); err != nil {
+		if invalidateErr := s.invalidateActivationToken(ctx, token.ID); invalidateErr != nil {
+			return fmt.Errorf("send activation email: %v; invalidate failed token: %w", err, invalidateErr)
+		}
 		return fmt.Errorf("send activation email: %w", err)
 	}
 
@@ -524,45 +591,46 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 }
 
 func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error {
-	user, err := s.userRepo.FindByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("find user: %w", err)
-	}
-	if user == nil {
-		return apperrors.NewNotFound("user not found")
-	}
-
 	newStatus := UserStatus(status)
-	if newStatus == user.Status {
-		return apperrors.NewConflict("user already has status " + status)
-	}
+	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("find user: %w", err)
+		}
+		if user == nil {
+			return apperrors.NewNotFound("user not found")
+		}
+		if newStatus == user.Status {
+			return apperrors.NewConflict("user already has status " + status)
+		}
 
-	if newStatus == UserStatusActive && user.Status == UserStatusRejected {
-		return apperrors.NewValidation("cannot activate a rejected user", nil)
-	}
-	if newStatus == UserStatusActive && user.Status == UserStatusPending {
-		return apperrors.NewValidation("use the verify endpoint to activate a pending user", nil)
-	}
+		if newStatus == UserStatusActive && user.Status == UserStatusRejected {
+			return apperrors.NewValidation("cannot activate a rejected user", nil)
+		}
+		if newStatus == UserStatusActive && user.Status == UserStatusPending {
+			return apperrors.NewValidation("use the verify endpoint to activate a pending user", nil)
+		}
 
-	user.Status = newStatus
-	user.UpdatedAt = time.Now()
-	if err := s.userRepo.Update(ctx, user); err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
+		user.Status = newStatus
+		user.UpdatedAt = time.Now()
+		if err := repos.Users.Update(ctx, user); err != nil {
+			return fmt.Errorf("update user: %w", err)
+		}
 
-	auditLog := &AuditLog{
-		ActorID:      &actorID,
-		Action:       "user_status_changed",
-		ResourceType: "user",
-		ResourceID:   &userID,
-		CreatedAt:    time.Now(),
-		Metadata:     map[string]string{"new_status": status, "note": note},
-	}
-	if err := s.auditLogRepo.Create(ctx, auditLog); err != nil {
-		return fmt.Errorf("create audit log: %w", err)
-	}
+		auditLog := &AuditLog{
+			ActorID:      &actorID,
+			Action:       "user_status_changed",
+			ResourceType: "user",
+			ResourceID:   &userID,
+			CreatedAt:    time.Now(),
+			Metadata:     map[string]string{"new_status": status, "note": note},
+		}
+		if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
+			return fmt.Errorf("create audit log: %w", err)
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func stringPtrOrNil(s string) *string {
@@ -572,16 +640,16 @@ func stringPtrOrNil(s string) *string {
 	return &s
 }
 
-func (s *authService) createProfileWithRetry(ctx context.Context, profile *Profile) error {
+func (s *authService) createProfileWithRetry(ctx context.Context, repo UserRepository, profile *Profile) error {
 	const maxAttempts = 5
 	for range maxAttempts {
 		profile.Username = generateUsername(profile.FullName)
-		err := s.userRepo.CreateProfile(ctx, profile)
+		err := repo.CreateProfile(ctx, profile)
 		if err == nil {
 			return nil
 		}
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "idx_profiles_username" {
 			continue
 		}
 		return err

@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS profiles (
   user_id                UUID PRIMARY KEY REFERENCES users(id),
-  username               TEXT UNIQUE NOT NULL,
+  username               TEXT NOT NULL,
   full_name              TEXT NOT NULL,
   headline               TEXT,
   bio                    TEXT,

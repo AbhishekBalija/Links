@@ -38,13 +38,13 @@ func DefaultTokenConfig() TokenConfig {
 func GenerateAccessToken(userID string, roles []string, cfg TokenConfig) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"sub": userID,
+		"sub":   userID,
 		"roles": roles,
-		"iss": accessTokenIssuer,
-		"aud": accessTokenAudience,
-		"iat": now.Unix(),
-		"exp": now.Add(cfg.AccessTTL).Unix(),
-		"jti": uuid.New().String(),
+		"iss":   accessTokenIssuer,
+		"aud":   accessTokenAudience,
+		"iat":   now.Unix(),
+		"exp":   now.Add(cfg.AccessTTL).Unix(),
+		"jti":   uuid.New().String(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -63,7 +63,12 @@ func ValidateAccessToken(tokenString string, cfg TokenConfig) (*TokenClaims, err
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(cfg.AccessSecret), nil
-	}, jwt.WithIssuer(accessTokenIssuer), jwt.WithAudience(accessTokenAudience))
+	},
+		jwt.WithIssuer(accessTokenIssuer),
+		jwt.WithAudience(accessTokenAudience),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
@@ -78,7 +83,10 @@ func ValidateAccessToken(tokenString string, cfg TokenConfig) (*TokenClaims, err
 		return nil, errors.New("invalid claims")
 	}
 
-	userID := claims["sub"].(string)
+	userID, err := claims.GetSubject()
+	if err != nil || userID == "" {
+		return nil, errors.New("invalid subject claim")
+	}
 
 	var roles []string
 	if rolesRaw, ok := claims["roles"].([]interface{}); ok {
@@ -87,21 +95,38 @@ func ValidateAccessToken(tokenString string, cfg TokenConfig) (*TokenClaims, err
 				roles = append(roles, s)
 			}
 		}
+	} else if roleStrings, ok := claims["roles"].([]string); ok {
+		roles = append(roles, roleStrings...)
 	}
 
-	iss, _ := claims["iss"].(string)
-	aud, _ := claims["aud"].(string)
-	iat := int64(claims["iat"].(float64))
-	exp := int64(claims["exp"].(float64))
-	jti, _ := claims["jti"].(string)
+	iss, err := claims.GetIssuer()
+	if err != nil {
+		return nil, errors.New("invalid issuer claim")
+	}
+	audiences, err := claims.GetAudience()
+	if err != nil || len(audiences) == 0 {
+		return nil, errors.New("invalid audience claim")
+	}
+	issuedAt, err := claims.GetIssuedAt()
+	if err != nil || issuedAt == nil {
+		return nil, errors.New("invalid issued-at claim")
+	}
+	expiresAt, err := claims.GetExpirationTime()
+	if err != nil || expiresAt == nil {
+		return nil, errors.New("invalid expiration claim")
+	}
+	jti, ok := claims["jti"].(string)
+	if !ok || jti == "" {
+		return nil, errors.New("invalid token id claim")
+	}
 
 	return &TokenClaims{
 		UserID: userID,
 		Roles:  roles,
 		Issuer: iss,
-		Aud:    aud,
-		IAT:    iat,
-		Exp:    exp,
+		Aud:    audiences[0],
+		IAT:    issuedAt.Unix(),
+		Exp:    expiresAt.Unix(),
 		JTI:    jti,
 	}, nil
 }

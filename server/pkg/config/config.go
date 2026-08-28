@@ -167,6 +167,12 @@ func (c Config) Validate() error {
 	if c.Auth.JWTRefreshSecret == "" {
 		return fmt.Errorf("JWT_REFRESH_SECRET is required")
 	}
+	if c.Auth.AccessTokenTTL <= 0 {
+		return fmt.Errorf("ACCESS_TOKEN_TTL must be greater than zero")
+	}
+	if c.Auth.RefreshTokenTTL <= 0 {
+		return fmt.Errorf("REFRESH_TOKEN_TTL must be greater than zero")
+	}
 	if c.Cookie.SameSite == "none" && !c.Cookie.Secure {
 		return fmt.Errorf("COOKIE_SECURE must be true when COOKIE_SAME_SITE is none")
 	}
