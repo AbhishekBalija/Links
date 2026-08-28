@@ -227,8 +227,8 @@ Before testing admin endpoints, bootstrap the first admin user via SQL:
 
 ```sql
 INSERT INTO users (id, email, password_hash, status, is_verified, created_at, updated_at)
-VALUES (gen_random_uuid(), 'admin@mitt.edu.in',
-  '$argon2id$v=19$m=32768,t=1,p=2$7LgbXRLytdp7E7dNkqyexw$ekGNwq+3hZxmyAm/kCgLFzKoiCOtL/Fia3XE9+GXIe8',
+VALUES (gen_random_uuid(), '<LOCAL_ADMIN_EMAIL>',
+  '<ARGON2ID_HASH_FOR_LOCAL_ADMIN_PASSWORD>',
   'active', true, now(), now());
 
 -- Get the user_id from the insert above, then:
@@ -239,8 +239,9 @@ INSERT INTO profiles (user_id, username, full_name, created_at, updated_at)
 VALUES ('<user_id>', 'admin', 'Admin', now(), now());
 ```
 
-Then login as the local admin using the email and password you chose for this
-bootstrap. Do not use shared or production credentials in this guide:
+Generate the Argon2id hash through the project's local bootstrap flow, then log
+in with the matching local-only email and password. Do not put shared or
+production credentials in this guide:
 
 ```http
 POST /api/v1/auth/login
