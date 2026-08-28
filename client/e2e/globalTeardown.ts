@@ -8,6 +8,16 @@ const __dirname = path.dirname(__filename)
 
 const STATE_FILE = path.resolve(__dirname, '.e2e-state.json')
 
+function stopProcess(pid: number | undefined, label: string) {
+  if (!pid) return
+  try {
+    process.kill(process.platform === 'win32' ? pid : -pid, 'SIGTERM')
+    console.log(`  ${label} (PID ${pid}) stopped`)
+  } catch {
+    console.log(`  ${label} (PID ${pid}) already stopped`)
+  }
+}
+
 export default async function globalTeardown() {
   console.log('\n=== E2E Global Teardown ===')
 
@@ -20,29 +30,12 @@ export default async function globalTeardown() {
     console.log('  No state file found, skipping')
   }
 
-  // Kill backend
-  if (state.backendPid) {
-    try {
-      process.kill(state.backendPid, 'SIGTERM')
-      console.log(`  Backend (PID ${state.backendPid}) stopped`)
-    } catch {
-      console.log(`  Backend (PID ${state.backendPid}) already stopped`)
-    }
-  }
-
-  // Kill frontend
-  if (state.frontendPid) {
-    try {
-      process.kill(state.frontendPid, 'SIGTERM')
-      console.log(`  Frontend (PID ${state.frontendPid}) stopped`)
-    } catch {
-      console.log(`  Frontend (PID ${state.frontendPid}) already stopped`)
-    }
-  }
+  stopProcess(state.backendPid, 'Backend')
+  stopProcess(state.frontendPid, 'Frontend')
 
   // Drop schema
   console.log('  Dropping test schema...')
-  await dropTestSchema()
+	await dropTestSchema(state.schemaName)
 
   console.log('=== Teardown complete ===\n')
 }

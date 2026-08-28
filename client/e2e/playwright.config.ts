@@ -1,4 +1,7 @@
 import { defineConfig } from '@playwright/test'
+import { fileURLToPath } from 'url'
+
+const clientRoot = fileURLToPath(new URL('..', import.meta.url))
 
 export default defineConfig({
   testDir: './scenarios',
@@ -6,7 +9,8 @@ export default defineConfig({
   expect: { timeout: 10000 },
   fullyParallel: false,
   retries: 0,
-  workers: 1,
+	workers: 1,
+	outputDir: `${clientRoot}/test-results`,
 
   globalSetup: new URL('globalSetup.ts', import.meta.url).pathname,
   globalTeardown: new URL('globalTeardown.ts', import.meta.url).pathname,

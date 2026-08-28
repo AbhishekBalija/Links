@@ -1,5 +1,5 @@
-import { createTestSchema, sweepStaleSchemas, getDatabaseURL } from './helpers/db'
-import { spawn } from 'child_process'
+import { createTestSchema, sweepStaleSchemas, getDatabaseURL, dropTestSchema } from './helpers/db'
+import { spawn, type ChildProcess } from 'child_process'
 import * as http from 'http'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -17,6 +17,15 @@ export type SetupResult = {
 }
 
 const STATE_FILE = path.resolve(__dirname, '.e2e-state.json')
+
+function stopProcess(proc: ChildProcess | undefined) {
+  if (!proc?.pid) return
+  try {
+    process.kill(process.platform === 'win32' ? proc.pid : -proc.pid, 'SIGTERM')
+  } catch {
+    // The process may already have exited during startup.
+  }
+}
 
 async function waitForServer(url: string, label: string, timeoutMs = 30000): Promise<void> {
   const start = Date.now()
@@ -40,68 +49,86 @@ async function waitForServer(url: string, label: string, timeoutMs = 30000): Pro
 }
 
 export default async function globalSetup(): Promise<SetupResult> {
-  console.log('\n=== E2E Global Setup ===')
+	console.log('\n=== E2E Global Setup ===')
+	if (fs.existsSync(STATE_FILE)) fs.unlinkSync(STATE_FILE)
 
-  // 1. Create isolated schema and sweep stale ones
-  console.log('[1] Creating test schema...')
-  const schemaName = await createTestSchema()
-  process.env.E2E_SCHEMA_NAME = schemaName
-  console.log(`  Schema: ${schemaName}`)
-  console.log('[2] Sweeping stale schemas (>24h)...')
-  await sweepStaleSchemas(schemaName)
+  let schemaName = ''
+  let backendProcess: ChildProcess | undefined
+  let frontendProcess: ChildProcess | undefined
 
-  const dbURL = getDatabaseURL()
+  try {
+    // 1. Create isolated schema and sweep stale ones
+    console.log('[1] Creating test schema...')
+    schemaName = await createTestSchema()
+    process.env.E2E_SCHEMA_NAME = schemaName
+    console.log(`  Schema: ${schemaName}`)
+    console.log('[2] Sweeping stale schemas (>24h)...')
+    await sweepStaleSchemas(schemaName)
 
-  // 2. Start backend server
-  // CI pre-builds the binary — globalSetup still creates the schema first,
-  // then starts the binary with the correct per-schema DATABASE_URL.
-  const backendBin = process.env.E2E_BACKEND_BIN || 'go'
-  const backendArgs = backendBin === 'go' ? ['run', './cmd/api'] : []
-  console.log(`[3] Starting backend (${backendBin} ${backendArgs.join(' ')})...`)
-  const backendProcess = spawn(backendBin, backendArgs, {
-    cwd: path.resolve(__dirname, '../../server'),
-    env: {
-      ...process.env,
-      DATABASE_URL: dbURL,
-      APP_PORT: '8081',
-      RESEND_API_KEY: '',
-      ACCESS_TOKEN_TTL: '10s',
-      CORS_ALLOWED_ORIGINS: 'http://localhost:5174',
-    },
-    stdio: 'pipe',
-  })
+    const dbURL = getDatabaseURL()
 
-  backendProcess.stdout?.on('data', (d) => process.stdout.write(`[b] ${d}`))
-  backendProcess.stderr?.on('data', (d) => process.stderr.write(`[b] ${d}`))
+    // 2. Start backend server
+    // CI pre-builds the binary — globalSetup still creates the schema first,
+    // then starts the binary with the correct per-schema DATABASE_URL.
+    const backendBin = process.env.E2E_BACKEND_BIN || 'go'
+    const backendArgs = backendBin === 'go' ? ['run', './cmd/api'] : []
+    console.log(`[3] Starting backend (${backendBin} ${backendArgs.join(' ')})...`)
+    backendProcess = spawn(backendBin, backendArgs, {
+      cwd: path.resolve(__dirname, '../../server'),
+      env: {
+        ...process.env,
+        DATABASE_URL: dbURL,
+        APP_PORT: '8081',
+        RESEND_API_KEY: '',
+        ACCESS_TOKEN_TTL: '10s',
+        CORS_ALLOWED_ORIGINS: 'http://localhost:5174',
+      },
+      detached: process.platform !== 'win32',
+      stdio: 'pipe',
+    })
 
-  await waitForServer('http://localhost:8081/api/health', 'Backend')
+    backendProcess.stdout?.on('data', (d) => process.stdout.write(`[b] ${d}`))
+    backendProcess.stderr?.on('data', (d) => process.stderr.write(`[b] ${d}`))
 
-  // 3. Start frontend dev server
-  console.log('[4] Starting frontend...')
-  const frontendProcess = spawn('bun', ['run', 'dev', '--port', '5174'], {
-    cwd: path.resolve(__dirname, '..'),
-    env: {
-      ...process.env,
-      VITE_API_URL: 'http://localhost:8081',
-    },
-    stdio: 'pipe',
-  })
+    await waitForServer('http://localhost:8081/api/health', 'Backend')
 
-  frontendProcess.stdout?.on('data', (d) => process.stdout.write(`[f] ${d}`))
-  frontendProcess.stderr?.on('data', (d) => process.stderr.write(`[f] ${d}`))
+    // 3. Start frontend dev server
+    console.log('[4] Starting frontend...')
+    frontendProcess = spawn('bun', ['run', 'dev', '--port', '5174'], {
+      cwd: path.resolve(__dirname, '..'),
+      env: {
+        ...process.env,
+        VITE_API_URL: 'http://localhost:8081',
+      },
+      detached: process.platform !== 'win32',
+      stdio: 'pipe',
+    })
 
-  await waitForServer('http://localhost:5174', 'Frontend')
+    frontendProcess.stdout?.on('data', (d) => process.stdout.write(`[f] ${d}`))
+    frontendProcess.stderr?.on('data', (d) => process.stderr.write(`[f] ${d}`))
 
-  // 4. Save state for teardown
-  const state: SetupResult = {
-    backendUrl: 'http://localhost:8081',
-    frontendUrl: 'http://localhost:5174',
-    schemaName,
-    backendPid: backendProcess?.pid ?? 0,
-    frontendPid: frontendProcess.pid!,
+    await waitForServer('http://localhost:5174', 'Frontend')
+
+    // 4. Save state for teardown
+    const state: SetupResult = {
+      backendUrl: 'http://localhost:8081',
+      frontendUrl: 'http://localhost:5174',
+      schemaName,
+      backendPid: backendProcess.pid ?? 0,
+      frontendPid: frontendProcess.pid ?? 0,
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
+
+    console.log('=== Setup complete ===\n')
+    return state
+  } catch (error) {
+    stopProcess(frontendProcess)
+    stopProcess(backendProcess)
+    if (schemaName) {
+      await dropTestSchema().catch((cleanupError) => {
+        console.error('  Failed to drop schema after setup error:', cleanupError)
+      })
+    }
+    throw error
   }
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2))
-
-  console.log('=== Setup complete ===\n')
-  return state
 }

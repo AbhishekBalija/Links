@@ -17,46 +17,38 @@ function getNeonURLs(): { pooled: string; unpooled: string } {
   }
 }
 
-const URLs = getNeonURLs()
-
-// Pooled connection — for schema-level operations (CREATE/DROP SCHEMA) which
-// don't need search_path. The pooler rejects the options startup parameter.
-const POOLED_NEON_URL = URLs.pooled
-
-// Unpooled (direct) connection — supports the options/search_path startup
-// parameter needed for per-schema migrations.
-const UNPOOLED_NEON_URL = URLs.unpooled
-
 let schemaName = process.env.E2E_SCHEMA_NAME || ''
 
 export function getSchemaName() {
-  return schemaName
+	return schemaName
 }
 
 // Returns the unpooled URL with search_path via options parameter.
 // Used by globalSetup.ts as DATABASE_URL env var — the backend's GORM
 // handles the options startup parameter correctly.
 export function getDatabaseURL() {
-  const encoded = `--search_path%3D${schemaName}`
-  return `${UNPOOLED_NEON_URL}&options=${encoded}`
+	if (!schemaName) throw new Error('E2E schema has not been initialized')
+	const url = new URL(getNeonURLs().unpooled)
+	url.searchParams.set('options', `--search_path=${schemaName}`)
+	return url.toString()
 }
 
 export function getBaseURL() {
-  return POOLED_NEON_URL
+	return getNeonURLs().pooled
 }
 
 // Creates a pg.Client connected to the test schema using the unpooled
 // endpoint + explicit SET search_path (pg driver doesn't reliably forward
 // the options startup parameter).
 export async function getSchemaClient() {
-  const client = new Client({ connectionString: UNPOOLED_NEON_URL })
+	const client = new Client({ connectionString: getNeonURLs().unpooled })
   await client.connect()
   await client.query(`SET search_path TO "${schemaName}"`)
   return client
 }
 
 export async function getPooledClient() {
-  const client = new Client({ connectionString: POOLED_NEON_URL })
+	const client = new Client({ connectionString: getNeonURLs().pooled })
   await client.connect()
   return client
 }
@@ -92,9 +84,8 @@ export async function sweepStaleSchemas(exceptName?: string) {
 }
 
 export async function createTestSchema(): Promise<string> {
-  const now = new Date()
-  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
-  schemaName = `e2e_test_${ts}`
+	const ts = new Date().toISOString().replaceAll('-', '').replaceAll(':', '').replace('T', '_').slice(0, 15)
+	schemaName = `e2e_test_${ts}_${randomBytes(3).toString('hex')}`
 
   const client = await getPooledClient()
   try {
@@ -106,55 +97,11 @@ export async function createTestSchema(): Promise<string> {
   return schemaName
 }
 
-export async function dropTestSchema() {
-  if (!schemaName) return
-  const client = await getPooledClient()
-  try {
-    await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
-  } finally {
-    await client.end()
-  }
-}
-
-export type TestUserData = {
-  email: string
-  password: string
-  userId: string
-  activationToken: string
-}
-
-export async function seedTestUser(email: string, passwordPlain: string): Promise<TestUserData> {
-  const client = await getSchemaClient()
-  try {
-    const userId = uuidv4()
-    const profileId = userId
-    const now = new Date().toISOString()
-
-    // Create user (status: pending)
-    await client.query(
-      `INSERT INTO users (id, email, password_hash, status, is_verified, created_at, updated_at)
-       VALUES ($1, $2, $3, 'pending', false, $4, $4)`,
-      [userId, email, passwordPlain, now]
-    )
-
-    // Create profile
-    const username = `test_${uuidv4().slice(0, 8)}`
-    await client.query(
-      `INSERT INTO profiles (user_id, username, full_name, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $4)`,
-      [profileId, username, 'E2E Test User', now]
-    )
-
-    // Create activation token
-    const tokenRaw = randomBytes(32).toString('base64url')
-    const tokenHash = createHash('sha256').update(tokenRaw).digest('hex')
-    await client.query(
-      `INSERT INTO account_activation_tokens (id, user_id, token_hash, purpose, expires_at, created_at)
-       VALUES ($1, $2, $3, 'activate', $4, $5)`,
-      [uuidv4(), userId, tokenHash, new Date(Date.now() + 7 * 86400000).toISOString(), now]
-    )
-
-    return { email, password: passwordPlain, userId, activationToken: tokenRaw }
+export async function dropTestSchema(name = schemaName) {
+	if (!name) return
+	const client = await getPooledClient()
+	try {
+		await client.query(`DROP SCHEMA IF EXISTS "${name}" CASCADE`)
   } finally {
     await client.end()
   }
@@ -214,8 +161,9 @@ export async function assignRole(userId: string, role: string) {
 
 export async function cleanupTestUser(email: string) {
   const client = await getSchemaClient()
-  try {
-    await client.query(`DELETE FROM role_assignments WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
+	try {
+		await client.query(`DELETE FROM audit_logs WHERE actor_id IN (SELECT id FROM users WHERE email = $1) OR resource_id IN (SELECT id FROM users WHERE email = $1)`, [email])
+		await client.query(`DELETE FROM role_assignments WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM account_activation_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM student_identities WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])

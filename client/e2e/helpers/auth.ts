@@ -74,14 +74,15 @@ export async function loginViaUI(page: Page, email: string, password: string) {
 }
 
 export async function submitAccessRequestViaUI(
-  page: Page,
-  data: { full_name: string; email: string; password: string; usn: string; department_code: string }
+	page: Page,
+	data: { full_name: string; email: string; password: string; usn: string; department_code: string; phone?: string }
 ) {
   await page.goto('/access-request')
   await page.waitForURL('**/access-request')
   await page.fill('#full_name', data.full_name)
   await page.fill('#email', data.email)
-  await page.fill('#password', data.password)
+	await page.fill('#password', data.password)
+	if (data.phone) await page.fill('#phone', data.phone)
   await page.fill('#usn', data.usn)
   await page.selectOption('#department_code', data.department_code)
   await page.click('button[type="submit"]')
@@ -93,22 +94,6 @@ export async function getUserIdByEmail(_dbURL: string, email: string): Promise<s
   try {
     const result = await client.query('SELECT id FROM users WHERE email = $1', [email])
     return result.rows[0]?.id
-  } finally {
-    await client.end()
-  }
-}
-
-export async function getActivationToken(_dbURL: string, userId: string): Promise<string> {
-  const client = await getSchemaClient()
-  try {
-    const result = await client.query(
-      `SELECT token_hash FROM account_activation_tokens
-       WHERE user_id = $1 AND purpose = 'activate' AND used_at IS NULL
-       ORDER BY created_at DESC LIMIT 1`,
-      [userId]
-    )
-    if (!result.rows[0]) throw new Error(`No activation token found for user ${userId}`)
-    return result.rows[0].token_hash
   } finally {
     await client.end()
   }
@@ -152,8 +137,9 @@ export async function loginViaAPI(apiContext: APIRequestContext, email: string, 
 export async function cleanupTestUsers(_dbURL: string, emails: string[]) {
   const client = await getSchemaClient()
   try {
-    for (const email of emails) {
-      await client.query(`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
+	for (const email of emails) {
+		await client.query(`DELETE FROM audit_logs WHERE actor_id IN (SELECT id FROM users WHERE email = $1) OR resource_id IN (SELECT id FROM users WHERE email = $1)`, [email])
+		await client.query(`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM role_assignments WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM account_activation_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM student_identities WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])

@@ -58,10 +58,15 @@ test.describe('Auth Guards', () => {
     expect(activationResponse.ok()).toBeTruthy()
 
     // Login
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
-    await expect(page.locator('h2')).toContainText('Welcome')
+	await loginViaUI(page, STUDENT.email, STUDENT.password)
+	await expect(page.locator('h2')).toContainText('Welcome')
 
-    // Logout
+	// A role-bearing user cannot remain on the pending-account screen.
+	await page.goto('/account-pending')
+	await page.waitForURL((url) => url.pathname === '/')
+	await expect(page.locator('h2')).toContainText('Welcome')
+
+	// Logout
     await page.click('button:has-text("Log out")')
     await page.waitForURL('**/login')
     await expect(page.locator('h1')).toContainText('Log in')
