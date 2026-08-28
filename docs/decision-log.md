@@ -162,3 +162,93 @@ Both paths use the identical token flow: generate a 32-byte random token (crypto
 - Hashing: SHA-256 for activation and refresh tokens (fast hash for high-entropy random strings).
 - Resend rate-limit: DB query on existing table, no new infra.
 - Bulk CSV: synchronous, per-row status in response.
+
+## ADR-013: Username Strategy — Auto-Generated with Collision Retry, Planned Real-Time Check
+
+**Date:** 2026-07-21
+
+**Decision:** For MVP, usernames are auto-generated from the user's full name during
+request-access, with a collision-aware retry loop. A future phase will add a
+user-chosen username with a real-time availability check endpoint.
+
+**Phase 1 (current):** Auto-generate username at signup from `full_name`:
+lowercase, spaces → dots, strip non-alphanumeric, append `UnixMilli() % 10000`.
+On unique constraint collision, regenerate suffix (new timestamp or increment)
+and retry up to 5 times. This is dead code once the real-time check ships.
+
+**Phase 2 (future):**
+- `GET /api/v1/profiles/check-username?u=<value>` — public endpoint
+- Request validation: 3–20 chars, `[a-z0-9._]`, no start/end with `.` or `_`
+- Reserved usernames list checked before DB query
+- DB: `SELECT 1 FROM profiles WHERE lower(username) = $1 LIMIT 1`
+- Suggestion generation when taken: `base+1`, `base+2`, `base+3`
+- Per-IP in-memory rate limiter (~20 req / 10s), no Redis per ADR-007
+- Frontend: `useDebounce` (350ms) + `useUsernameCheck` hooks
+- Wire into request-access form with status indicator and suggestion picker
+
+**Rationale:**
+- Usernames are unique and case-insensitive via existing `idx_profiles_username` index
+- No citext extension — follow existing pattern (normalize in Go, `lower()` in query)
+- Auto-generate is temporary; real-time check gives users control over their handle
+- In-memory rate limiter avoids Redis dependency per ADR-007
+- Frontend debounce prevents spamming the public endpoint on keystroke
+
+**Trade-offs:**
+- Auto-generated usernames are ugly (e.g. `johndoe4382`) — acceptable for MVP
+- Collision is rare but possible; retry loop prevents 500 errors
+- Reserved list is manual — needs maintenance as roles evolve
+- No rate limiting on request-access itself (enumeration risk accepted for MVP)
+
+## ADR-014: Email Delivery via Resend, Synchronous in MVP
+
+**Date:** 2026-07-21
+
+**Decision:** Use Resend's HTTP API for transactional email delivery, sending synchronously from the request handler. No queue, no worker, no Redis dependency.
+
+**Details:**
+- Package: `server/internal/mailer` wraps Resend's REST API (`POST /emails`) with a simple `Mailer` interface (`SendActivationEmail`)
+- Config: `RESEND_API_KEY` env var, `FROM_EMAIL` env var
+- Sandbox mode (onboarding@resend.dev) for local dev; verified domain for production
+- When `RESEND_API_KEY` is empty, `NoopMailer` is used (no emails sent) — safe for local dev without credentials
+
+**Rationale:**
+- Consistent with ADR-007 (Redis/workers deferred) — no queue infrastructure needed yet
+- Consistent with ADR-012's own note that synchronous sending is MVP-acceptable
+- Resend's plain HTTP API fits the existing Go handler pattern better than raw SMTP
+- Volume is low (per-user activation emails, not bulk blast) — no queue needed yet
+- If bulk-CSV import throughput becomes an issue later, revisit with basic goroutine-limited concurrency before reaching for a worker/queue
+
+**What changed from ADR-012's plan:**
+- ADR-012 planned the activation token schema and endpoint but deferred email delivery
+- Now wired: `/activate` and `/resend-activation` endpoints + mailer integration
+- Resend rate limit: DB query (`account_activation_tokens` ordered by `created_at desc`), reject if last token < 5 minutes old. Resend transactionally revokes all prior unused tokens before issuing a replacement. No new table/Redis needed.
+- Activation token creation hooked into `RequestAccess` flow — users get the email immediately on sign-up
+
+**Env vars added:**
+- `RESEND_API_KEY` — Resend API key (different per environment, not committed)
+- `FROM_EMAIL` — sender address (onboarding@resend.dev local, verified domain prod)
+- `FRONTEND_URL` — base URL for building activation links (already existed for CORS)
+
+**Deferred (not MVP):**
+- Async email queue / worker
+- Delivery status tracking
+- Email open/click tracking
+
+## ADR-015: Remove Permission Gate from /me — Identity Endpoint Should Not Check Business Permissions
+
+**Date:** 2026-07-22
+
+**Decision:** Remove `AuthorizeActor(c, h.policy, PermissionViewTargetedNotices)` from the `GET /api/v1/me` handler.
+
+**Rationale:**
+- Identity endpoints (whoami) should only verify that the caller is authenticated — not whether they hold a specific business permission
+- The original permission check was an unintentional copy-paste from the admin handler pattern (introduced in commit `bc8403f`), not a deliberate design decision
+- Any authenticated user with zero role assignments (e.g., after `RequestAccess` + `Activate` but before admin assigns roles) would receive an indistinguishable `403 FORBIDDEN` — the same error as an unauthorized user trying to access an admin endpoint
+- This made the zero-role state unresolvable because the frontend couldn't distinguish "authenticated with no roles" from "not authorized for this action"
+
+**Consequence:**
+- `GET /api/v1/me` now returns `200` with user identity + profile data for any valid JWT, regardless of role count
+- Authentication is still enforced at the `RequireAuth` middleware layer (returns `401 UNAUTHENTICATED` with no bearer token) — removing the authorization check did not weaken authentication
+- All other endpoints continue to gate on `AuthorizeActor` as before
+- The frontend `ProtectedRoute` component now detects `user.roles.length === 0` and redirects to `/account-pending`, centralizing zero-role handling at the routing layer
+- ADR-015 documents that identity endpoints must never depend on business permissions — this is a standing principle going forward

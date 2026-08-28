@@ -300,6 +300,20 @@ Web push permission should not be requested immediately on first visit. Ask afte
 
 Placement notifications should clearly tell the student that an opportunity or application status changed, but sensitive details should require opening LINKS after login.
 
+### Account Pending
+
+**Route:** `/account-pending`
+
+**Trigger:** An authenticated user whose account has zero role assignments (e.g., activated but not yet verified/approved by an admin or HOD).
+
+**Purpose:** Explain the incomplete state and tell the user to contact an administrator. This is a dead-end route — the user cannot proceed into the app until a role is assigned.
+
+**UX rules:**
+- Show a clear message: "Your account has been created, but no role has been assigned yet."
+- Provide a single action: Log out (so the user can retry later or use a different account).
+- Do not show navigation or sidebar — the user cannot access the app without roles.
+- This state is enforced centrally in `ProtectedRoute`, not per-page.
+
 ### Access Request
 
 Fields:
@@ -339,6 +353,26 @@ Hide by default:
 - Phone
 - Email unless user enabled it
 - Private placement/application data
+
+### Edit Profile
+
+**Route:** `/profile/edit`
+
+**Purpose:** Allow the user to update their profile information.
+
+**Fields:**
+- Headline (text, optional)
+- Bio (textarea, optional)
+- Social links: LinkedIn, GitHub, Portfolio (URL inputs, optional)
+- Privacy toggles: show email, show phone on public profile
+
+**UX rules:**
+- Pre-populate form with current values fetched from the `/me` endpoint
+- Validate URLs format where provided
+- Show "Saving…" loading state on submit button
+- Preserve entered data on validation error
+- Redirect to Dashboard on success
+- Provide a "Cancel" button returning to Dashboard
 
 ### Announcements
 

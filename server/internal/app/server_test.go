@@ -12,7 +12,11 @@ import (
 
 func TestHealthEndpoint(t *testing.T) {
 	router, err := NewServer(
-		config.Config{GINMode: "test", RequestBodyLimit: 1024},
+		config.Config{
+			GINMode:          "test",
+			RequestBodyLimit: 1024,
+			CORS:             config.CORSConfig{AllowedOrigins: []string{"http://localhost:5173"}},
+		},
 		&db.Database{},
 		slog.Default(),
 	)
