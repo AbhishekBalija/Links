@@ -4,7 +4,8 @@ import type {
   LoginResponse,
   RequestAccessInput,
   RequestAccessResponse,
-  CurrentUser,
+	CurrentUser,
+	ActivateInput,
 } from './types'
 
 export function loginUser(input: LoginInput) {
@@ -35,6 +36,13 @@ export function resendActivation(email: string) {
   return apiRequest<{ message: string }>('/api/v1/auth/resend-activation', {
     method: 'POST',
     body: JSON.stringify({ email }),
+  })
+}
+
+export function activateAccount(input: ActivateInput) {
+  return apiRequest<{ message: string }>('/api/v1/auth/activate', {
+    method: 'POST',
+    body: JSON.stringify(input),
   })
 }
 

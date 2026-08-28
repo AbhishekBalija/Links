@@ -27,12 +27,12 @@ export default function EditProfile() {
     setLoading(true)
 
     try {
-      await updateMyProfile({
-        headline: headline || null,
-        bio: bio || null,
-        linkedin_url: linkedinUrl || null,
-        github_url: githubUrl || null,
-        portfolio_url: portfolioUrl || null,
+		await updateMyProfile({
+			headline,
+			bio,
+			linkedin_url: linkedinUrl,
+			github_url: githubUrl,
+			portfolio_url: portfolioUrl,
         show_email: showEmail,
         show_phone: showPhone,
       })

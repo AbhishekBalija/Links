@@ -90,7 +90,7 @@ export default function AccessRequest() {
             Your request has been submitted. An admin or HOD will review your details and verify your account.
           </p>
           <p className="text-sm text-muted-foreground mb-6">
-            You will receive an email when your account is activated.
+			When your request is approved, you will receive an email link to set your password and activate your account.
           </p>
           <Link to="/login">
             <Button>Go to login</Button>

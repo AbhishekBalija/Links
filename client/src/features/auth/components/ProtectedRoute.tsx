@@ -35,3 +35,19 @@ export function GuestRoute() {
 
   return <Outlet />
 }
+
+export function PendingRoute() {
+  const user = useAuthStore((s) => s.user)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isLoading = useAuthStore((s) => s.isLoading)
+
+  if (isLoading) {
+    return <div className="flex min-h-dvh items-center justify-center text-muted-foreground text-sm">Loading…</div>
+  }
+
+  if (isAuthenticated && user && user.roles.length > 0) {
+    return <Navigate to="/" replace />
+  }
+
+  return <Outlet />
+}

@@ -3,7 +3,10 @@
   "services": {
     "web": {
       "root": "client/",
-      "framework": "vite"
+      "framework": "vite",
+      "rewrites": [
+        { "source": "/(.*)", "destination": "/index.html" }
+      ]
     },
     "api": {
       "root": "server/",

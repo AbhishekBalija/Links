@@ -17,6 +17,7 @@ async function safeJson<R>(res: Response): Promise<R> {
 
 let accessToken: string | null = null
 let isRefreshing = false
+let refreshPromise: Promise<string> | null = null
 let refreshQueue: Array<{
   resolve: (token: string) => void
   reject: (err: unknown) => void
@@ -39,7 +40,7 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
-export async function attemptRefresh(): Promise<string> {
+async function performRefresh(): Promise<string> {
   const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -61,6 +62,15 @@ export async function attemptRefresh(): Promise<string> {
 
   accessToken = body.data.access_token
   return accessToken
+}
+
+export function attemptRefresh(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = performRefresh().finally(() => {
+      refreshPromise = null
+    })
+  }
+  return refreshPromise
 }
 
 function processRefreshQueue(token: string) {

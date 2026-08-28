@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { setAccessToken, getAccessToken, attemptRefresh, registerLogoutHandler } from '../../shared/api/client'
 import type { CurrentUser, LoginInput } from './types'
 import { loginUser, fetchCurrentUser, logoutUser } from './api'
+import { ApiRequestError } from '../../shared/api/types'
 
 interface AuthState {
   user: CurrentUser | null
@@ -26,8 +27,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
   logout: async () => {
     try {
       await logoutUser()
-    } catch {
-      // even if fails, clear local state
+    } catch (error) {
+      if (!(error instanceof ApiRequestError) || error.status !== 401) {
+        throw error
+      }
     }
     setAccessToken(null)
     set({ user: null, isAuthenticated: false })
