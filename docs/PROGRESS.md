@@ -1,6 +1,6 @@
 # LINKS Project Progress Tracker
 
-**Last Updated:** 2026-08-28 (PR #6 release-candidate hardening and production-preview readiness)
+**Last Updated:** 2026-09-02 (dependency audit — removed unused client deps, pruned server module graph)
 **Current Phase:** Phase 1 — Identity and Access
 
 ---
@@ -200,6 +200,7 @@ When dev verifies a completed feature:
 | 2026-07-23 | `.env.prod.example` missing `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`; weak warnings on `FRONTEND_URL`, `FROM_EMAIL` | Prod deploy would use default/localhost values for `FRONTEND_URL` and `@resend.dev` sandbox sender for `FROM_EMAIL`. Added commented-out JWT secret vars with generation command, + explicit warnings that FRONTEND_URL and FROM_EMAIL must be overridden for prod. | `server/.env.prod.example` |
 | 2026-07-23 | Migration embed fix for Vercel (migrations not in binary artifact) | Filesystem migrations are unavailable in a Vercel Go artifact. SQL migrations are now embedded and applied through `fs.FS`. | `server/migrations/embed.go`, `server/pkg/db/migrations.go`, `server/pkg/db/postgres.go`, `server/cmd/api/main.go`, related tests |
 | 2026-08-28 | Phase 1 release-candidate integrity and preview hardening | Review found partial multi-write failures, replay/concurrent refresh risks, missing activation UI, SPA deep-link 404s, and fragile E2E cleanup. Added transaction-scoped repositories, conditional token consumption, refresh deduplication, activation UI, service-level SPA rewrite, and process/schema cleanup. | `server/internal/auth/`, `server/internal/profiles/`, `server/pkg/config/`, `server/migrations/`, `client/src/features/auth/`, `client/src/shared/api/client.ts`, `client/e2e/`, `vercel.json` |
+| 2026-09-02 | Pruned unused project dependencies | `@tanstack/react-query` had zero imports anywhere in the client (API client uses raw `fetch`); `@types/uuid` was redundant because `uuid` v11+ ships its own types. `go mod tidy` promoted `gin-contrib/cors` and `jackc/pgx/v5` from `// indirect` to direct requires and pruned stale `go.sum` entries. Re-add `@tanstack/react-query` only if the API client adopts it. | `client/package.json`, `client/bun.lock`, `server/go.mod`, `server/go.sum` |
 
 ---
 

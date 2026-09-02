@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "ports": {"preview": 3000, "additional": {}},
+  "scripts": {
+    "setup": {
+      "enabled": true,
+      "command": "# Best-effort: install git-lfs for Hoplite's PR packaging (git lfs ls-files probe). Never fail provisioning.\nif command -v git-lfs >/dev/null 2>&1; then\n  exit 0\nfi\nif command -v apt-get >/dev/null 2>&1; then\n  apt-get update -qq >/dev/null && apt-get install -y -qq git-lfs >/dev/null 2>&1 && exit 0\nfi\nif command -v brew >/dev/null 2>&1; then\n  brew install git-lfs >/dev/null 2>&1 && exit 0\nfi\nif command -v curl >/dev/null 2>&1; then\n  ver=$(curl -fsSL https://api.github.com/repos/git-lfs/git-lfs/releases/latest | sed -n 's/.*\"tag_name\": *\"\\([^\"]*\\)\".*/\\1/p' | tr -d v)\n  if [ -n \"$ver\" ] && curl -fsSL \"https://github.com/git-lfs/git-lfs/releases/download/v${ver}/git-lfs-linux-amd64-v${ver}.tar.gz\" -o /tmp/git-lfs.tgz; then\n    mkdir -p \"${HOME}/.local/bin\"\n    tar -xzf /tmp/git-lfs.tgz -C /tmp \"git-lfs-${ver}/git-lfs\" && install -m 0755 \"/tmp/git-lfs-${ver}/git-lfs\" \"${HOME}/.local/bin/git-lfs\" && exit 0\n  fi\nfi\nexit 0"
+    },
+    "run": {"enabled": true, "command": null},
+    "archive": {"enabled": true, "command": null},
+    "check": {"enabled": true, "command": null}
+  },
+  "mcpServers": []
+}
