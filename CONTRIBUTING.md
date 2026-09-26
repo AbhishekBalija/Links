@@ -33,8 +33,18 @@ cd server && go vet ./... && go test ./...
 cd client && bun run lint && bun run build
 ```
 
-The Playwright e2e suite (`client/e2e/`) creates and drops its own schema; CI
-runs it against a throwaway Postgres. Code standards: Go in
+API tests in `server/test/integration/` call the real router against real
+Postgres. They run only when `TEST_DATABASE_URL` is set, and each test creates
+and drops its own schema. Point it at a throwaway local database, never at the
+Neon dev or production branches:
+
+```sh
+createdb links_test
+TEST_DATABASE_URL="postgresql://$(whoami)@localhost:5432/links_test?sslmode=disable" go test ./...
+```
+
+The Playwright e2e suite (`client/e2e/`) also creates and drops its own schema.
+CI runs both against a throwaway Postgres. Code standards: Go in
 [docs/backend-standards.md](docs/backend-standards.md), UI in
 [docs/frontend-ux-ui.md](docs/frontend-ux-ui.md), security in
 [docs/security.md](docs/security.md).

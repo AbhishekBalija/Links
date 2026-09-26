@@ -50,7 +50,7 @@ Direct pushes to `master` are blocked by a GitHub ruleset; every change goes thr
 
 ## Done means
 
-- `go vet ./...` and `go test ./...` pass in `server/`; `bun run lint` and `bun run build` pass in `client/`; the Playwright e2e suite passes for auth or flow changes.
+- `go vet ./...` and `go test ./...` pass in `server/`, with `TEST_DATABASE_URL` pointing at a throwaway local database so the API tests in `server/test/integration/` run; `bun run lint` and `bun run build` pass in `client/`; the Playwright e2e suite passes for auth or flow changes.
 - `CONTEXT.md`, the ADRs, `docs/roadmap.md` and the related docs match the code.
 - `.env.*.example` files list any new env vars.
 

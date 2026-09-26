@@ -35,3 +35,28 @@ mistake.
 Cascade deletion could erase or detach student and authorization data after one
 admin request. Returning `409 CONFLICT` makes the dependency explicit and keeps
 cleanup or reassignment as a deliberate separate operation.
+
+## API Test Harness
+
+### Why test the API against a real Postgres instead of mocking the repositories?
+
+Much of the risk in LINKS is in SQL: which announcements match a student's
+department and batch, and what row locks do when two admins act at once. A fake
+repository only checks the logic you wrote into the fake. Running the real
+router against real Postgres tests the handler, service and query together, the
+way a user hits them.
+
+### How do the tests avoid touching each other's data or the real database?
+
+Each test creates its own Postgres schema, runs every migration into it, and
+points the connection pool at it with `search_path`. When the test ends the
+schema is dropped with `CASCADE`, even if the test failed. Tests only run when
+`TEST_DATABASE_URL` is set, and that must be a throwaway database, never the
+Neon dev or production branch.
+
+### Why seed users directly in SQL but call the API for everything else?
+
+Seeding is setup, not the thing under test. Creating an HOD through the real
+access-request, approval and activation flow would make every test slow and
+fragile. The behaviour being tested always goes through the public HTTP API, so
+tests keep passing when the internals are refactored.
