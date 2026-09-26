@@ -5,8 +5,11 @@ import (
 	"errors"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type GormUnitOfWork struct {
@@ -49,11 +52,33 @@ func (r *GormRepository) FindByCode(ctx context.Context, code string) (*Departme
 	return &department, err
 }
 
+// FindByCodeForUpdate locks the department row until the transaction ends.
+// Approvals that assign a department-scoped role take a share lock on the same
+// row, so a delete and a new scoped role can never both succeed.
+func (r *GormRepository) FindByCodeForUpdate(ctx context.Context, code string) (*Department, error) {
+	var department Department
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("code = ?", code).
+		First(&department).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &department, err
+}
+
 func (r *GormRepository) Create(ctx context.Context, department *Department) error {
 	if department.ID == "" {
 		department.ID = uuid.New().String()
 	}
-	return r.db.WithContext(ctx).Create(department).Error
+	err := r.db.WithContext(ctx).Create(department).Error
+	// Two admins creating the same code at once both pass the service's
+	// existence check; the unique constraint catches the second one.
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "departments_code_key" {
+		return apperrors.NewConflict("department code already exists")
+	}
+	return err
 }
 
 func (r *GormRepository) Update(ctx context.Context, department *Department) error {

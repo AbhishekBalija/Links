@@ -115,6 +115,17 @@ func (r *GormUserRepository) FindDepartmentByCode(ctx context.Context, code stri
 	return &dept, err
 }
 
+// LockDepartmentForShare reports whether the department exists and holds a
+// share lock on it until the transaction ends, so the department can't be
+// deleted while a role scoped to it is being created.
+func (r *GormUserRepository) LockDepartmentForShare(ctx context.Context, id string) (bool, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Raw("SELECT id FROM departments WHERE id = ? FOR SHARE", id).
+		Scan(&ids).Error
+	return len(ids) > 0, err
+}
+
 func (r *GormUserRepository) CreateProfile(ctx context.Context, profile *Profile) error {
 	return r.db.WithContext(ctx).Create(profile).Error
 }

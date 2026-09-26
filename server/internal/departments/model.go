@@ -23,6 +23,7 @@ func (Department) TableName() string { return "departments" }
 type Repository interface {
 	List(ctx context.Context) ([]Department, error)
 	FindByCode(ctx context.Context, code string) (*Department, error)
+	FindByCodeForUpdate(ctx context.Context, code string) (*Department, error)
 	Create(ctx context.Context, department *Department) error
 	Update(ctx context.Context, department *Department) error
 	Delete(ctx context.Context, department *Department) error
