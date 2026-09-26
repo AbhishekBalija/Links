@@ -1,23 +1,29 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ProtectedRoute, GuestRoute, PendingRoute } from '../features/auth/components/ProtectedRoute'
-import Login from '../features/auth/pages/Login'
-import AccessRequest from '../features/auth/pages/AccessRequest'
-import AccountPending from '../features/auth/pages/AccountPending'
-import ActivateAccount from '../features/auth/pages/ActivateAccount'
-import Home from '../features/home/pages/Home'
-import Notices from '../features/notices/pages/Notices'
-import NoticeDetail from '../features/notices/pages/NoticeDetail'
-import ApprovalQueue from '../features/announcements/pages/ApprovalQueue'
-import Compose from '../features/announcements/pages/Compose'
-import MyAnnouncement from '../features/announcements/pages/MyAnnouncement'
-import MyAnnouncements from '../features/announcements/pages/MyAnnouncements'
 import { useAuthStore } from '../features/auth/store'
 import { AppShell } from './shell/AppShell'
 import { canApprove, canPost } from './shell/nav'
-import EditProfile from '../features/profiles/pages/EditProfile'
+import { PageLoading } from '../shared/ui/states'
+
+// Each page is its own chunk, so the first visit downloads only the screen
+// it opens, which matters most for students on phones.
+const Login = lazy(() => import('../features/auth/pages/Login'))
+const AccessRequest = lazy(() => import('../features/auth/pages/AccessRequest'))
+const AccountPending = lazy(() => import('../features/auth/pages/AccountPending'))
+const ActivateAccount = lazy(() => import('../features/auth/pages/ActivateAccount'))
+const Home = lazy(() => import('../features/home/pages/Home'))
+const Notices = lazy(() => import('../features/notices/pages/Notices'))
+const NoticeDetail = lazy(() => import('../features/notices/pages/NoticeDetail'))
+const ApprovalQueue = lazy(() => import('../features/announcements/pages/ApprovalQueue'))
+const Compose = lazy(() => import('../features/announcements/pages/Compose'))
+const MyAnnouncement = lazy(() => import('../features/announcements/pages/MyAnnouncement'))
+const MyAnnouncements = lazy(() => import('../features/announcements/pages/MyAnnouncements'))
+const EditProfile = lazy(() => import('../features/profiles/pages/EditProfile'))
 
 export function AppRouter() {
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<Login />} />
@@ -47,6 +53,7 @@ export function AppRouter() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }
 
