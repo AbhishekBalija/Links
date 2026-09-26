@@ -95,6 +95,30 @@ type AudienceRule struct {
 	Role         *auth.Role
 }
 
+// MineFilter narrows an author's own Announcements to what needs them.
+type MineFilter string
+
+const (
+	MineAll MineFilter = ""
+	// MineAttention is anything sent back: a rejected Announcement, or a live
+	// one whose edit was rejected.
+	MineAttention MineFilter = "attention"
+	MineDraft     MineFilter = "draft"
+	MineWaiting   MineFilter = "waiting"
+	// MineLive is what readers can see now, including ones with an edit waiting.
+	MineLive MineFilter = "live"
+	// MineEnded is withdrawn or expired.
+	MineEnded MineFilter = "ended"
+)
+
+func validMineFilter(filter MineFilter) bool {
+	switch filter {
+	case MineAll, MineAttention, MineDraft, MineWaiting, MineLive, MineEnded:
+		return true
+	}
+	return false
+}
+
 // Repository is the Announcements data access used by the service.
 type Repository interface {
 	Create(ctx context.Context, announcement *Announcement, audience []AudienceRule) error
@@ -117,7 +141,8 @@ type Repository interface {
 	OpenRevision(ctx context.Context, announcementID string) (*Revision, error)
 	LatestRevisions(ctx context.Context, announcementIDs []string) ([]Revision, error)
 	Queue(ctx context.Context, scope ApproverScope, after *FeedCursor, limit int) ([]QueueEntry, error)
-	Authored(ctx context.Context, authorID string, after *FeedCursor, limit int) ([]FeedEntry, error)
+	Authored(ctx context.Context, authorID string, filter MineFilter, after *FeedCursor, limit int) ([]FeedEntry, error)
+	Reach(ctx context.Context, audience []AudienceRule) (int, error)
 	DepartmentCodes(ctx context.Context, departmentIDs []string) (map[string]string, error)
 }
 

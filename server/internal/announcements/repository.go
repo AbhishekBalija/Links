@@ -418,13 +418,31 @@ func (r *GormRepository) Queue(ctx context.Context, scope ApproverScope, after *
 }
 
 // Authored returns the author's Announcements in any status, newest first.
-func (r *GormRepository) Authored(ctx context.Context, authorID string, after *FeedCursor, limit int) ([]FeedEntry, error) {
+// latestRevisionStatus is the status of an Announcement's newest revision,
+// which says whether an edit to a published one is waiting or was sent back.
+const latestRevisionStatus = `(SELECT rv.status FROM announcement_revisions rv
+	WHERE rv.announcement_id = a.id ORDER BY rv.created_at DESC, rv.id DESC LIMIT 1)`
+
+const unexpiredSQL = `(a.expires_at IS NULL OR a.expires_at > now())`
+
+var mineConditions = map[MineFilter]string{
+	MineAttention: `(a.status = 'rejected' OR (a.status = 'published' AND ` + unexpiredSQL + ` AND ` + latestRevisionStatus + ` = 'rejected'))`,
+	MineDraft:     `a.status = 'draft'`,
+	MineWaiting:   `a.status = 'pending'`,
+	MineLive:      `(a.status = 'published' AND ` + unexpiredSQL + ` AND ` + latestRevisionStatus + ` IS DISTINCT FROM 'rejected')`,
+	MineEnded:     `(a.status = 'withdrawn' OR (a.status = 'published' AND NOT ` + unexpiredSQL + `))`,
+}
+
+func (r *GormRepository) Authored(ctx context.Context, authorID string, filter MineFilter, after *FeedCursor, limit int) ([]FeedEntry, error) {
 	query := `
 		SELECT a.*, p.full_name AS publisher_name
 		FROM announcements a
 		JOIN profiles p ON p.user_id = a.publisher_id
 		WHERE a.publisher_id = ?`
 	args := []any{authorID}
+	if condition, ok := mineConditions[filter]; ok {
+		query += ` AND ` + condition
+	}
 	if after != nil {
 		query += ` AND (a.created_at, a.id) < (?, CAST(? AS uuid))`
 		args = append(args, after.PublishedAt, after.ID)
@@ -454,4 +472,45 @@ func (r *GormRepository) DepartmentCodes(ctx context.Context, departmentIDs []st
 		codes[row.ID] = row.Code
 	}
 	return codes, nil
+}
+
+// Reach counts the active users an Audience would reach, using the same
+// matching as the feed: each role pairs with its own Department (its scope,
+// or the Student identity's Department) and batch comes from the Student
+// identity. An empty Audience is everyone with a current role.
+func (r *GormRepository) Reach(ctx context.Context, audience []AudienceRule) (int, error) {
+	query := `
+		WITH members AS (
+		  SELECT ra.user_id, ra.role,
+		         CASE WHEN ra.scope_type = 'department' THEN ra.scope_id ELSE si.department_id END AS department_id,
+		         si.batch_year
+		  FROM role_assignments ra
+		  JOIN users u ON u.id = ra.user_id AND u.status = 'active'
+		  LEFT JOIN student_identities si ON si.user_id = ra.user_id
+		  WHERE ra.starts_at <= now() AND (ra.ends_at IS NULL OR ra.ends_at > now())
+		)
+		SELECT COUNT(DISTINCT m.user_id) FROM members m`
+	args := []any{}
+	if len(audience) > 0 {
+		rows := make([]string, 0, len(audience))
+		for _, rule := range audience {
+			rows = append(rows, "(CAST(? AS text), CAST(? AS uuid), CAST(? AS int))")
+			var role *string
+			if rule.Role != nil {
+				name := string(*rule.Role)
+				role = &name
+			}
+			args = append(args, role, rule.DepartmentID, rule.BatchYear)
+		}
+		query += `
+		WHERE EXISTS (
+		  SELECT 1 FROM (VALUES ` + strings.Join(rows, ", ") + `) AS r(role, department_id, batch_year)
+		  WHERE (r.role IS NULL OR r.role = m.role)
+		    AND (r.department_id IS NULL OR r.department_id = m.department_id)
+		    AND (r.batch_year IS NULL OR r.batch_year = m.batch_year)
+		)`
+	}
+	var count int
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error
+	return count, err
 }

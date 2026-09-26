@@ -96,7 +96,10 @@ func (h *Handler) Create(c *gin.Context) {
 // Mine only ever lists the caller's own Announcements, so anyone signed in may
 // see it, including authors whose posting role has since ended.
 func (h *Handler) Mine(c *gin.Context) {
-	h.list(c, auth.PermissionViewTargetedNotices, h.service.Mine)
+	filter := MineFilter(c.Query("status"))
+	h.list(c, auth.PermissionViewTargetedNotices, func(ctx context.Context, actorID, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
+		return h.service.Mine(ctx, actorID, filter, cursor, limit)
+	})
 }
 
 func (h *Handler) Queue(c *gin.Context) {

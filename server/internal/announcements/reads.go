@@ -16,6 +16,13 @@ type EditResponse struct {
 	Status     RevisionStatus `json:"status"`
 	ReviewNote *string        `json:"review_note,omitempty"`
 	Approver   *string        `json:"approver,omitempty"`
+	// The edit's own content, so the author can fix a sent-back edit
+	// instead of starting again from the live text.
+	Title     string       `json:"title"`
+	Body      string       `json:"body"`
+	Category  Category     `json:"category"`
+	Audience  []StoredRule `json:"audience"`
+	ExpiresAt *time.Time   `json:"expires_at"`
 }
 
 // PreviewInput asks how a category and Audience would be handled if posted.
@@ -28,6 +35,8 @@ type PreviewInput struct {
 type PreviewResponse struct {
 	PublishesDirectly bool    `json:"publishes_directly"`
 	Approver          *string `json:"approver"`
+	// Reach is how many people the Audience matches right now.
+	Reach int `json:"reach"`
 }
 
 // ApprovalSummary is what's waiting for an approver.
@@ -121,15 +130,19 @@ func (s *Service) Preview(ctx context.Context, actorID string, input PreviewInpu
 		return nil, err
 	}
 
+	reach, err := s.repository.Reach(ctx, audience)
+	if err != nil {
+		return nil, fmt.Errorf("count audience: %w", err)
+	}
 	decision := DecidePublishing(grants, category, audience)
 	if decision.PublishDirectly {
-		return &PreviewResponse{PublishesDirectly: true}, nil
+		return &PreviewResponse{PublishesDirectly: true, Reach: reach}, nil
 	}
 	approver, err := s.approverName(ctx, departmentPointer(decision.ApproverDepartmentID))
 	if err != nil {
 		return nil, err
 	}
-	return &PreviewResponse{Approver: &approver}, nil
+	return &PreviewResponse{Approver: &approver, Reach: reach}, nil
 }
 
 // ApprovalSummary returns what's waiting for the user, or nil if they don't approve.
@@ -239,7 +252,14 @@ func (s *Service) decorate(ctx context.Context, responses []AnnouncementResponse
 			}
 		case StatusPublished:
 			if forAuthor && (revision.Status == RevisionPending || revision.Status == RevisionRejected) {
-				edit := &EditResponse{Status: revision.Status, ReviewNote: revision.ReviewNote}
+				edit := &EditResponse{
+					Status: revision.Status, ReviewNote: revision.ReviewNote,
+					Title: revision.Title, Body: revision.Body, Category: revision.Category,
+					Audience: revision.Audience, ExpiresAt: revision.ExpiresAt,
+				}
+				if edit.Audience == nil {
+					edit.Audience = []StoredRule{}
+				}
 				if revision.Status == RevisionPending {
 					approver, nameErr := s.approverName(ctx, revision.ApproverDepartmentID)
 					if nameErr != nil {

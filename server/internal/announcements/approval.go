@@ -318,13 +318,16 @@ func (s *Service) Queue(ctx context.Context, actorID, cursor string, limit int) 
 
 // Mine lists the author's own Announcements in any status, newest first, with
 // the reviewer's note on rejected ones.
-func (s *Service) Mine(ctx context.Context, actorID, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
+func (s *Service) Mine(ctx context.Context, actorID string, filter MineFilter, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
+	if !validMineFilter(filter) {
+		return nil, nil, apperrors.NewValidation("invalid status filter", map[string]string{"status": "use attention, draft, waiting, live or ended"})
+	}
 	limit = pageLimit(limit)
 	after, err := decodeCursor(cursor)
 	if err != nil {
 		return nil, nil, err
 	}
-	entries, err := s.repository.Authored(ctx, actorID, after, limit+1)
+	entries, err := s.repository.Authored(ctx, actorID, filter, after, limit+1)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load authored announcements: %w", err)
 	}
