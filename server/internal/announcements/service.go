@@ -103,11 +103,14 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateAnnoun
 	if err != nil {
 		return nil, fmt.Errorf("create announcement: %w", err)
 	}
-	return s.single(ctx, announcement)
+	return s.single(ctx, actorID, announcement)
 }
 
 // Feed returns one page of the Announcements whose Audience includes the reader.
-func (s *Service) Feed(ctx context.Context, actorID, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
+func (s *Service) Feed(ctx context.Context, actorID, category, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
+	if category != "" && !validCategory(Category(category)) {
+		return nil, nil, apperrors.NewValidation("invalid category", map[string]string{"category": "use official, department or placement"})
+	}
 	limit = pageLimit(limit)
 	after, err := decodeCursor(cursor)
 	if err != nil {
@@ -119,7 +122,7 @@ func (s *Service) Feed(ctx context.Context, actorID, cursor string, limit int) (
 	}
 
 	// Ask for one extra row to know whether another page exists.
-	entries, err := s.repository.Feed(ctx, reader, after, limit+1)
+	entries, err := s.repository.Feed(ctx, reader, Category(category), after, limit+1)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load feed: %w", err)
 	}
@@ -147,7 +150,7 @@ func (s *Service) validate(input contentInput) (announcementContent, error) {
 		details["body"] = fmt.Sprintf("use 1 to %d characters", maxBodyLength)
 	}
 	category := Category(input.Category)
-	if category != CategoryOfficial && category != CategoryDepartment && category != CategoryPlacement {
+	if !validCategory(category) {
 		details["category"] = "use official, department or placement"
 	}
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(s.now()) {
@@ -332,4 +335,8 @@ func decodeCursor(value string) (*FeedCursor, error) {
 		return nil, invalid
 	}
 	return &FeedCursor{PublishedAt: publishedAt, ID: parts[1]}, nil
+}
+
+func validCategory(category Category) bool {
+	return category == CategoryOfficial || category == CategoryDepartment || category == CategoryPlacement
 }
