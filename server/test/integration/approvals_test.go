@@ -328,3 +328,22 @@ func TestExpiredAnnouncementCannotBeSubmittedOrApproved(t *testing.T) {
 		t.Errorf("reject status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
 	}
 }
+
+func TestFormerAuthorsStillSeeTheirOwnAnnouncements(t *testing.T) {
+	h := apitest.New(t)
+	cs := h.DepartmentID(t, "CS")
+	author := h.SeedUser(t, apitest.UserSeed{
+		Roles:   []apitest.RoleSeed{{Role: "student"}, {Role: "student_coordinator", DepartmentCode: "CS"}},
+		Student: &apitest.StudentSeed{DepartmentCode: "CS", BatchYear: 2022},
+	})
+	createdStatus(t, publish(t, h, author.Token, map[string]any{"title": "Club fair", "audience": []map[string]any{{"department_id": cs}}}))
+
+	// Their coordinator term ends; after a refresh their token only says student.
+	if err := h.DB().Exec(`UPDATE role_assignments SET ends_at = now() - interval '1 minute' WHERE user_id = ? AND role = 'student_coordinator'`, author.ID).Error; err != nil {
+		t.Fatalf("end role: %v", err)
+	}
+	studentOnly := h.TokenFor(t, author.ID, "student")
+	if got := mine(t, h, studentOnly)["Club fair"].Status; got != "pending" {
+		t.Fatalf("former author sees status %q, want pending", got)
+	}
+}

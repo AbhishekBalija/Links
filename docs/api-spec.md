@@ -244,7 +244,8 @@ which the author sees in `/mine` as `review_note`. `403` for anyone who isn't
 this Announcement's approver or who submitted it; `409` if it isn't waiting
 for approval, including when another approver acted first.
 
-`GET /api/v1/announcements/mine` lists the caller's own Announcements in any
+`GET /api/v1/announcements/mine` (any signed-in user, so former authors keep
+seeing their history) lists the caller's own Announcements in any
 status, newest first.
 
 `GET /api/v1/announcements?limit=20&cursor=...` returns the reader's feed:

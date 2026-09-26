@@ -54,8 +54,10 @@ func (h *Handler) Create(c *gin.Context) {
 	response.Success(c, http.StatusCreated, result, nil)
 }
 
+// Mine only ever lists the caller's own Announcements, so anyone signed in may
+// see it, including authors whose posting role has since ended.
 func (h *Handler) Mine(c *gin.Context) {
-	h.list(c, auth.PermissionPostAnnouncement, h.service.Mine)
+	h.list(c, auth.PermissionViewTargetedNotices, h.service.Mine)
 }
 
 func (h *Handler) Queue(c *gin.Context) {
