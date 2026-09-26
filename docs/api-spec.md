@@ -364,7 +364,7 @@ DELETE /api/v1/push-subscriptions/:id
 
 - Every write endpoint must authenticate.
 - Every protected endpoint must authorize resource access.
-- Every list endpoint must paginate, except small reference lists that only admins can grow and that clients need whole, such as `GET /api/v1/departments` (one row per MITT department).
+- Every list endpoint must paginate, except small reference lists that only admins can grow and that clients need whole, such as `GET /api/v1/departments` (one row per college department).
 - Every CSV export must be audited.
 - Every request body must have a DTO.
 - Never return password hashes, refresh tokens, or private applicant notes to unauthorized users.

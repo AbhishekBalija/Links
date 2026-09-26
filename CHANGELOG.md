@@ -22,7 +22,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Department management (#10): any signed-in user can list and read
   departments, and admins can create, update and delete them. Codes can't
   change, a department still in use can't be deleted, and every change is
-  audited. Migration 011 seeds the current MITT B.E. departments (CS, AD,
+  audited. Migration 011 seeds the pilot college's current B.E. departments (CS, AD,
   AI, CV, EC, ME).
 
 ### Fixed
@@ -33,6 +33,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Two admins creating the same department code at once get 409, not 500.
 
 ### Changed
+- LINKS is described as a hub for any college, with MITT as the pilot college
+  (ADR 0018). Pilot-college reference notes moved out of the public repo.
 - The access request form and USN validator use `AI` for CSE (AI and ML)
   instead of the unconfirmed `CI` code.
 
@@ -49,7 +51,7 @@ records.
   and are embedded in the binary.
 - React client (Vite, TypeScript, Tailwind CSS, shadcn/ui), deployed with the
   API as one Vercel project.
-- Access requests with Gmail, USN and department, validated against the MITT
+- Access requests with Gmail, USN and department, validated against the college's
   USN format.
 - HOD/admin review queue and approval, which assigns the student role and
   emails a single-use activation link through Resend.
