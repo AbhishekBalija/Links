@@ -101,7 +101,9 @@ student_identities (
 )
 ```
 
-USN should be normalized to uppercase before storage.
+USN should be normalized to uppercase before storage. `batch_year` is the
+student's Batch: it starts as the joining year in the USN (`4MN23CS001` →
+2023) and an admin can change it for a year-back student (ADR 0019).
 
 ### profiles
 

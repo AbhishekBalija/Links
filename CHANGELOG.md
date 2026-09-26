@@ -32,6 +32,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   if someone else acts first the queue says so and refreshes. Home lists the
   oldest waiting items, and the sidebar shows the count.
 
+### Fixed
+- Students who signed up through the access request form had no Batch, so
+  announcements for a batch (e.g. "CS students, batch 2023") never reached
+  them (#45). The Batch now comes from the USN, and existing students are
+  fixed by migration 015.
+
 ## [0.2.0] - 2026-09-26
 
 Phase 2 begins: department management and targeted announcements with

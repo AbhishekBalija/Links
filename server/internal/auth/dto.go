@@ -10,8 +10,9 @@ type RequestAccessInput struct {
 	FullName       string `json:"full_name" binding:"required,max=200"`
 	USN            string `json:"usn,omitempty"`
 	DepartmentCode string `json:"department_code,omitempty"`
-	BatchYear      *int   `json:"batch_year,omitempty"`
-	Phone          string `json:"phone,omitempty" binding:"omitempty,max=32"`
+	// Deprecated: ignored. The Batch is read from the USN (#45).
+	BatchYear *int   `json:"batch_year,omitempty"`
+	Phone     string `json:"phone,omitempty" binding:"omitempty,max=32"`
 }
 
 type LoginInput struct {

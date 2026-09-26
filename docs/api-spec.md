@@ -316,7 +316,9 @@ Each of the reader's roles counts only for its own Department: a
 Department-scoped role for its scope, any other role for the Department of the
 reader's Student identity. A rule matches when one role satisfies its role and
 Department together, so a CS student who is also EC faculty doesn't match "CS
-faculty". Batch year comes from the Student identity.
+faculty". Batch year comes from the Student identity, which takes it from the
+joining year in the USN at sign-up (`4MN23CS001` is batch 2023; any
+`batch_year` the client sends is ignored).
 `limit` defaults to 20 (max 50). `meta.next_cursor` is present when there is
 another page.
 
