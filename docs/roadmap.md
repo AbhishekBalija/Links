@@ -48,10 +48,10 @@ Goal: Make LINKS useful as a daily information hub. Milestone "Phase 2: Campus H
 
 Deliverables:
 
-- [ ] Department pages: department management API (#10, PR #9), then pages in #15
+- [x] Department management API (#10, v0.2.0); department pages come with #15
 - [ ] Role-based dashboard endpoints (#11)
 - [ ] Campus directory and search basics (#12)
-- [ ] Targeted announcements and smart notice board (#13, after the approval rule in #14)
+- [x] Targeted announcements API with approval, editing and withdrawal (#13, spec #25, v0.2.0); the notice board screens come with #15
 - [ ] Public profiles in the directory and department pages (#12, #15)
 - [ ] Frontend for all of the above (#15), then a manual UX pass (#16)
 - [ ] Bulk CSV import endpoint for admin/HOD (#17)
