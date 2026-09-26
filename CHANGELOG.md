@@ -30,9 +30,31 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The access request form and USN validator use `AI` for CSE (AI and ML)
   instead of the unconfirmed `CI` code.
 
-## Before this changelog
+## [0.1.0] - 2026-08-29
 
-Phase 0 (foundation) and Phase 1 (identity and access: request access,
-approval, activation email, login with rotating refresh tokens, scoped
-RBAC, profiles) shipped before the changelog was started. See PR #6 and
-the git history.
+The first release: Phase 0 (foundation) and Phase 1 (identity and access),
+shipped in PR #6 and verified in production on 2026-08-30. The changelog was
+started after this release, so these entries are written from the phase
+records.
+
+### Added
+- Go modular-monolith API with validated config, request IDs, structured
+  logs, health and readiness checks, and SQL migrations that run on startup
+  and are embedded in the binary.
+- React client (Vite, TypeScript, Tailwind CSS, shadcn/ui), deployed with the
+  API as one Vercel project.
+- Access requests with Gmail, USN and department, validated against the MITT
+  USN format.
+- HOD/admin review queue and approval, which assigns the student role and
+  emails a single-use activation link through Resend.
+- Account activation: the user sets their password from the emailed link.
+- Login with short-lived JWT access tokens and rotating refresh tokens in an
+  HTTP-only cookie; refresh tokens are stored hashed. Silent refresh in the
+  client, including after a page reload.
+- Scoped role assignments and a permission policy (RBAC).
+- Profiles: an edit-profile page with privacy toggles for email and phone, and a public profile API.
+- Audit logs for approvals and status changes.
+- Security tests for the auth surface and a Playwright e2e suite run in CI.
+
+[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/AbhishekBalija/Links/releases/tag/v0.1.0
