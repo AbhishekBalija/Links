@@ -10,7 +10,17 @@ LINKS is deployed as a single Vercel project using
 | Frontend    | `client/`      | Vite + React | `/`          |
 | Backend API | `server/`      | Go + Gin     | `/api/*`     |
 
-The database remains on **Neon PostgreSQL**, with separate development and production branches. Both frontend and backend
+The database remains on **Neon PostgreSQL**, with two branches:
+
+| Neon branch  | Used by                                    |
+| ------------ | ------------------------------------------ |
+| `production` | Vercel Production only                     |
+| `dev`        | Vercel Preview deployments and local development |
+
+Preview deployments run their PR's migrations on startup, so they must never
+point at `production`: an unmerged migration would change real data. Never use
+Neon's "Reset from parent" on `dev`, because it copies real student data from
+`production`. Both frontend and backend
 share the same Vercel project domain, so the browser calls the API using
 relative paths (`/api/health`) with no CORS.
 
@@ -49,11 +59,18 @@ relative paths (`/api/health`) with no CORS.
 
 Set these in the Vercel project dashboard. They apply to both services.
 
-| Variable       | Environment          | Description                       |
-| -------------- | -------------------- | --------------------------------- |
-| `APP_ENV`      | Preview, Production  | Runtime environment name          |
-| `DATABASE_URL` | Preview, Production  | Neon PostgreSQL connection string |
-| `GIN_MODE`     | Preview, Production  | `release`                         |
+| Variable             | Environment                         | Description                          |
+| -------------------- | ----------------------------------- | ------------------------------------ |
+| `DATABASE_URL`       | Production and Preview, separately  | `production` and `dev` Neon branches |
+| `JWT_ACCESS_SECRET`  | Production and Preview, separately  | Different values, so preview tokens don't work in production |
+| `JWT_REFRESH_SECRET` | Production and Preview, separately  | Different values, as above           |
+| `APP_ENV`            | Preview, Production                 | Runtime environment name             |
+| `GIN_MODE`           | Preview, Production                 | `release`                            |
+| `RESEND_API_KEY`, `FROM_EMAIL` | Preview, Production       | Email delivery                       |
+| `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | Preview, Production | Error tracking            |
+
+"Separately" means two Vercel variables with the same name, one scoped to
+Production and one to Preview.
 
 No `VITE_API_URL` or `FRONTEND_URL` is needed because both services share the
 same domain.

@@ -54,7 +54,8 @@ EXPORT_ROW_LIMIT
 - Validate config on startup.
 - Fail fast when required config is missing.
 - Use `server/.env.local` only for local development.
-- Use different secrets per environment.
+- Use different secrets per environment. Vercel Production and Preview have separate `DATABASE_URL` and JWT secrets (see `deployment.md`).
+- Tests and previews never use the production database.
 - Never log secret values.
 - Rotate JWT and cookie secrets using a planned process.
 
