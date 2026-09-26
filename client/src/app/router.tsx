@@ -4,7 +4,10 @@ import Login from '../features/auth/pages/Login'
 import AccessRequest from '../features/auth/pages/AccessRequest'
 import AccountPending from '../features/auth/pages/AccountPending'
 import ActivateAccount from '../features/auth/pages/ActivateAccount'
-import Dashboard from '../features/dashboard/pages/Dashboard'
+import Home from '../features/home/pages/Home'
+import Notices from '../features/notices/pages/Notices'
+import NoticeDetail from '../features/notices/pages/NoticeDetail'
+import { AppShell } from './shell/AppShell'
 import EditProfile from '../features/profiles/pages/EditProfile'
 
 export function AppRouter() {
@@ -19,8 +22,12 @@ export function AppRouter() {
         <Route path="/account-pending" element={<AccountPending />} />
       </Route>
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/notices" element={<Notices />} />
+          <Route path="/notices/:id" element={<NoticeDetail />} />
+          <Route path="/profile/edit" element={<EditProfile />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

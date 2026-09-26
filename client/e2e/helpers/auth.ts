@@ -1,4 +1,4 @@
-import type { Page, APIRequestContext } from '@playwright/test'
+import { expect, type Page, type APIRequestContext } from '@playwright/test'
 import { getSchemaClient } from './db'
 
 // ── Admin bootstrap (seeded directly — not the thing under test) ──
@@ -149,4 +149,10 @@ export async function cleanupTestUsers(_dbURL: string, emails: string[]) {
   } finally {
     await client.end()
   }
+}
+
+// ── Home ──
+// Home greets the user by time of day: "Good morning, Priya".
+export async function expectHome(page: Page) {
+  await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening),/ })).toBeVisible()
 }

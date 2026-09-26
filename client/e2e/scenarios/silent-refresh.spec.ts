@@ -14,6 +14,7 @@ import {
   getUserIdByEmail,
   adminApproveUser,
   submitAccessRequestViaUI,
+  expectHome,
 } from '../helpers/auth'
 
 const TS = Date.now()
@@ -55,7 +56,7 @@ test.describe('Silent Token Refresh', () => {
 
     // 2. Log in via UI — this sets refresh_token cookie in browser
     await loginViaUI(page, USER.email, USER.password)
-    await expect(page.locator('h2')).toContainText('Welcome')
+    await expectHome(page)
 
     // 3. Capture current refresh cookie value
     const cookiesBefore = await context.cookies()
@@ -93,6 +94,6 @@ test.describe('Silent Token Refresh', () => {
     expect(rotated).toBe(true)
 
     // 7. Session still works (same-page SPA navigation, not full reload)
-    await expect(page.locator('h2')).toContainText('Welcome')
+    await expectHome(page)
   })
 })

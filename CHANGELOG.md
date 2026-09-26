@@ -11,6 +11,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   what's waiting for approvers and the state of an author's own
   announcements. Announcements gain a detail endpoint, a category filter, a
   publishing preview and approver names on pending items.
+- The LINKS look and app shell (#40): the Gazette design tokens and fonts, a
+  sidebar on desktop and bottom navigation on phones, a Home page from the
+  new summary, and a Notices feed that loads more as you scroll, filters by
+  category and opens each notice. Every screen has loading, empty and error
+  states.
 
 ## [0.2.0] - 2026-09-26
 

@@ -107,6 +107,23 @@ export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const body = await requestEnvelope<T>(path, options)
+  return body.data
+}
+
+// apiPage is for list endpoints: it keeps `meta`, which carries the
+// cursor for the next page.
+export async function apiPage<T, M>(
+  path: string,
+  options: RequestInit = {},
+): Promise<ApiSuccess<T, M>> {
+  return requestEnvelope<T, M>(path, options)
+}
+
+async function requestEnvelope<T, M = Record<string, unknown>>(
+  path: string,
+  options: RequestInit = {},
+): Promise<ApiSuccess<T, M>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
@@ -139,7 +156,7 @@ export async function apiRequest<T>(
           credentials: 'include',
         })
 
-        const retryBody = await safeJson<ApiSuccess<T> | ApiError>(retryRes)
+        const retryBody = await safeJson<ApiSuccess<T, M> | ApiError>(retryRes)
 
         if (!retryRes.ok || 'error' in retryBody) {
           const errPayload = 'error' in retryBody
@@ -152,7 +169,7 @@ export async function apiRequest<T>(
           throw new ApiRequestError(retryRes.status, errPayload)
         }
 
-        return retryBody.data
+        return retryBody
       } catch (err) {
         isRefreshing = false
         failRefreshQueue(err)
@@ -176,7 +193,7 @@ export async function apiRequest<T>(
     }
 
     // Another refresh is in flight — queue this request
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<ApiSuccess<T, M>>((resolve, reject) => {
       refreshQueue.push({
         resolve: async (newToken: string) => {
           headers['Authorization'] = `Bearer ${newToken}`
@@ -186,7 +203,7 @@ export async function apiRequest<T>(
               headers,
               credentials: 'include',
             })
-            const retryBody = await safeJson<ApiSuccess<T> | ApiError>(retryRes)
+            const retryBody = await safeJson<ApiSuccess<T, M> | ApiError>(retryRes)
             if (!retryRes.ok || 'error' in retryBody) {
               const errPayload = 'error' in retryBody
                 ? retryBody.error
@@ -194,7 +211,7 @@ export async function apiRequest<T>(
               reject(new ApiRequestError(retryRes.status, errPayload))
               return
             }
-            resolve(retryBody.data)
+            resolve(retryBody)
           } catch (err) {
             reject(err)
           }
@@ -204,7 +221,7 @@ export async function apiRequest<T>(
     })
   }
 
-  const body = await safeJson<ApiSuccess<T> | ApiError>(res)
+  const body = await safeJson<ApiSuccess<T, M> | ApiError>(res)
 
   if (!res.ok || 'error' in body) {
     const errPayload = 'error' in body
@@ -213,5 +230,5 @@ export async function apiRequest<T>(
     throw new ApiRequestError(res.status, errPayload)
   }
 
-  return body.data
+  return body
 }
