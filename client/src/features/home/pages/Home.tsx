@@ -149,9 +149,14 @@ function MinePanel({ mine }: { mine: NonNullable<Dashboard['my_announcements']> 
   ]
   return (
     <section aria-labelledby="mine-h" className="flex lg:col-start-2 lg:row-span-2 lg:row-start-1 flex-col gap-3.5 rounded-xl border border-line bg-surface p-5 lg:p-6">
-      <h2 id="mine-h" className="font-serif text-xl font-medium lg:text-[21px]">
-        Your announcements
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="mine-h" className="font-serif text-xl font-medium lg:text-[21px]">
+          Your announcements
+        </h2>
+        <Link to="/mine" className="text-sm font-semibold">
+          Open →
+        </Link>
+      </div>
       <dl className="grid grid-cols-2 gap-2.5">
         {counts.map((c) => (
           <div

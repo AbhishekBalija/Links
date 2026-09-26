@@ -570,7 +570,7 @@ values.
 | tag-placement | `#7A3920` on `#F3E4D9` | Placement notices |
 | warning | `#8A5A12`, soft `#F5EADA`, ink `#6B460E` | Expiring soon, waiting long |
 | danger | `#8E1F3D`, soft `#F6E3E8`, ink `#6B1730` | Errors, sent back (kept far from rust) |
-| success | `#3F6B45` | Approved, done |
+| success | `#3F6B45`, soft `#E3EBE4`, ink `#2E5034` | Approved, done, "Live" |
 
 WCAG AA contrast, checked for every text and background pair in use:
 
@@ -584,6 +584,7 @@ WCAG AA contrast, checked for every text and background pair in use:
 | warning on surface / paper | 5.58 / 5.20 |
 | warning-ink on warning-soft | 7.04 |
 | danger-ink / danger on danger-soft | 9.53 / 7.07 |
+| success-ink on success-soft | 7.47 |
 
 Avoid a one-note blue/purple dashboard. The interface should feel official and readable, not decorative.
 

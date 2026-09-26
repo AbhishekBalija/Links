@@ -53,6 +53,8 @@
   --color-danger-soft: #f6e3e8;
   --color-danger-ink: #6b1730;
   --color-success: #3f6b45;
+  --color-success-soft: #e3ebe4;
+  --color-success-ink: #2e5034;
 }
 
 /* shadcn's variables, pointed at the same tokens so its components match. */

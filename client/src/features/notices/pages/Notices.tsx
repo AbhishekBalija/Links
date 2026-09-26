@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Plus } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { canPost } from '../../../app/shell/nav'
+import { useAuthStore } from '../../auth/store'
 import { EmptyState, ErrorState, LoadingStatus } from '../../../shared/ui/states'
 import { useNoticeFeed } from '../api'
 import { useRefetchAtExpiry } from '../useRefetchAtExpiry'
@@ -12,17 +15,30 @@ export default function Notices() {
   const raw = params.get('category')
   const category = isCategory(raw) ? raw : null
   const feed = useNoticeFeed(category)
+  const poster = canPost(useAuthStore((s) => s.user?.roles) ?? [])
   const notices = feed.data?.pages.flatMap((page) => page.data) ?? []
   useRefetchAtExpiry(notices.map((n) => n.expires_at), feed.refetch)
   const categoryLabel = categories.find((c) => c.value === category)?.label.toLowerCase()
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
-      <header className="flex flex-col gap-1.5 px-1 lg:px-0">
-        <h1 className="font-serif text-[28px] font-medium tracking-[-0.4px] lg:text-[40px] lg:leading-tight lg:tracking-[-0.6px]">
-          Notices
-        </h1>
-        <p className="hidden text-[15px] text-ink-2 lg:block">Everything posted for you, newest first.</p>
+      <header className="flex items-center justify-between gap-4 px-1 lg:items-end lg:px-0">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="font-serif text-[28px] font-medium tracking-[-0.4px] lg:text-[40px] lg:leading-tight lg:tracking-[-0.6px]">
+            Notices
+          </h1>
+          <p className="hidden text-[15px] text-ink-2 lg:block">Everything posted for you, newest first.</p>
+        </div>
+        {poster && (
+          <Link
+            to="/mine/new"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-2 hover:text-paper lg:px-5"
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            <span className="lg:hidden">New</span>
+            <span className="hidden lg:inline">New announcement</span>
+          </Link>
+        )}
       </header>
 
       <CategoryFilter current={category} />
