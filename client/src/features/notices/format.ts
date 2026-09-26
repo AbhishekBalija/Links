@@ -47,14 +47,20 @@ export function fullDate(iso: string): string {
 
 export type Expiry = { at: string; text: string; soon: boolean }
 
-// Expiry says how long a notice stays up. It counts as soon within a week,
-// so readers notice deadlines without every notice looking urgent.
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+// Expiry says how long a notice stays up, in calendar days: a deadline at
+// 11:00 tomorrow is "tomorrow" however late it is today. It counts as soon
+// within a week, so deadlines stand out without every notice looking urgent.
 export function expiry(iso: string | null, now = new Date()): Expiry | null {
   if (!iso) return null
-  const diff = new Date(iso).getTime() - now.getTime()
-  const days = Math.ceil(diff / DAY)
+  const ends = new Date(iso)
+  // Math.round absorbs the hour a daylight-saving change adds or removes.
+  const days = Math.round((startOfDay(ends).getTime() - startOfDay(now).getTime()) / DAY)
   let text: string
-  if (diff < DAY) text = 'today'
+  if (days <= 0) text = 'today'
   else if (days === 1) text = 'tomorrow'
   else text = `in ${days} days`
   return { at: iso, text, soon: days <= 7 }

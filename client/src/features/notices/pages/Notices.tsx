@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingStatus } from '../../../shared/ui/states'
 import { useNoticeFeed } from '../api'
+import { useRefetchAtExpiry } from '../useRefetchAtExpiry'
 import { CategoryFilter } from '../components/CategoryFilter'
 import { NoticeList, NoticeListSkeleton } from '../components/NoticeList'
 import { categories, isCategory } from '../types'
@@ -12,6 +13,7 @@ export default function Notices() {
   const category = isCategory(raw) ? raw : null
   const feed = useNoticeFeed(category)
   const notices = feed.data?.pages.flatMap((page) => page.data) ?? []
+  useRefetchAtExpiry(notices.map((n) => n.expires_at), feed.refetch)
   const categoryLabel = categories.find((c) => c.value === category)?.label.toLowerCase()
 
   return (

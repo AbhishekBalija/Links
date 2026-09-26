@@ -5,6 +5,7 @@ import { LogoutButton } from '../../../app/shell/LogoutButton'
 import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
 import { useAuthStore } from '../../auth/store'
 import { NoticeList, NoticeListSkeleton } from '../../notices/components/NoticeList'
+import { useRefetchAtExpiry } from '../../notices/useRefetchAtExpiry'
 import { useDashboard, type Dashboard } from '../api'
 
 function greeting(now: Date) {
@@ -28,6 +29,7 @@ function waitedFor(iso: string, now: Date) {
 
 export default function Home() {
   const dashboard = useDashboard()
+  useRefetchAtExpiry(dashboard.data?.notices.items.map((n) => n.expires_at) ?? [], dashboard.refetch)
   const now = new Date()
 
   return (

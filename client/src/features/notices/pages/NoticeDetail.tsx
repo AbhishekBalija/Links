@@ -5,6 +5,7 @@ import { ApiRequestError } from '../../../shared/api/types'
 import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
 import { useAuthStore } from '../../auth/store'
 import { useNotice } from '../api'
+import { useRefetchAtExpiry } from '../useRefetchAtExpiry'
 import { CategoryTag } from '../components/CategoryTag'
 import { audienceLabel, expiry, fullDate, timeAgo, type Expiry } from '../format'
 import type { Notice } from '../types'
@@ -12,6 +13,8 @@ import type { Notice } from '../types'
 export default function NoticeDetail() {
   const { id = '' } = useParams()
   const notice = useNotice(id)
+  // Once it expires, the refetch comes back 404 and the page says so.
+  useRefetchAtExpiry([notice.data?.expires_at ?? null], notice.refetch)
 
   return (
     <div className="flex flex-col gap-4 lg:gap-7">
