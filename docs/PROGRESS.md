@@ -1,7 +1,7 @@
 # LINKS Project Progress Tracker
 
-**Last Updated:** 2026-08-28 (PR #6 release-candidate hardening and production-preview readiness)
-**Current Phase:** Phase 1 — Identity and Access
+**Last Updated:** 2026-08-30 (Phase 2 department management ready for developer verification)
+**Current Phase:** Phase 2: Campus Hub
 
 ---
 
@@ -10,14 +10,15 @@
 | Phase                              | Status         | Start Date | Expected End |
 | ---------------------------------- | -------------- | ---------- | ------------ |
 | **Phase 0: Foundation**            | ✅ Complete     | 2026-06-19 | 2026-07-16   |
-| **Phase 1: Identity and Access**   | 🔄 In Progress | 2026-07-18 | TBD          |
+| **Phase 1: Identity and Access**   | ✅ Complete     | 2026-07-18 | 2026-08-30   |
+| **Phase 2: Campus Hub**            | 🔄 In Progress | 2026-08-30 | TBD          |
 
 > Phase numbering follows `roadmap.md` and `implementation.md`.
 
 ### Phase Goals (per `roadmap.md` Phase 1 / `implementation.md` Step 5)
 
-> Checked items below are implemented in the Phase 1 PR. They remain in
-> **Ready for Dev Verification** until the developer signs off and the PR is merged.
+> Checked items below were implemented in Phase 1 PR #6, merged, and verified by
+> the developer on 2026-08-30.
 
 - [x] 5.1 Identity schema migrations (`users`, `profiles`, `student_identities`, `departments`, `role_assignments`, `audit_logs`, `account_activation_tokens`)
 - [x] 5.2 Password hashing (Argon2id)
@@ -29,12 +30,12 @@
 - [x] 5.8 Admin/HOD verification + access-approval flow
 - [x] 5.9 Activation email via Resend (synchronous, MVP)
 - [x] 5.10 Profile CRUD
-- [x] 5.11 MITT USN format + provisionally seeded department codes (CS, AD, CV, ME, EC; CI awaits MITT confirmation)
+- [x] 5.11 MITT USN format + seeded B.E. department codes (`CS`, `AD`, `AI`, `CV`, `EC`, `ME`)
 - [x] 5.12 Security test cases (auth-surface: USN hardening, enumeration, input validation)
 - [x] 5.13 Frontend: Access Request + Login screens
 - [x] 5.14 Frontend: auth context, silent refresh, protected routes
 - [x] 5.15 Full e2e test suite (12 tests, all passing in an isolated schema, including activation-link UI and refresh rotation)
-- [ ] Phase 1 Definition of Done: implementation checks pass; developer verification, PR merge, and post-merge production verification are still pending.
+- [x] Phase 1 Definition of Done: implementation checks, PR merge, production verification, authenticated end-to-end testing, and manual security/privacy checks are complete.
 
 ---
 
@@ -48,22 +49,26 @@
 | Phase 0 foundation | App container, validated config, pool settings, migration history, logs, request IDs, health/readiness routes, and CI | ✅ Verified | 2026-07-16 | Abhishek Balija | Verified locally against Neon dev branch — all 11 test-plan steps passed |
 | Phase 1 doc prep | ADR-012 (activation token), account_activation_tokens table, /activate & /resend-activation endpoints, auth.md token details, roadmap.md deliverables updated | ✅ Verified | 2026-07-18 | Abhishek Balija | Docs-only PR; no code shipped; ready for Phase 1 implementation |
 | 5.3–5.5 Auth service | Login, refresh, logout, request-access endpoints with JWT issuing/rotation, hashed refresh-token storage, and HTTP-only cookie strategy | ✅ Verified | 2026-07-21 | Abhishek Balija | All four endpoints verified locally. Includes Argon2id password hashing (5.2), JWT access tokens (15min TTL), SHA-256 hashed refresh tokens (7d rotation), secure HTTP-only cookies |
+| Phase 1 identity and access | Complete request-access, approval, activation, login, refresh/logout, RBAC, profile, security, and E2E implementation from PR #6 | ✅ Verified | 2026-08-30 | Abhishek Balija | CI, public production smoke checks, authenticated production flow, and manual security/privacy verification completed |
 
 ---
 
-## 📦 Ready for Dev Verification
+## 🧾 Phase 1 Verification Record
+
+The implementation records below are retained for traceability. Phase 1 was
+developer-verified on 2026-08-30.
 
 | Feature | Description | Files Changed | Implementation Notes |
 | ------- | ----------- | ------------- | -------------------- |
-| Phase 1 release-candidate hardening | Transactional access requests, approval, activation, refresh rotation, status updates, and privacy audits; safe JWT/config validation; activation-link UI; SPA deep-link routing; resilient E2E cleanup | `server/internal/auth/`, `server/internal/profiles/`, `server/pkg/config/`, `server/migrations/003…010`, `client/src/features/auth/`, `client/src/shared/api/client.ts`, `client/e2e/`, `client/vite.config.ts`, `vercel.json` | AI verification passes: all Go tests, vet, API build, client lint/build, and all 12 Playwright tests. Still requires developer verification on the Vercel preview before merge. |
-| 5.15 Full e2e test suite | 12 Playwright tests covering auth guards, the real student onboarding and activation-link UI, profile persistence, session restore, silent refresh with token rotation, and zero-role handling | `client/e2e/playwright.config.ts`, `client/e2e/globalSetup.ts`, `client/e2e/globalTeardown.ts`, `client/e2e/helpers/db.ts`, `client/e2e/helpers/auth.ts`, `client/e2e/scenarios/auth-guards.spec.ts`, `client/e2e/scenarios/full-flow.spec.ts`, `client/e2e/scenarios/silent-refresh.spec.ts`, `client/vite.config.ts`, `client/src/shared/api/client.ts`, `client/src/features/auth/store.ts`, `client/src/features/auth/pages/ActivateAccount.tsx`, `client/src/features/auth/pages/AccountPending.tsx` | Ready for developer verification. Run from `client` with the documented E2E database environment: `bunx playwright test --config e2e/playwright.config.ts`. The harness creates and removes an isolated schema. |
+| Phase 1 release-candidate hardening | Transactional access requests, approval, activation, refresh rotation, status updates, and privacy audits; safe JWT/config validation; activation-link UI; SPA deep-link routing; resilient E2E cleanup | `server/internal/auth/`, `server/internal/profiles/`, `server/pkg/config/`, `server/migrations/003…010`, `client/src/features/auth/`, `client/src/shared/api/client.ts`, `client/e2e/`, `client/vite.config.ts`, `vercel.json` | PR #6 is merged at `26d95e1`; server, client, and E2E CI checks pass. Arc and Postman verified the public production routes on 2026-08-30, and the developer confirmed the authenticated flow plus manual security/privacy verification. |
+| 5.15 Full e2e test suite | 12 Playwright tests covering auth guards, the real student onboarding and activation-link UI, profile persistence, session restore, silent refresh with token rotation, and zero-role handling | `client/e2e/playwright.config.ts`, `client/e2e/globalSetup.ts`, `client/e2e/globalTeardown.ts`, `client/e2e/helpers/db.ts`, `client/e2e/helpers/auth.ts`, `client/e2e/scenarios/auth-guards.spec.ts`, `client/e2e/scenarios/full-flow.spec.ts`, `client/e2e/scenarios/silent-refresh.spec.ts`, `client/vite.config.ts`, `client/src/shared/api/client.ts`, `client/src/features/auth/store.ts`, `client/src/features/auth/pages/ActivateAccount.tsx`, `client/src/features/auth/pages/AccountPending.tsx` | Developer-verified on 2026-08-30. The harness creates and removes an isolated schema. |
 | 5.1 Identity schema migrations | 6 SQL migration files creating `departments`, `users`, `profiles`, `student_identities`, `role_assignments`, `audit_logs` with all indexes and CHECK constraints from `database-design.md` | `server/migrations/001_create_departments.up.sql` through `006_create_audit_logs.up.sql` | Tables follow `database-design.md` verbatim. Status CHECK on `users` matches `auth.md` state machine. Role CHECK on `role_assignments` matches `auth.md` roles. `departments.hod_user_id` FK deferred to migration 002 to avoid circular dep. All indexes from "Important Indexes" section included. Run server locally — migration runner auto-applies. Verify with `\dt` and `\d <table>`. |
 | 5.2 Password hashing (Argon2id) | Argon2id hash/verify + password strength validation (min 8 chars, uppercase, lowercase, digit) | `server/internal/auth/password.go`, `password_test.go`, `doc.go` | Argon2id params: 32MB memory, 1 iteration, 2 threads. PHC-format output. Constant-time comparison. All 7 tests pass. |
 | 5.6 Auth middleware + actor extraction | `RequireAuth`/`OptionalAuth` middleware, `Actor` type, `GetActor` helper, `/api/v1/me` endpoint | `server/internal/auth/middleware.go`, `server/internal/auth/handler.go` (Me handler), `server/internal/app/server.go` | Middleware extracts JWT claims into `Actor` struct, sets it in Gin context. `GetActor(c)` retrieves it. Protected `/me` route wired in server.go. E2E test passes: request-access → activate via DB → login → /me returns user data → 401 without token. |
-| 5.7 RBAC policy layer | `Policy` struct with 11 `Permission` constants, role-to-permission grant map, `Authorize(actor, permission)`, `AuthorizeActor(c, policy, permission)` convenience | `server/internal/auth/policy.go`, `test/unit/auth/policy_test.go` | Permission constants from `auth.md` permission table. Grants map defined in `NewPolicy()`. `allRoles()` helper for public permissions. 5 unit tests pass: happy path, wrong role, unknown permission, nil actor, all helpers. |
+| 5.7 RBAC policy layer | `Policy` struct with 12 `Permission` constants, role-to-permission grant map, `Authorize(actor, permission)`, `AuthorizeActor(c, policy, permission)` convenience | `server/internal/auth/policy.go`, `test/unit/auth/policy_test.go` | Permission constants from `auth.md` permission table plus admin-only department management. Grants map defined in `NewPolicy()`. `allRoles()` helper for public permissions. Unit tests cover allowed and denied roles. |
 | 5.8 Admin/HOD verification + access-approval flow | Review queue, approve (verify + role assignment), status change (suspend/restore/reject), audit logging | `server/internal/auth/admin_handler.go`, `server/internal/auth/model.go`, `server/internal/auth/repository.go`, `server/internal/auth/service.go`, `server/internal/auth/dto.go`, `server/internal/app/server.go` | Three endpoints under `/api/v1/admin/users/`, protected by `PermissionManageUsersAndRoles`. Approval atomically creates the student role, marks the pending user verified, records the audit log, and creates the activation token. The user remains `pending` until the single-use activation link sets the password and moves the account to `active`. Status changes and their audit records are also atomic. |
 | 5.10 Profile CRUD | Public profile by username, update own profile (headline, bio, avatar, social links, privacy toggles), expanded /api/v1/me with full profile data | `server/internal/profiles/` (model, repository, service, handler, dto), `server/internal/auth/model.go` (expanded Profile struct), `server/internal/auth/repository.go` (FindByID with Preload, FindEmailByUserID, FindPhoneByUserID), `server/internal/auth/dto.go` (MeResponse expanded with profile + student_identity), `server/internal/auth/service.go` (GetMe returns full profile), `server/internal/app/server.go` (wiring) | Two endpoints: `GET /api/v1/profiles/:username` (public, OptionalAuth — respects privacy toggles, returns 404 for disabled profiles), `PATCH /api/v1/me/profile` (authenticated — updates headline, bio, avatar_url, show_email, show_phone, linkedin_url, github_url, portfolio_url). Profile module follows architecture.md as `internal/profiles/`. `UserReader` interface decouples profiles service from auth package. `/api/v1/me` now includes profile and student_identity via GORM Preload. Build + vet + existing tests pass. E2E verified: profile read, update, privacy. |
-| 5.11 USN validation + department code map + seed migration | USN format validation (VTU 4MN<year><dept><roll>), provisionally seeded department code map (CS, AD, CV, ME, EC), wired into request-access flow, and dynamically validated year range | `server/internal/auth/usn.go`, `test/unit/auth/usn_test.go`, `server/internal/auth/service.go`, `server/migrations/008_seed_departments.up.sql` | CI is intentionally not accepted or seeded until MITT confirms an actual 4MNxxCIxxx sample. MBA/MCA excluded. |
+| 5.11 USN validation + department code map + seed migration | USN format validation (VTU 4MN<year><dept><roll>), seeded department code map (`CS`, `AD`, `AI`, `CV`, `EC`, `ME`), wired into request-access flow, and dynamically validated year range | `server/internal/auth/usn.go`, `test/unit/auth/usn_test.go`, `server/internal/auth/service.go`, `server/migrations/008_seed_departments.up.sql`, `server/migrations/011_complete_mitt_departments.up.sql` | VTU confirms `AI` for Artificial Intelligence and Machine Learning. MBA/MCA remain excluded because they use a different identity format. |
 | 5.12 Security test cases (auth-surface) | USN hardening (SQL injection, null bytes, unicode, overrun, casing, boundary length), enumeration resistance, input validation (missing fields, garbage JSON, oversized payload, wrong content-type), timing check | `test/unit/auth/usn_security_test.go`, `test/e2e/security_test.go` | USN hardening: 6 tests (27 payloads) — pure function tests, no DB needed. Enumeration/input validation: 5 test functions (14 cases) — e2e-gated, hit real HTTP handler. Timing check logs warnings, doesn't fail. |
 | 5.9 Activation email + Resend mailer | Resend HTTP API mailer, `/activate` and `/resend-activation` endpoints, approval-triggered activation token, rate-limited resend, and deployed activation-link UI | `server/internal/mailer/mailer.go`, `server/internal/auth/`, `client/src/features/auth/pages/ActivateAccount.tsx`, `client/src/app/router.tsx`, `vercel.json` | Approval commits role, verification, audit, and activation token before sending email. Failed delivery invalidates the new token so resend can recover. The emailed `/activate?token=…` deep link now opens a real password-setting screen; Vercel serves SPA deep links through the web service. |
 | 5.13 Frontend: Access Request + Login screens | React 19 + Vite + TypeScript. Access Request form, Login form, Activation flow. Auth via Zustand store (replaced React Context), Tailwind v4 + shadcn/ui styling, guest/protected route guards. | `client/src/features/auth/store.ts`, `api.ts`, `types.ts`, `pages/AccessRequest.tsx`, `pages/Login.tsx`, `components/ProtectedRoute.tsx`, `features/dashboard/pages/Dashboard.tsx`, `shared/api/client.ts`, `app/providers.tsx`, `app/router.tsx` | Stack: React 19 + Vite + Zustand + TanStack Query + Tailwind v4 + shadcn/ui (base-nova). Auth state migrated from React Context to Zustand. Tailwind v4 single `@import "tailwindcss"` in `index.css`. ProtectedRoute/GuestRoute guards based on isAuthenticated. USN validation, department dropdown, password strength check. |
@@ -73,7 +78,15 @@
 
 ## 🔄 In Progress
 
-_Ready for dev verification._
+Phase 2 step 6.2 has not started. Step 6.1 is ready for developer verification.
+
+---
+
+## 📦 Ready for Dev Verification
+
+| Feature | Description | Files Changed | Implementation Notes |
+| ------- | ----------- | ------------- | -------------------- |
+| 6.1 Department management | Authenticated department list/detail API, admin-only create/update/delete, current MITT B.E. seed data, HOD account validation, protected deletion, and atomic audit logging | `server/internal/departments/`, `server/internal/auth/policy.go`, `server/internal/app/server.go`, `server/migrations/011_complete_mitt_departments.*.sql`, `server/test/unit/auth/policy_test.go`, `docs/api-spec.md`, `docs/decision-log.md`, `docs/implementation.md`, `INTERVIEW.md` | Seed codes: `CS`, `AD`, `AI`, `CV`, `EC`, `ME`. MBA/MCA excluded. HOD links remain null until HOD accounts exist. Developer should run the migration on the dev database, authenticate as admin, test all five endpoints, confirm a non-admin receives `403`, and confirm referenced department deletion returns `409`. |
 
 ---
 
@@ -155,10 +168,10 @@ _Ready for dev verification._
 | Field                   | Value                                                      |
 | ----------------------- | ---------------------------------------------------------- |
 | **Last Verified By**    | Abhishek Balija                                            |
-| **Verification Date**   | 2026-07-23                                                 |
-| **Everything Working?** | ✅ Yes at the 2026-07-23 developer verification snapshot   |
-| **Notes**               | This is the last developer sign-off. The 2026-08-28 PR hardening is AI-verified but must not be treated as developer-verified until the preview is tested and signed off. |
-| **Issues Found**        | None in the prior developer snapshot                       |
+| **Verification Date**   | 2026-08-30                                                 |
+| **Everything Working?** | ✅ Yes                                                     |
+| **Notes**               | Phase 1 production and manual verification completed; developer approved moving to Phase 2. |
+| **Issues Found**        | None                                                       |
 
 ### Verification Process
 

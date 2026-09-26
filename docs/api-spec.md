@@ -224,10 +224,42 @@ GET   /api/v1/opportunities/:id/export
 ```text
 GET /api/v1/departments
 GET /api/v1/departments/:code
+POST /api/v1/admin/departments
+PUT /api/v1/admin/departments/:code
+DELETE /api/v1/admin/departments/:code
 GET /api/v1/departments/:code/announcements
 GET /api/v1/departments/:code/events
 GET /api/v1/departments/:code/reports
 ```
+
+The list and detail routes require authentication. Department mutations require
+the `admin` role. Department codes are immutable uppercase VTU course codes.
+
+Create request:
+
+```json
+{
+  "code": "AI",
+  "name": "Computer Science and Engineering (AI and ML)",
+  "description": null,
+  "hodUserId": null
+}
+```
+
+Update replaces the editable fields for the department identified by `:code`:
+
+```json
+{
+  "name": "Computer Science and Engineering (AI and ML)",
+  "description": null,
+  "hodUserId": null
+}
+```
+
+Create the department before assigning its HOD. On update, `hodUserId` must
+identify a user with an existing HOD role scoped to that same department. Delete
+returns `409 CONFLICT` when student identities or scoped role assignments still
+reference the department.
 
 ## Clubs
 
