@@ -1,0 +1,23 @@
+name: Feature request
+description: An idea to make LINKS better
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is missing or hard today, and for whom (student, HOD, placement officer, ...)?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like to see. Sketches and examples welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Links, similar features elsewhere, roadmap phase it fits.

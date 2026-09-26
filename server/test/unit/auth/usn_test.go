@@ -16,9 +16,9 @@ func TestValidateUSN_Valid(t *testing.T) {
 		{"4MN20EC002", "EC"},
 		{"4MN21CS042", "CS"},
 		{"4MN20AD001", "AD"},
+		{"4MN23AI015", "AI"},
 		{"4MN19CV100", "CV"},
 		{"4MN22ME007", "ME"},
-		{"4MN21CI033", "CI"},
 		{"4mn20ec002", "EC"},
 		{"4Mn20Ec002", "EC"},
 	}
@@ -63,6 +63,7 @@ func TestValidateUSN_InvalidFormat(t *testing.T) {
 	invalid := []string{
 		"",
 		"4MN20XX002",
+		"4MN21CI033",
 		"4MN20002",
 		"ABC123",
 		"4MN20EC00",

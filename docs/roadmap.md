@@ -1,6 +1,13 @@
 # Roadmap
 
-## Phase 0: Foundation
+The build plan, one phase per GitHub milestone. Issues are filed per phase
+when the phase starts, not all up front; open issues are the source of truth
+for what is in progress. `docs/implementation.md` has the step-by-step guide
+for each phase. Terms follow `CONTEXT.md`; decisions live in `docs/adr/`.
+
+## Phase 0: Foundation (done)
+
+Verified 2026-07-16.
 
 Goal: Prepare the codebase for serious backend development.
 
@@ -15,7 +22,9 @@ Deliverables:
 - Health check endpoint
 - Basic CI
 
-## Phase 1: Identity and Access
+## Phase 1: Identity and Access (done)
+
+Shipped in PR #6, verified in production 2026-08-30.
 
 Goal: Build secure user identity and role access.
 
@@ -27,26 +36,25 @@ Deliverables:
 - Password hashing
 - Login and refresh token flow
 - Account activation token flow (cryptographically random, single-use, 7-day expiry, hashed storage)
-- Bulk CSV import endpoint for admin/HOD
 - Gmail invite/access request flow
 - Admin/HOD verification
 - Scoped role assignments
 - Auth middleware
 - RBAC policy checks
 
-## Phase 2: Campus Hub
+## Phase 2: Campus Hub (in progress)
 
-Goal: Make LINKS useful as a daily information hub.
+Goal: Make LINKS useful as a daily information hub. Milestone "Phase 2: Campus Hub".
 
 Deliverables:
 
-- Role-based dashboard endpoints
-- Campus directory
-- Department pages
-- Public profiles
-- Targeted announcements
-- Smart notice board
-- Search basics
+- [ ] Department pages: department management API (#10, PR #9), then pages in #15
+- [ ] Role-based dashboard endpoints (#11)
+- [ ] Campus directory and search basics (#12)
+- [ ] Targeted announcements and smart notice board (#13, after the approval rule in #14)
+- [ ] Public profiles in the directory and department pages (#12, #15)
+- [ ] Frontend for all of the above (#15), then a manual UX pass (#16)
+- [ ] Bulk CSV import endpoint for admin/HOD (#17)
 
 ## Phase 3: Events
 

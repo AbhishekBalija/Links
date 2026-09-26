@@ -269,7 +269,7 @@ to the worker (ADR-009).
 | Diagram               | Backs up                                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------------ |
 | Overall flow          | `product-requirements.md`, `frontend-ux-ui.md` role dashboards, `auth.md` permission table |
-| Identity & Access     | ADR-004, ADR-012 (once written), `auth.md`                                                 |
+| Identity & Access     | ADR-004, ADR-012, `auth.md`                                                 |
 | Event Approval States | `frontend-contract.md` `EventApprovalStatus`, ADR-006                                      |
 | Application States    | `frontend-contract.md` `OpportunityApplicationStatus`                                      |
 | Notification Delivery | `notifications.md`, ADR-009                                                                |

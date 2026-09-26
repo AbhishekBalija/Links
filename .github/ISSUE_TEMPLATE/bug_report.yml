@@ -1,0 +1,39 @@
+name: Bug report
+description: Something is broken or wrong
+labels: [bug, needs-triage]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in as a student
+        2. Open ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Signed in as
+      options:
+        - Not signed in
+        - Student
+        - Student coordinator
+        - Faculty
+        - HOD
+        - Placement officer
+        - Principal
+        - Admin
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs, environment
+      description: Browser, OS, and any console or server log lines. Never paste passwords, tokens or other students' personal data.

@@ -5,12 +5,12 @@ import { requestAccess } from '../api'
 import { ApiRequestError } from '../../../shared/api/types'
 
 const DEPARTMENTS = [
-  { code: 'CS', name: 'Computer Science' },
-  { code: 'AD', name: 'AI & Data Science' },
-  { code: 'CI', name: 'Computer Engineering (CI)' },
+  { code: 'CS', name: 'Computer Science and Engineering' },
+  { code: 'AD', name: 'Artificial Intelligence and Data Science' },
+  { code: 'AI', name: 'Computer Science and Engineering (AI and ML)' },
   { code: 'CV', name: 'Civil Engineering' },
   { code: 'ME', name: 'Mechanical Engineering' },
-  { code: 'EC', name: 'Electronics & Communication' },
+  { code: 'EC', name: 'Electronics and Communication Engineering' },
 ]
 
 type FormData = {
@@ -47,7 +47,7 @@ export default function AccessRequest() {
     else if (!/[A-Z]/.test(form.password)) errs.password = 'Password must contain an uppercase letter'
     else if (!/[a-z]/.test(form.password)) errs.password = 'Password must contain a lowercase letter'
     else if (!/[0-9]/.test(form.password)) errs.password = 'Password must contain a digit'
-    if (form.usn && !/^4MN\d{2}(CS|AD|CI|CV|ME|EC)\d{3}$/i.test(form.usn)) {
+    if (form.usn && !/^4MN\d{2}(CS|AD|AI|CV|ME|EC)\d{3}$/i.test(form.usn)) {
       errs.usn = 'USN format: 4MN<year><dept><roll> (e.g., 4MN22CS001)'
     }
     if (!form.department_code) errs.department_code = 'Select your department'

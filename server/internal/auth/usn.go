@@ -13,14 +13,12 @@ var usnRegex = regexp.MustCompile(`^4MN(\d{2})([A-Z]{2})(\d{3})$`)
 // Key: 2-letter code, Value: full department name.
 // Add new codes here — the validation regex and lookup stay in sync automatically.
 var departmentCodes = map[string]string{
-	"CS": "Computer Science & Engineering",
-	"AD": "Artificial Intelligence & Data Science",
+	"CS": "Computer Science and Engineering",
+	"AD": "Artificial Intelligence and Data Science",
+	"AI": "Computer Science and Engineering (AI and ML)",
 	"CV": "Civil Engineering",
 	"ME": "Mechanical Engineering",
-	"EC": "Electronics & Communication Engineering",
-	// CI is accepted by the parser but is not seeded until MITT confirms an
-	// actual 4MNxxCIxxx student USN.
-	"CI": "CSE (Artificial Intelligence & Machine Learning)",
+	"EC": "Electronics and Communication Engineering",
 }
 
 // ValidateUSN checks that a USN matches the VTU format and uses a known
