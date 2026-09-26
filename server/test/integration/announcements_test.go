@@ -382,3 +382,40 @@ func TestAnnouncementRacingADepartmentDeleteGetsAValidationError(t *testing.T) {
 		t.Fatalf("status = %d, want %d: %s", response.Status, http.StatusBadRequest, response.Body)
 	}
 }
+
+// A role only counts for the Department it belongs to: a CS student who is
+// also EC faculty is not "CS faculty".
+func TestRoleRulesMatchOnlyTheRolesOwnDepartment(t *testing.T) {
+	h := apitest.New(t)
+	csHOD := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	ecHOD := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "EC"}}})
+	csStudentAndECFaculty := h.SeedUser(t, apitest.UserSeed{
+		Roles:   []apitest.RoleSeed{{Role: "student"}, {Role: "faculty", DepartmentCode: "EC"}},
+		Student: &apitest.StudentSeed{DepartmentCode: "CS", BatchYear: 2023},
+	})
+
+	mustPublish(t, h, csHOD.Token, map[string]any{
+		"title": "CS faculty meeting", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "CS"), "role": "faculty"}},
+	})
+	mustPublish(t, h, ecHOD.Token, map[string]any{
+		"title": "EC faculty meeting", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "EC"), "role": "faculty"}},
+	})
+	mustPublish(t, h, csHOD.Token, map[string]any{
+		"title": "CS students notice", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "CS"), "role": "student"}},
+	})
+	mustPublish(t, h, ecHOD.Token, map[string]any{
+		"title": "EC students notice", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "EC"), "role": "student"}},
+	})
+
+	titles := feedTitles(t, h, csStudentAndECFaculty.Token)
+	for _, want := range []string{"EC faculty meeting", "CS students notice"} {
+		if !contains(titles, want) {
+			t.Errorf("feed %v is missing %q", titles, want)
+		}
+	}
+	for _, unwanted := range []string{"CS faculty meeting", "EC students notice"} {
+		if contains(titles, unwanted) {
+			t.Errorf("feed %v shows %q", titles, unwanted)
+		}
+	}
+}

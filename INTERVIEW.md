@@ -84,7 +84,10 @@ Each Announcement has a list of Audience rules. Within one rule, every field
 it sets (Department, batch year, role) must match the reader: that's AND.
 Across rules, matching any one is enough: that's OR. No rules means the whole
 college. This lets one notice target "CS final years or CS faculty" without a
-special case.
+special case. A role and its Department are matched as a pair,
+not separately: a CS student who also teaches in EC must not match "CS
+faculty", which is what happens if you check "is in CS" and "is faculty" on
+their own.
 
 ### Why cursor pagination instead of page numbers?
 

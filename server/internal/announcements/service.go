@@ -239,8 +239,10 @@ func (s *Service) grants(ctx context.Context, userID string) ([]Grant, error) {
 	return grants, nil
 }
 
-// reader describes the feed reader: Departments from their Student identity
-// and Department-scoped roles, batch year from their Student identity.
+// reader describes the feed reader. Each role is paired with the Department
+// it belongs to: its scope for a Department-scoped role, otherwise the
+// Department of the reader's Student identity. Batch year comes from the
+// Student identity.
 func (s *Service) reader(ctx context.Context, userID string) (Reader, error) {
 	grants, err := s.grants(ctx, userID)
 	if err != nil {
@@ -251,20 +253,14 @@ func (s *Service) reader(ctx context.Context, userID string) (Reader, error) {
 		return Reader{}, fmt.Errorf("load student identity: %w", err)
 	}
 
-	reader := Reader{BatchYear: batchYear, DepartmentIDs: []string{}, Roles: []string{}}
-	seen := map[string]bool{}
-	addDepartment := func(id string) {
-		if id != "" && !seen[id] {
-			seen[id] = true
-			reader.DepartmentIDs = append(reader.DepartmentIDs, id)
-		}
-	}
-	if studentDepartment != nil {
-		addDepartment(*studentDepartment)
-	}
+	reader := Reader{BatchYear: batchYear, Memberships: make([]Membership, 0, len(grants))}
 	for _, grant := range grants {
-		reader.Roles = append(reader.Roles, string(grant.Role))
-		addDepartment(grant.DepartmentID)
+		membership := Membership{Role: string(grant.Role), DepartmentID: studentDepartment}
+		if grant.DepartmentID != "" {
+			department := grant.DepartmentID
+			membership.DepartmentID = &department
+		}
+		reader.Memberships = append(reader.Memberships, membership)
 	}
 	return reader, nil
 }

@@ -2,6 +2,7 @@ package announcements
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
@@ -11,12 +12,19 @@ import (
 
 const targetTypeAnnouncement = "announcement"
 
-// Reader is who is looking at the feed: the Departments, batch year and roles
-// that Audience rules are matched against.
+// Membership is one role a reader holds, with the Department it belongs to
+// (nil when it belongs to none).
+type Membership struct {
+	Role         string
+	DepartmentID *string
+}
+
+// Reader is who is looking at the feed. A rule matches only when one
+// Membership satisfies its role and Department together, so a CS student who
+// is also EC faculty is not "CS faculty".
 type Reader struct {
-	DepartmentIDs []string
-	BatchYear     *int
-	Roles         []string
+	Memberships []Membership
+	BatchYear   *int
 }
 
 // FeedCursor marks the last Announcement of the previous page.
@@ -92,9 +100,29 @@ func (r *GormRepository) Create(ctx context.Context, announcement *Announcement,
 }
 
 // Feed returns published, unexpired Announcements whose Audience includes the
-// reader, newest first. Fields a rule sets must all match; any matching rule
-// is enough; no rules means the whole college.
+// reader, newest first. A rule matches when one of the reader's Memberships
+// satisfies the rule's role and Department together and the batch year (if
+// set) matches; any matching rule is enough; no rules means the whole college.
 func (r *GormRepository) Feed(ctx context.Context, reader Reader, cursor *FeedCursor, limit int) ([]FeedEntry, error) {
+	args := []any{}
+	matchesRule := "FALSE"
+	if len(reader.Memberships) > 0 {
+		rows := make([]string, 0, len(reader.Memberships))
+		for _, membership := range reader.Memberships {
+			rows = append(rows, "(?, CAST(? AS uuid))")
+			args = append(args, membership.Role, membership.DepartmentID)
+		}
+		matchesRule = `EXISTS (
+		      SELECT 1 FROM audience_rules r
+		      JOIN (VALUES ` + strings.Join(rows, ", ") + `) AS m(role, department_id)
+		        ON (r.role IS NULL OR r.role = m.role)
+		       AND (r.department_id IS NULL OR r.department_id = m.department_id)
+		      WHERE r.target_type = ? AND r.target_id = a.id
+		        AND (r.batch_year IS NULL OR r.batch_year = ?)
+		    )`
+		args = append(args, targetTypeAnnouncement, reader.BatchYear)
+	}
+
 	query := `
 		SELECT a.*, p.full_name AS publisher_name
 		FROM announcements a
@@ -104,32 +132,20 @@ func (r *GormRepository) Feed(ctx context.Context, reader Reader, cursor *FeedCu
 		  AND (
 		    NOT EXISTS (
 		      SELECT 1 FROM audience_rules r
-		      WHERE r.target_type = @target_type AND r.target_id = a.id
+		      WHERE r.target_type = ? AND r.target_id = a.id
 		    )
-		    OR EXISTS (
-		      SELECT 1 FROM audience_rules r
-		      WHERE r.target_type = @target_type AND r.target_id = a.id
-		        AND (r.department_id IS NULL OR r.department_id IN @departments)
-		        AND (r.batch_year IS NULL OR r.batch_year = @batch_year)
-		        AND (r.role IS NULL OR r.role IN @roles)
-		    )
+		    OR ` + matchesRule + `
 		  )`
-	args := map[string]any{
-		"target_type": targetTypeAnnouncement,
-		"departments": reader.DepartmentIDs,
-		"batch_year":  reader.BatchYear,
-		"roles":       reader.Roles,
-		"limit":       limit,
-	}
+	args = append([]any{targetTypeAnnouncement}, args...)
 	if cursor != nil {
-		query += ` AND (a.published_at, a.id) < (@cursor_time, CAST(@cursor_id AS uuid))`
-		args["cursor_time"] = cursor.PublishedAt
-		args["cursor_id"] = cursor.ID
+		query += ` AND (a.published_at, a.id) < (?, CAST(? AS uuid))`
+		args = append(args, cursor.PublishedAt, cursor.ID)
 	}
-	query += ` ORDER BY a.published_at DESC, a.id DESC LIMIT @limit`
+	query += ` ORDER BY a.published_at DESC, a.id DESC LIMIT ?`
+	args = append(args, limit)
 
 	var entries []FeedEntry
-	err := r.db.WithContext(ctx).Raw(query, args).Scan(&entries).Error
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&entries).Error
 	return entries, err
 }
 

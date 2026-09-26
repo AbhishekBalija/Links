@@ -226,8 +226,11 @@ placement officer, principal, admin):
 
 `GET /api/v1/announcements?limit=20&cursor=...` returns the reader's feed:
 published, unexpired Announcements whose Audience includes them, newest first.
-The reader's Departments come from their Student identity and their
-Department-scoped roles, and their batch year from their Student identity.
+Each of the reader's roles counts only for its own Department: a
+Department-scoped role for its scope, any other role for the Department of the
+reader's Student identity. A rule matches when one role satisfies its role and
+Department together, so a CS student who is also EC faculty doesn't match "CS
+faculty". Batch year comes from the Student identity.
 `limit` defaults to 20 (max 50). `meta.next_cursor` is present when there is
 another page.
 
