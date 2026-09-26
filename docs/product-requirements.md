@@ -95,7 +95,7 @@ Example: EC faculty shares a lab update.
 
 1. Faculty creates announcement.
 2. Faculty selects EC department, target year/batch, and student role.
-3. HOD/admin approval is applied if required.
+3. Faculty has no publishing authority, so the EC HOD approves it first (ADR 0017).
 4. Only matching students see the update.
 
 ### Event Approval
@@ -138,6 +138,7 @@ flowchart LR
 - Profiles are public, but private contact fields are protected.
 - Students can choose whether to show email and professional links such as LinkedIn.
 - Announcements must support targeted audience rules.
+- Announcements from authors without publishing authority over the audience need HOD, principal or admin approval (ADR 0017).
 - Student coordinator events need HOD review and principal/admin final approval.
 - Faculty mentors are optional unless college policy requires them.
 - Placement officer owns placement opportunity workflows.
