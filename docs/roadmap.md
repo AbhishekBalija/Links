@@ -27,7 +27,6 @@ Deliverables:
 - Password hashing
 - Login and refresh token flow
 - Account activation token flow (cryptographically random, single-use, 7-day expiry, hashed storage)
-- Bulk CSV import endpoint for admin/HOD
 - Gmail invite/access request flow
 - Admin/HOD verification
 - Scoped role assignments
@@ -47,6 +46,7 @@ Deliverables:
 - Targeted announcements
 - Smart notice board
 - Search basics
+- Bulk CSV import endpoint for admin/HOD
 
 ## Phase 3: Events
 

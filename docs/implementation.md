@@ -139,11 +139,12 @@ This is the highest-risk phase. Every other module depends on its data model and
 | 5.14 | Frontend: auth context, silent token refresh, protected routes                                                                                                                                                         | Agent                                                                                                                                                |
 | 5.15 | Automated and manual run-through: request access → admin approves → activation-link UI → login → edit profile → refresh/logout, for at least a student and an admin account                                            | Agent maintains the isolated Playwright suite; **you complete the final preview/staging run-through**                                                 |
 
-**Current release-candidate status (2026-08-28):** the Phase 1 PR passes all Go
-tests, vet, API/client builds, lint, and 12 isolated-schema Playwright tests. It
-remains **Ready for Dev Verification** until the Vercel preview is tested, the
-PR review/CI gates pass, and the developer signs off. Do not treat the automated
-run as the manual Definition of Done.
+**Completed status (2026-08-30):** Phase 1 PR #6 is merged and its server,
+client, and E2E CI checks pass. Public production smoke checks passed for SPA
+deep links, the root-to-login redirect, health/readiness, public-profile
+not-found, and unauthenticated `/me` and admin-route protection. The developer
+also completed the authenticated production flow and manual cross-department
+and privacy checks. Phase 1 is complete and Phase 2 is now active.
 
 **Definition of Done for Phase 1:**
 
@@ -166,6 +167,13 @@ run as the manual Definition of Done.
 | 6.5  | **Open decision:** `product-requirements.md` says HOD/admin approval is "applied if required" for announcements without saying which announcement types require it. Decide the rule (e.g. department-only notices skip approval, college-wide ones need it) | **You decide**, log in `decision-log.md`, then agent implements the gate                                                                                              |
 | 6.6  | Frontend: role dashboards, directory, department pages, announcement feed + composer, per `frontend-ux-ui.md`                                                                                                                                               | Agent builds; **you review every screen against the UI Quality Checklist in `frontend-ux-ui.md`** — this is the doc's most concrete acceptance test, use it literally |
 | 6.7  | Manual UX pass across at least student + HOD views                                                                                                                                                                                                          | **You**                                                                                                                                                               |
+
+**Step 6.1 implementation status (2026-08-30):** Ready for developer
+verification. The backend now exposes authenticated department list/detail
+routes and admin-only create/update/delete routes. The migration seeds the six
+current B.E. departments (`CS`, `AD`, `AI`, `CV`, `EC`, `ME`). HOD links remain
+null until matching HOD accounts exist. Mutations and audit logs are atomic, and
+referenced departments cannot be deleted.
 
 **Definition of Done for Phase 2:**
 

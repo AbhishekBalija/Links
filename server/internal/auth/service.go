@@ -545,6 +545,19 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 			fullName = user.Profile.FullName
 		}
 
+		if st == ScopeDepartment {
+			if _, parseErr := uuid.Parse(scopeID); parseErr != nil {
+				return apperrors.NewValidation("invalid scope", map[string]string{"scope_id": "must be a department ID"})
+			}
+			exists, lockErr := repos.Users.LockDepartmentForShare(ctx, scopeID)
+			if lockErr != nil {
+				return fmt.Errorf("lock department: %w", lockErr)
+			}
+			if !exists {
+				return apperrors.NewValidation("invalid scope", map[string]string{"scope_id": "department not found"})
+			}
+		}
+
 		ra := &RoleAssignment{
 			UserID:     userID,
 			Role:       role,
