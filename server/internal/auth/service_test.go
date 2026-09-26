@@ -602,9 +602,9 @@ func TestVerifyUser_ApprovesPendingStudentAndIssuesActivation(t *testing.T) {
 
 	h.users.findByIDForUpdate = func(_ context.Context, id string) (*User, error) {
 		return &User{
-			ID:     id,
-			Email:  &email,
-			Status: UserStatusPending,
+			ID:      id,
+			Email:   &email,
+			Status:  UserStatusPending,
 			Profile: &Profile{UserID: id, FullName: "Test Student"},
 		}, nil
 	}

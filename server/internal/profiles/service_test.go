@@ -12,10 +12,10 @@ import (
 )
 
 type fakeProfileRepo struct {
-	findByUserID       func(ctx context.Context, userID string) (*Profile, error)
-	findByUsername     func(ctx context.Context, username string) (*Profile, error)
-	update             func(ctx context.Context, profile *Profile) error
-	findByUserIDCalls  int
+	findByUserID        func(ctx context.Context, userID string) (*Profile, error)
+	findByUsername      func(ctx context.Context, username string) (*Profile, error)
+	update              func(ctx context.Context, profile *Profile) error
+	findByUserIDCalls   int
 	findByUsernameCalls int
 	updated             []*Profile
 }
@@ -87,9 +87,9 @@ func (u *fakeProfileUnitOfWork) WithinTransaction(ctx context.Context, fn func(R
 }
 
 type profileHarness struct {
-	service  *Service
-	repo     *fakeProfileRepo
-	reader   *fakeUserReader
+	service   *Service
+	repo      *fakeProfileRepo
+	reader    *fakeUserReader
 	auditLogs *fakeAuditLogRepo
 }
 
