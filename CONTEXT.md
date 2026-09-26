@@ -12,12 +12,12 @@ _Avoid_: roll number, student ID
 The record that ties a user to their USN, Department and joining year.
 
 **Access request**:
-A person's request to join LINKS with their Gmail, USN and Department, waiting for an HOD or admin to approve or reject it.
+A person's request to join LINKS with their Gmail, USN and Department, waiting for Access approval or rejection by an HOD or admin.
 _Avoid_: signup, registration
 
-**Approval**:
+**Access approval**:
 An HOD or admin accepting an Access request: the user becomes verified, gets the student role, and is sent an Activation link.
-_Avoid_: verification (the `is_verified` flag is its result, not the step)
+_Avoid_: verification (the `is_verified` flag is its result, not the step), plain "approval"
 
 **Activation**:
 The user setting their password through a single-use emailed link, which moves the account from `pending` to `active`.
@@ -73,6 +73,13 @@ _Avoid_: post, message
 
 **Audience**:
 The users an Announcement or Opportunity targets, described by Department, batch, year, Role and eligibility rules.
+
+**Publishing authority**:
+The right to publish an Announcement to an Audience without approval: an HOD for their own Department, the principal and admins everywhere, the Placement officer for placement announcements (ADR 0017).
+
+**Announcement approval**:
+An HOD, the principal or an admin accepting an Announcement (or an edit to one) from an author without Publishing authority over its Audience.
+_Avoid_: plain "approval", moderation
 
 **Event proposal**:
 An event submitted by a Student coordinator (or staff), which needs HOD review and then Principal or admin final approval before it is published.

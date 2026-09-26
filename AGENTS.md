@@ -14,7 +14,7 @@ Single-context (`CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.
 
 # LINKS
 
-LINKS is the primary MITT campus hub, not a chat platform or casual social network. Domain words (USN, Access request, Approval, Activation, Role assignment, Scope, Audience) are defined in `CONTEXT.md`; use them in code, issues and docs.
+LINKS is the primary MITT campus hub, not a chat platform or casual social network. Domain words (USN, Access request, Access approval, Activation, Role assignment, Scope, Audience) are defined in `CONTEXT.md`; use them in code, issues and docs.
 
 ## Where things are
 

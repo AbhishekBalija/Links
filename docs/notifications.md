@@ -72,7 +72,7 @@ Notify HODs for:
 
 - New department event waiting for review
 - Coordinator resubmitted event after changes
-- Department announcement approval needed if enabled
+- Announcement waiting for their approval (single-department audience, ADR 0017)
 - Department participation summary digest
 
 ### Placement Officer Notifications
@@ -89,7 +89,7 @@ Notify placement officer for:
 Notify principal/admin for:
 
 - Event waiting for final approval
-- High-priority announcement approval
+- Announcement waiting for approval (multi-department or college-wide audience, ADR 0017)
 - User import completed
 - Suspicious or failed import
 - Sensitive moderation item
