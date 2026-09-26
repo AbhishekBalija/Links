@@ -9,7 +9,18 @@ The VTU University Seat Number, `4MN<joining year><department code><roll>` (e.g.
 _Avoid_: roll number, student ID
 
 **Student identity**:
-The record that ties a user to their USN, Department and joining year.
+The record that ties a user to their USN, Department, Batch and Academic status.
+
+**Batch**:
+The batch a student currently belongs to, named by its joining year (`2023`). It starts as the joining year in the USN; an admin can change it for a year-back student. Audiences target Batch, not the USN.
+_Avoid_: year (ambiguous with year of study), USN year
+
+**Academic status**:
+Where a student stands: `studying`, `completed_with_backlogs` (course finished, degree not yet), `graduated` or `left` (dropped out or transferred) (ADR 0019).
+
+**Graduation**:
+The yearly step where an admin or HOD confirms which final-year students have their degree: their student Role assignment ends and they become Alumni. Never automatic from the calendar (ADR 0019).
+_Avoid_: pass-out (a student can finish the course without graduating)
 
 **Access request**:
 A person's request to join LINKS with their Gmail, USN and Department, waiting for Access approval or rejection by an HOD or admin.
@@ -39,6 +50,9 @@ A user's profile that others can view, with contact details hidden unless the us
 
 **Student**:
 A current B.E. student of the college with a Student identity.
+
+**Alumni**:
+A former student whose Graduation was confirmed. Students who left without graduating are not Alumni.
 
 **Student coordinator**:
 A Student who can propose events and post limited announcements within their Scope.
