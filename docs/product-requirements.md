@@ -2,7 +2,7 @@
 
 ## Product Vision
 
-LINKS is the primary campus hub for MITT. It helps students, faculty, HODs, student coordinators, placement officers, principal, alumni, clubs, departments, and admins discover, publish, approve, track, and measure campus activity.
+LINKS is the primary campus hub for a college. It helps students, faculty, HODs, student coordinators, placement officers, principal, alumni, clubs, departments, and admins discover, publish, approve, track, and measure campus activity.
 
 LINKS is not a chat platform. It is the official operating layer for campus updates, events, opportunities, approvals, applications, and records.
 

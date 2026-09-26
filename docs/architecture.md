@@ -2,7 +2,7 @@
 
 ## Purpose
 
-LINKS is the primary digital hub for MITT campus operations. The backend should support campus identity, targeted communication, event approval, placement workflows, public verified profiles, reports, and administration.
+LINKS is the primary digital hub for a college's campus operations. The backend should support campus identity, targeted communication, event approval, placement workflows, public verified profiles, reports, and administration.
 
 The first backend should be a **clean modular monolith** in Go. This keeps development and deployment simple while preserving strong internal boundaries.
 

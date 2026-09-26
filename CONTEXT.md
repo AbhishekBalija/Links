@@ -1,6 +1,6 @@
 # LINKS
 
-The official campus hub for MITT: verified identities, targeted announcements, event approvals and placement workflows. Not a chat platform or social network.
+The official campus hub for a college: verified identities, targeted announcements, event approvals and placement workflows. Not a chat platform or social network.
 
 ## Identity and access
 
@@ -38,7 +38,7 @@ A user's profile that others can view, with contact details hidden unless the us
 ## Roles
 
 **Student**:
-A current MITT B.E. student with a Student identity.
+A current B.E. student of the college with a Student identity.
 
 **Student coordinator**:
 A Student who can propose events and post limited announcements within their Scope.
@@ -59,7 +59,7 @@ Operator of LINKS with full user, role and Department management.
 ## College structure
 
 **Department**:
-An academic B.E. department of MITT, identified by its Department code, with at most one HOD.
+An academic B.E. department of the college, identified by its Department code, with at most one HOD.
 _Avoid_: branch
 
 **Department code**:

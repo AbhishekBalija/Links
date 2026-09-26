@@ -3,7 +3,7 @@
 [![CI](https://github.com/AbhishekBalija/Links/actions/workflows/ci.yml/badge.svg)](https://github.com/AbhishekBalija/Links/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**The official campus hub for MITT.** Verified student identities, targeted
+**The official campus hub for colleges.** Verified student identities, targeted
 announcements, event approvals and placement tracking in one place. Not a chat
 app or a social network.
 
