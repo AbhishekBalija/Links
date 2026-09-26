@@ -12,6 +12,21 @@ permissions:
 jobs:
   server:
     runs-on: ubuntu-latest
+    # Throwaway Postgres for the API tests in server/test/integration.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: links_test
+          POSTGRES_USER: links
+          POSTGRES_PASSWORD: links
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: server
@@ -24,6 +39,8 @@ jobs:
           go-version: '1.26.4'
       - run: go vet ./...
       - run: go test ./...
+        env:
+          TEST_DATABASE_URL: postgresql://links:links@localhost:5432/links_test?sslmode=disable
 
   client:
     runs-on: ubuntu-latest
