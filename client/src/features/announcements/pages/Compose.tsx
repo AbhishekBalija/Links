@@ -1,29 +1,33 @@
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { ChevronLeft, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useBlocker, useNavigate, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { ApiRequestError } from '../../../shared/api/types'
-import { ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
+import { ErrorState } from '../../../shared/ui/states'
 import { useIsDesktop } from '../../../shared/ui/useIsDesktop'
-import { useModal } from '../../../shared/ui/useModal'
 import { useAuthStore } from '../../auth/store'
 import { useDashboard } from '../../home/api'
-import { CategoryTag } from '../../notices/components/CategoryTag'
 import { categories, type Category } from '../../notices/types'
 import { useAuthored, useCreate, useDepartments, usePreview, useSubmit, useUpdate } from '../api'
 import { describe, presetsFor, toRules } from '../audience'
 import { buttonStyles } from '../buttons'
 import { ActionBar } from '../components/ActionBar'
 import { AudiencePicker } from '../components/AudiencePicker'
+import { AudienceSheet } from '../components/compose/AudienceSheet'
+import { ComposeSkeleton } from '../components/compose/ComposeSkeleton'
+import { ExpiryField } from '../components/compose/ExpiryField'
+import { Field, Segmented, TextField } from '../components/compose/Fields'
+import { outcomeFor, type Mode } from '../components/compose/outcome'
+import { PhoneRows } from '../components/compose/PhoneRows'
+import { PreviewArticle } from '../components/compose/PreviewArticle'
+import { errorRing, inputClass } from '../components/compose/styles'
 import { LeaveDialog } from '../components/LeaveDialog'
-import { approverPhrase } from '../status'
-import type { Authored, Department, Draft, Preview, RuleInput } from '../types'
+import type { Authored, Department, Draft, RuleInput } from '../types'
 
 // Everyone who can post may use any category, except the placement officer,
 // who posts placement notices only (ADR 0017, CanPost on the server).
 const allCategoryRoles = ['principal', 'admin', 'hod', 'faculty', 'student_coordinator']
 
-type Mode = 'new' | 'draft' | 'published'
 type Errors = Partial<Record<'title' | 'body' | 'audience' | 'expires_at' | 'category', string>>
 
 // Compose writes a new Announcement or edits one of the author's own.
@@ -337,275 +341,6 @@ function ComposeForm({ item, department, departments }: {
           blocker.proceed?.()
         }}
       />
-    </div>
-  )
-}
-
-// outcomeFor turns the publishing preview into the sentence beside the
-// buttons and the main button's label.
-function outcomeFor(preview: Preview | undefined, mode: Mode) {
-  if (!preview) return { sentence: 'Checking who approves this…', button: mode === 'published' ? 'Save changes' : 'Send' }
-  const people = `${preview.reach.toLocaleString('en-IN')} ${preview.reach === 1 ? 'person sees' : 'people see'} it`
-  const approver = approverPhrase(preview.approver)
-  if (mode === 'published') {
-    return preview.publishes_directly
-      ? { sentence: <><b className="font-semibold text-ink">Your changes go live now.</b> {people} straight away.</>, button: 'Publish changes' }
-      : { sentence: <>Your changes go to <b className="font-semibold text-ink">{approver}</b>. Readers keep the current version until then.</>, button: 'Submit changes' }
-  }
-  return preview.publishes_directly
-    ? { sentence: <><b className="font-semibold text-ink">Publishes now.</b> {people} straight away.</>, button: 'Publish' }
-    : { sentence: <>Goes to <b className="font-semibold text-ink">{approver}</b> for approval. Readers see it once it's approved.</>, button: 'Submit for approval' }
-}
-
-const inputClass = 'w-full rounded-[10px] border border-line bg-surface px-4 py-3 text-ink outline-none focus-visible:border-rust lg:bg-paper'
-const errorRing = 'border-[1.5px] border-danger focus-visible:border-danger'
-
-function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-[13px] font-semibold text-ink-2">{label}</span>
-      {children}
-      {error && <p className="text-[13px] font-semibold text-danger">{error}</p>}
-    </div>
-  )
-}
-
-type InputProps = { id: string; 'aria-invalid'?: boolean; 'aria-describedby'?: string }
-
-function TextField({ label, error, hint, input }: { label: string; error?: string; hint?: string; input: (props: InputProps) => ReactNode }) {
-  const id = useId()
-  const describedBy = [error && `${id}-error`, hint && `${id}-hint`].filter(Boolean).join(' ') || undefined
-  return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-[13px] font-semibold text-ink-2">
-        {label}
-      </label>
-      {input({ id, 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy })}
-      {error && (
-        <p id={`${id}-error`} className="text-[13px] font-semibold text-danger">
-          {error}
-        </p>
-      )}
-      {hint && (
-        <p id={`${id}-hint`} className="hidden text-xs text-ink-3 lg:block">
-          {hint}
-        </p>
-      )}
-    </div>
-  )
-}
-
-function Segmented({ label, options, value, onChange, className, full }: {
-  label: string
-  options: { value: string; label: string; short?: string }[]
-  value: string
-  onChange: (value: string) => void
-  className?: string
-  full?: boolean
-}) {
-  return (
-    <div role="group" aria-label={label} className={cn('flex gap-1 self-start rounded-[10px] bg-well p-1', full && 'self-stretch', className)}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'min-h-9 rounded-[7px] px-4 text-sm',
-            full && 'flex-1 px-2',
-            option.value === value ? 'bg-surface font-semibold text-ink shadow-[0_1px_2px_rgba(27,24,20,0.08)]' : 'text-ink-2 hover:text-ink',
-          )}
-        >
-          {full && option.short ? option.short : option.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// Expiry is a date; the notice leaves the feed at the end of that day, in the
-// author's time zone.
-function toEndOfDay(date: string): string {
-  const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d, 23, 59, 59).toISOString()
-}
-
-function toDateInput(iso: string | null): string {
-  if (!iso) return ''
-  const date = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function friendlyDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
-}
-
-function ExpiryField({ value, onChange, error }: { value: string | null; onChange: (v: string | null) => void; error?: string }) {
-  const id = useId()
-  return (
-    <section aria-label="Expiry" className="flex flex-col gap-2 rounded-xl border border-line bg-surface py-3.5 pr-3 pl-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <label htmlFor={id} className="text-sm font-semibold">
-            Expires <span className="font-normal text-ink-3">(optional)</span>
-          </label>
-          <span className="text-xs text-ink-2">
-            {value ? (
-              <>
-                Leaves the feed after <b className="font-semibold">{friendlyDate(value)}</b>
-              </>
-            ) : (
-              'Stays in the feed until you withdraw it.'
-            )}
-          </span>
-        </div>
-        <span className="flex items-center gap-0.5">
-          <input
-            id={id}
-            type="date"
-            value={toDateInput(value)}
-            min={toDateInput(new Date().toISOString())}
-            onChange={(e) => onChange(e.target.value ? toEndOfDay(e.target.value) : null)}
-            className="min-h-10 rounded-[7px] border border-input bg-paper px-2.5 font-mono text-sm"
-          />
-          {value && (
-            <button
-              type="button"
-              aria-label="Remove expiry"
-              onClick={() => onChange(null)}
-              className="flex size-10 items-center justify-center rounded-lg text-ink-3 hover:bg-well hover:text-ink"
-            >
-              <X aria-hidden="true" className="size-4" />
-            </button>
-          )}
-        </span>
-      </div>
-      {error && <p className="text-[13px] font-semibold text-danger">{error}</p>}
-    </section>
-  )
-}
-
-function PhoneRows({ audience, reach, expiry, audienceError, expiryError, onOpenAudience, onExpiry }: {
-  audience: string
-  reach: number | undefined
-  expiry: string | null
-  audienceError?: string
-  expiryError?: string
-  onOpenAudience: () => void
-  onExpiry: (v: string | null) => void
-}) {
-  const id = useId()
-  return (
-    <div className="flex flex-col rounded-[10px] border border-line bg-surface">
-      <button type="button" onClick={onOpenAudience} className="flex min-h-14 items-center justify-between gap-3 px-4 py-2 text-left">
-        <span className="flex flex-col">
-          <span className="text-xs text-ink-3">Who sees it</span>
-          <span className="text-[15px] font-semibold">{audience}</span>
-          {audienceError && <span className="text-[13px] font-semibold text-danger">{audienceError}</span>}
-        </span>
-        <span className="flex items-center gap-1 font-mono text-xs text-ink-3">
-          {reach !== undefined && reach.toLocaleString('en-IN')}
-          <ChevronRight aria-hidden="true" className="size-4" />
-        </span>
-      </button>
-      <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2 shadow-[0_-1px_0_var(--color-line)]">
-        <label htmlFor={id} className="flex flex-col">
-          <span className="text-xs text-ink-3">Expires (optional)</span>
-          <span className="text-[15px]">{expiry ? <>After <b className="font-semibold">{friendlyDate(expiry)}</b></> : 'No end date'}</span>
-          {expiryError && <span className="text-[13px] font-semibold text-danger">{expiryError}</span>}
-        </label>
-        <input
-          id={id}
-          type="date"
-          value={toDateInput(expiry)}
-          min={toDateInput(new Date().toISOString())}
-          onChange={(e) => onExpiry(e.target.value ? toEndOfDay(e.target.value) : null)}
-          className="min-h-10 w-[136px] rounded-[7px] border border-input bg-paper px-2 font-mono text-[13px]"
-        />
-      </div>
-    </div>
-  )
-}
-
-function AudienceSheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
-  const ref = useModal(open)
-  return (
-    <dialog
-      ref={ref}
-      aria-labelledby="sheet-h"
-      onCancel={(e) => {
-        e.preventDefault()
-        onClose()
-      }}
-      className="m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-[18px] bg-paper p-0 text-ink backdrop:bg-ink/45"
-    >
-      <div className="flex max-h-[85dvh] flex-col">
-        <header className="flex items-center justify-between py-3 pr-3 pl-5">
-          <h2 id="sheet-h" className="font-serif text-2xl font-medium">Who sees it</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="flex size-11 items-center justify-center rounded-full text-ink-3">
-            <X aria-hidden="true" className="size-5" />
-          </button>
-        </header>
-        <div className="flex-1 overflow-y-auto px-4 pb-3">{children}</div>
-        <footer className="bg-surface px-4 pt-3 pb-6 shadow-[0_-1px_0_var(--color-line)]">
-          <button type="button" onClick={onClose} className={buttonStyles.primary + ' min-h-12 w-full'}>
-            Done
-          </button>
-        </footer>
-      </div>
-    </dialog>
-  )
-}
-
-function PreviewArticle({ draft, audience }: { draft: Draft; audience: string }) {
-  const paragraphs = draft.body.trim() ? draft.body.split(/\n\s*\n/) : []
-  return (
-    <section aria-label="Preview" className="flex flex-col gap-2">
-      <p className="px-1 text-xs text-ink-3">This is how {audience} will see it.</p>
-      <article className="flex flex-col gap-4 rounded-xl border border-line bg-surface px-5 py-5 lg:px-10 lg:py-9">
-        <div className="flex items-center gap-2.5 text-xs">
-          <CategoryTag category={draft.category} className="lg:text-xs" />
-          <span className="text-ink-3">Posted when it goes live</span>
-        </div>
-        <h2 className="font-serif text-[26px] leading-tight font-medium tracking-[-0.4px] lg:text-[36px]">
-          {draft.title.trim() || <span className="text-ink-3">Your title</span>}
-        </h2>
-        <div className="flex max-w-[680px] flex-col gap-3 font-serif text-[17px] leading-relaxed text-prose lg:text-[19px]">
-          {paragraphs.length === 0 ? (
-            <p className="text-ink-3">Your notice will appear here.</p>
-          ) : (
-            paragraphs.map((text, i) => (
-              <p key={i} className="whitespace-pre-line">
-                {text}
-              </p>
-            ))
-          )}
-        </div>
-      </article>
-    </section>
-  )
-}
-
-function ComposeSkeleton() {
-  return (
-    <div className="flex flex-col gap-5">
-      <LoadingStatus label="Loading the composer" />
-      <Skeleton className="h-9 w-64" />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-6">
-          <Skeleton className="h-9 w-72" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-48 w-full" />
-        </div>
-        <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-5">
-          <Skeleton className="h-6 w-32" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      </div>
     </div>
   )
 }
