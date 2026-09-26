@@ -16,6 +16,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   new summary, and a Notices feed that loads more as you scroll, filters by
   category and opens each notice. Every screen has loading, empty and error
   states.
+- Writing announcements (#41): a composer with one-tap audience picks (or
+  custom groups by department, batch and role) and how many people they
+  reach, a preview, an optional expiry, and a line saying whether it
+  publishes now or which approver it goes to. My announcements puts
+  anything sent back first, with the note, and tabs for drafts, waiting,
+  live and ended; opening one gives Edit and Withdraw (with a
+  confirmation). Leaving the composer with unsaved text offers to keep it
+  as a draft.
 
 ## [0.2.0] - 2026-09-26
 

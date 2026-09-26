@@ -1,20 +1,30 @@
-import { House, Newspaper, UserRound, type LucideIcon } from 'lucide-react'
+import { House, Newspaper, PenLine, UserRound, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
   label: string
+  // A shorter label for the phone's bottom bar.
+  short?: string
   icon: LucideIcon
   // Roles that see this item; leave it out for everyone.
   roles?: string[]
 }
 
-// Every signed-in user reads notices. The composer (#41) and the approval
-// queue (#42) add their items here with the roles that can use them.
+// Roles that can post Announcements (auth policy: post_announcement).
+export const posterRoles = ['student_coordinator', 'faculty', 'hod', 'placement_officer', 'principal', 'admin']
+
+// Every signed-in user reads notices. The approval queue (#42) adds its item
+// here with the roles that can use it.
 const items: NavItem[] = [
   { to: '/', label: 'Home', icon: House },
   { to: '/notices', label: 'Notices', icon: Newspaper },
+  { to: '/mine', label: 'My announcements', short: 'Mine', icon: PenLine, roles: posterRoles },
   { to: '/profile/edit', label: 'Profile', icon: UserRound },
 ]
+
+export function canPost(roles: string[]): boolean {
+  return roles.some((role) => posterRoles.includes(role))
+}
 
 export function navFor(roles: string[]): NavItem[] {
   return items.filter((item) => !item.roles || item.roles.some((role) => roles.includes(role)))

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ProtectedRoute, GuestRoute, PendingRoute } from '../features/auth/components/ProtectedRoute'
 import Login from '../features/auth/pages/Login'
 import AccessRequest from '../features/auth/pages/AccessRequest'
@@ -7,7 +7,12 @@ import ActivateAccount from '../features/auth/pages/ActivateAccount'
 import Home from '../features/home/pages/Home'
 import Notices from '../features/notices/pages/Notices'
 import NoticeDetail from '../features/notices/pages/NoticeDetail'
+import Compose from '../features/announcements/pages/Compose'
+import MyAnnouncement from '../features/announcements/pages/MyAnnouncement'
+import MyAnnouncements from '../features/announcements/pages/MyAnnouncements'
+import { useAuthStore } from '../features/auth/store'
 import { AppShell } from './shell/AppShell'
+import { canPost } from './shell/nav'
 import EditProfile from '../features/profiles/pages/EditProfile'
 
 export function AppRouter() {
@@ -26,10 +31,23 @@ export function AppRouter() {
           <Route path="/" element={<Home />} />
           <Route path="/notices" element={<Notices />} />
           <Route path="/notices/:id" element={<NoticeDetail />} />
+          <Route path="/mine" element={<MyAnnouncements />} />
+          <Route path="/mine/:id" element={<MyAnnouncement />} />
+          <Route element={<PosterRoute />}>
+            <Route path="/mine/new" element={<Compose />} />
+            <Route path="/mine/:id/edit" element={<Compose />} />
+          </Route>
           <Route path="/profile/edit" element={<EditProfile />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
+}
+
+// PosterRoute keeps the composer to roles that can post. The server checks
+// again; this only saves others a screen that would refuse them.
+function PosterRoute() {
+  const roles = useAuthStore((s) => s.user?.roles) ?? []
+  return canPost(roles) ? <Outlet /> : <Navigate to="/mine" replace />
 }

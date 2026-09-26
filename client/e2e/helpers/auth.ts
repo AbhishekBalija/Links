@@ -7,7 +7,7 @@ export async function bootstrapAdmin(_dbURL: string) {
   const { v4: uuidv4 } = await import('uuid')
   const { randomBytes, createHash } = await import('crypto')
 
-  const adminEmail = `admin-${Date.now()}@test.com`
+  const adminEmail = `admin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.com`
   const adminPass = 'AdminPass123'
   const client = await getSchemaClient()
   try {
@@ -155,4 +155,49 @@ export async function cleanupTestUsers(_dbURL: string, emails: string[]) {
 // Home greets the user by time of day: "Good morning, Priya".
 export async function expectHome(page: Page) {
   await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening),/ })).toBeVisible()
+}
+
+// ── Seeded members (not the thing under test) ──
+// seedMember creates an active user with one role, the way an admin would
+// have set them up. A department makes the role department-scoped; a batch
+// also gives them a Student identity there.
+export async function seedMember(
+  apiContext: APIRequestContext,
+  member: { role: string; fullName: string; department?: string; batch?: number },
+) {
+  const account = await bootstrapAdmin('')
+  await activateUserViaAPI(apiContext, account.activationToken, account.password)
+  const { v4: uuidv4 } = await import('uuid')
+  const client = await getSchemaClient()
+  try {
+    await client.query(`UPDATE users SET status = 'active' WHERE id = $1`, [account.userId])
+    await client.query(`UPDATE profiles SET full_name = $2 WHERE user_id = $1`, [account.userId, member.fullName])
+    const dept = member.department
+      ? (await client.query('SELECT id FROM departments WHERE code = $1', [member.department])).rows[0].id
+      : null
+    if (member.batch && dept) {
+      const usn = `4MN${String(member.batch).slice(2)}${member.department}${String(Math.floor(Math.random() * 900) + 100)}`
+      await client.query(
+        `INSERT INTO student_identities (user_id, usn, department_id, batch_year) VALUES ($1, $2, $3, $4)`,
+        [account.userId, usn, dept, member.batch],
+      )
+      await client.query(
+        `INSERT INTO role_assignments (id, user_id, role, scope_type, starts_at, created_at) VALUES ($1, $2, $3, 'global', NOW() - interval '1 minute', NOW())`,
+        [uuidv4(), account.userId, member.role],
+      )
+    } else if (dept) {
+      await client.query(
+        `INSERT INTO role_assignments (id, user_id, role, scope_type, scope_id, starts_at, created_at) VALUES ($1, $2, $3, 'department', $4, NOW() - interval '1 minute', NOW())`,
+        [uuidv4(), account.userId, member.role, dept],
+      )
+    } else {
+      await client.query(
+        `INSERT INTO role_assignments (id, user_id, role, scope_type, starts_at, created_at) VALUES ($1, $2, $3, 'global', NOW() - interval '1 minute', NOW())`,
+        [uuidv4(), account.userId, member.role],
+      )
+    }
+  } finally {
+    await client.end()
+  }
+  return { email: account.email, password: account.password, userId: account.userId }
 }

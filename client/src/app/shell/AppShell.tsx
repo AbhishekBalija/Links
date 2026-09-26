@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '../../features/auth/store'
 import { Avatar } from './Avatar'
@@ -12,6 +12,9 @@ export function AppShell() {
   const roles = user?.roles ?? []
   const items = navFor(roles)
   const name = user?.profile.full_name ?? user?.email ?? ''
+  // The composer and an opened announcement have their own action bar at the
+  // bottom on phones, so the tab bar steps aside there.
+  const focused = /^\/mine\/.+/.test(useLocation().pathname)
 
   return (
     <div className="min-h-dvh bg-paper text-ink lg:flex">
@@ -44,7 +47,7 @@ export function AppShell() {
         </div>
       </nav>
 
-      <main id="main" className="min-w-0 flex-1 px-4 pt-5 pb-28 lg:px-16 lg:pt-10 lg:pb-12">
+      <main id="main" className={cn('min-w-0 flex-1 px-4 pt-5 lg:px-16 lg:pt-10 lg:pb-12', focused ? 'pb-8' : 'pb-28')}>
         <div className="mx-auto w-full max-w-[1120px]">
           <Outlet />
         </div>
@@ -52,6 +55,7 @@ export function AppShell() {
 
       <nav
         aria-label="Main"
+        hidden={focused}
         className="fixed inset-x-0 bottom-0 z-40 grid bg-surface pt-2 pb-[max(env(safe-area-inset-bottom),14px)] shadow-[0_-1px_0_var(--color-line)] lg:hidden"
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
@@ -101,7 +105,7 @@ function TabLink({ item }: { item: NavItem }) {
       }
     >
       <Icon aria-hidden="true" className="size-[22px]" strokeWidth={1.8} />
-      {item.label}
+      {item.short ?? item.label}
     </NavLink>
   )
 }

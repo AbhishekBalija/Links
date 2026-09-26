@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { initializeAuth, useAuthStore } from '../features/auth/store'
 import { ApiRequestError } from '../shared/api/types'
 
@@ -27,17 +27,19 @@ function ClearOnUserChange({ client }: { client: QueryClient }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  // A data router (rather than <BrowserRouter>) is what lets a screen block
+  // navigation, e.g. the composer asking before unsaved text is lost. The app's
+  // own <Routes> render inside its one catch-all route.
+  const [router] = useState(() =>
+    createBrowserRouter([{ path: '*', element: <AuthInit>{children}</AuthInit> }]),
+  )
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: shouldRetry, staleTime: 30_000 } } }),
   )
   return (
     <QueryClientProvider client={queryClient}>
       <ClearOnUserChange client={queryClient} />
-      <BrowserRouter>
-        <AuthInit>
-          {children}
-        </AuthInit>
-      </BrowserRouter>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   )
 }

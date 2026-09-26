@@ -280,18 +280,31 @@ approver it's waiting for, or to a reader whose feed includes it (published
 only). Anyone else gets `404`, so unpublished Announcements stay private.
 
 `POST /api/v1/announcements/preview` with `{"category": "...", "audience": [...]}`
-returns `{"publishes_directly": true}` or `{"publishes_directly": false,
-"approver": "CS HOD"}`, using the same rule as posting. The composer uses it to
-say what will happen before posting.
+returns `{"publishes_directly": true, "reach": 376}` or
+`{"publishes_directly": false, "approver": "CS HOD", "reach": 128}`, using the
+same rule as posting. `reach` counts the active users the Audience matches
+right now, matched the same way as the feed. The composer uses it to say what
+will happen, and to whom, before posting.
 
-Pending items carry `approver` ("CS HOD" or "Principal or admin"). For their
+Pending and sent-back items carry `approver` ("CS HOD" or "Principal or
+admin"): who it waits for, or who sent it back. For their
 author, a published Announcement with a waiting or rejected edit carries
 `edit: {status, review_note, approver}`. The feed accepts `category` to show
 one category only.
 
 `GET /api/v1/announcements/mine` (any signed-in user, so former authors keep
 seeing their history) lists the caller's own Announcements in any
-status, newest first.
+status, newest first. `status` narrows it to what needs the author:
+
+- `attention`: sent back, either a rejected Announcement or a live one whose
+  edit was rejected
+- `draft`, `waiting` (pending approval)
+- `live`: readers can see it now, including ones with an edit waiting
+- `ended`: withdrawn or expired
+
+Any other value is `400`. A waiting or rejected edit's `edit` object carries
+its own `title`, `body`, `category`, `audience` and `expires_at`, so the
+author can fix it instead of starting again from the live text.
 
 `GET /api/v1/announcements?limit=20&cursor=...` returns the reader's feed:
 published, unexpired Announcements whose Audience includes them, newest first.
