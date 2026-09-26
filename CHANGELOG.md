@@ -18,6 +18,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   everything else. Approvers get a queue, rejections carry a note, authors can
   save drafts, fix rejected ones and resubmit, and see all their own
   Announcements with their status.
+- Editing and withdrawing announcements (#29): authors with publishing
+  authority edit published announcements directly; other authors' edits wait
+  for approval while readers keep seeing the approved text. Authors and
+  approvers can withdraw a published announcement.
 - API tests run the real router against an isolated Postgres schema (#26).
 - Department management (#10): any signed-in user can list and read
   departments, and admins can create, update and delete them. Codes can't

@@ -52,6 +52,9 @@ const (
 	RevisionPending  RevisionStatus = "pending"
 	RevisionApproved RevisionStatus = "approved"
 	RevisionRejected RevisionStatus = "rejected"
+	// RevisionClosed can never go live: its Announcement was withdrawn, or a
+	// direct edit replaced it.
+	RevisionClosed RevisionStatus = "closed"
 )
 
 // StoredRule is an Audience rule as saved on a revision.
@@ -97,6 +100,7 @@ type Repository interface {
 	Create(ctx context.Context, announcement *Announcement, audience []AudienceRule) error
 	Feed(ctx context.Context, reader Reader, cursor *FeedCursor, limit int) ([]FeedEntry, error)
 	AudienceRules(ctx context.Context, announcementIDs []string) ([]AudienceRuleView, error)
+	Audience(ctx context.Context, announcementID string) ([]AudienceRule, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	FullName(ctx context.Context, userID string) (string, error)

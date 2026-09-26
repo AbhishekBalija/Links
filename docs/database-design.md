@@ -178,7 +178,8 @@ announcements (
 Content waiting for Announcement approval (ADR 0017): a new Announcement's first
 version, or an edit to a published one. Approving a revision copies it onto the
 Announcement. At most one open (draft, pending or rejected) revision per
-Announcement.
+Announcement. A `closed` revision can never go live: its Announcement was
+withdrawn, or a direct edit replaced it.
 
 ```sql
 announcement_revisions (
@@ -189,7 +190,7 @@ announcement_revisions (
   category text not null,
   audience jsonb not null,             -- audience rules as submitted
   expires_at timestamptz,
-  status text not null,                -- draft | pending | approved | rejected
+  status text not null,                -- draft | pending | approved | rejected | closed
   approver_department_id uuid,         -- that Department's HOD; null = principal/admin
   submitted_by uuid not null references users(id),
   submitted_at timestamptz,

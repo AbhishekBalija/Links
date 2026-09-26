@@ -183,6 +183,15 @@ func (r *GormRepository) AudienceRules(ctx context.Context, announcementIDs []st
 	return rules, err
 }
 
+// Audience returns an Announcement's current Audience rules.
+func (r *GormRepository) Audience(ctx context.Context, announcementID string) ([]AudienceRule, error) {
+	views, err := r.AudienceRules(ctx, []string{announcementID})
+	if err != nil {
+		return nil, err
+	}
+	return audienceFromViews(views), nil
+}
+
 // LockDepartments counts how many of the given Department IDs exist and
 // share-locks them until the transaction ends, so a concurrent Department
 // delete either waits for this Announcement or runs first and fails the check.
