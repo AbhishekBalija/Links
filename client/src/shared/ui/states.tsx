@@ -38,3 +38,15 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
     </div>
   )
 }
+
+// PageLoading fills the content area while a page's code downloads.
+export function PageLoading() {
+  return (
+    <div className="flex flex-col gap-4 p-4 lg:p-0">
+      <LoadingStatus label="Loading" />
+      <Skeleton className="h-8 w-56" />
+      <Skeleton className="h-4 w-full max-w-xl" />
+      <Skeleton className="h-4 w-4/5 max-w-lg" />
+    </div>
+  )
+}

@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { PageLoading } from '../../shared/ui/states'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '../../features/auth/store'
 import { Avatar } from './Avatar'
@@ -55,7 +57,9 @@ export function AppShell() {
 
       <main id="main" className={cn('min-w-0 flex-1 px-4 pt-5 lg:px-16 lg:pt-10 lg:pb-12', focused ? 'pb-8' : 'pb-28')}>
         <div className="mx-auto w-full max-w-[1120px]">
-          <Outlet />
+          <Suspense fallback={<PageLoading />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
 
