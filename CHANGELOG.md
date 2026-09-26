@@ -6,8 +6,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-26
+
+Phase 2 begins: department management and targeted announcements with
+approval, so staff can reach exactly the students a notice concerns.
+
 ### Added
-- Targeted announcements, first slice (#27): HODs (own Department), the
+- Targeted announcements (#27): HODs (own Department), the
   principal, admins and the placement officer (placement notices) publish
   Announcements to an Audience of Departments, batch years and roles, or the
   whole college. Readers get a paginated feed of what targets them, and
@@ -26,8 +31,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Department management (#10): any signed-in user can list and read
   departments, and admins can create, update and delete them. Codes can't
   change, a department still in use can't be deleted, and every change is
-  audited. Migration 011 seeds the pilot college's current B.E. departments (CS, AD,
-  AI, CV, EC, ME).
+  audited. Migration 011 seeds the pilot college's current B.E.
+  departments (CS, AD, AI, CV, EC, ME).
 
 ### Fixed
 - Roles count only while they are in effect: an ended or future-dated role
@@ -68,5 +73,6 @@ records.
 - Audit logs for approvals and status changes.
 - Security tests for the auth surface and a Playwright e2e suite run in CI.
 
-[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AbhishekBalija/Links/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AbhishekBalija/Links/releases/tag/v0.1.0
