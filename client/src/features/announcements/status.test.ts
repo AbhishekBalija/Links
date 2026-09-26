@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { approverPhrase, hrefFor, standing, waited } from './status'
+import { approverPhrase, hasExpired, hrefFor, standing, waited } from './status'
 import type { Authored } from './types'
 
 const now = new Date(2026, 8, 28, 10, 0)
@@ -70,5 +70,13 @@ describe('waited', () => {
     [100, 'waiting 4 days', true],
   ])('%s hours reads "%s" (long: %s)', (hours, text, long) => {
     expect(waited(hoursAgo(hours), now)).toEqual({ text, long })
+  })
+})
+
+describe('hasExpired', () => {
+  it('is true only once the expiry date has passed', () => {
+    expect(hasExpired({ expires_at: null }, now)).toBe(false)
+    expect(hasExpired({ expires_at: iso(1) }, now)).toBe(false)
+    expect(hasExpired({ expires_at: iso(-1) }, now)).toBe(true)
   })
 })
