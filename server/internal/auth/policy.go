@@ -12,6 +12,7 @@ const (
 	PermissionEditOwnProfile      Permission = "edit_own_profile"
 	PermissionViewTargetedNotices Permission = "view_targeted_notices"
 	PermissionPostAnnouncement    Permission = "post_announcement"
+	PermissionApproveAnnouncement Permission = "approve_announcement"
 	PermissionProposeEvent        Permission = "propose_event"
 	PermissionReviewBranchEvent   Permission = "review_branch_event"
 	PermissionFinalEventApproval  Permission = "final_event_approval"
@@ -34,7 +35,10 @@ func NewPolicy() *Policy {
 			PermissionViewTargetedNotices: allRoles(),
 			// Who may post at all (docs/auth.md). Whether a post publishes directly
 			// or needs approval is decided in the announcements service (ADR 0017).
-			PermissionPostAnnouncement:    {RoleStudentCoordinator, RoleFaculty, RoleHOD, RolePlacementOfficer, RolePrincipal, RoleAdmin},
+			PermissionPostAnnouncement: {RoleStudentCoordinator, RoleFaculty, RoleHOD, RolePlacementOfficer, RolePrincipal, RoleAdmin},
+			// Which Announcements each approver may review is decided in the
+			// announcements service (ADR 0017).
+			PermissionApproveAnnouncement: {RoleHOD, RolePrincipal, RoleAdmin},
 			PermissionProposeEvent:        {RoleStudentCoordinator, RoleFaculty, RoleHOD, RolePlacementOfficer, RolePrincipal, RoleAdmin},
 			PermissionReviewBranchEvent:   {RoleHOD, RolePrincipal, RoleAdmin},
 			PermissionFinalEventApproval:  {RolePrincipal, RoleAdmin},

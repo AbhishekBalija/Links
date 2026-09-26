@@ -180,6 +180,17 @@ func (h *Harness) SeedUser(t *testing.T, seed UserSeed) User {
 	return User{ID: id, Token: token}
 }
 
+// TokenFor signs a fresh access token for an existing user with the given role
+// names, the way a refresh would after their roles changed.
+func (h *Harness) TokenFor(t *testing.T, userID string, roles ...string) string {
+	t.Helper()
+	token, err := auth.GenerateAccessToken(userID, roles, h.tokenCfg)
+	if err != nil {
+		t.Fatalf("sign access token: %v", err)
+	}
+	return token
+}
+
 // DepartmentID looks up a department's ID by its code.
 func (h *Harness) DepartmentID(t *testing.T, code string) string {
 	t.Helper()

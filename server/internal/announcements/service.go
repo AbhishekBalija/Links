@@ -38,76 +38,77 @@ func NewService(repository Repository, roles RoleReader, unitOfWork UnitOfWork) 
 	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, now: time.Now}
 }
 
-// Create posts an Announcement. Authors with Publishing authority over the
-// Audience publish immediately (ADR 0017). Announcement approval for everyone
-// else is not built yet, so they get 403 for now.
+// Create posts an Announcement (ADR 0017). An author with Publishing authority
+// over the Audience publishes immediately. Anyone else's Announcement waits for
+// Announcement approval. Either can save a draft instead.
 func (s *Service) Create(ctx context.Context, actorID string, input CreateAnnouncementInput) (*AnnouncementResponse, error) {
-	title, body, category, audience, err := s.validate(input)
+	content, err := s.validate(input.content())
 	if err != nil {
 		return nil, err
 	}
-
 	grants, err := s.grants(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
-	if !CanPost(grants, category) {
+	if !CanPost(grants, content.Category) {
 		return nil, apperrors.NewForbidden("you can't post this kind of announcement")
 	}
-	if decision := DecidePublishing(grants, category, audience); !decision.PublishDirectly {
-		return nil, apperrors.NewForbidden("this announcement needs approval, which isn't available yet")
-	}
+	decision := DecidePublishing(grants, content.Category, content.Audience)
 
 	now := s.now().UTC()
 	announcement := Announcement{
-		Title:       title,
-		Body:        body,
-		Category:    category,
+		Title:       content.Title,
+		Body:        content.Body,
+		Category:    content.Category,
 		PublisherID: actorID,
-		Status:      StatusPublished,
-		PublishedAt: &now,
-		ExpiresAt:   input.ExpiresAt,
+		ExpiresAt:   content.ExpiresAt,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+	switch {
+	case input.Draft:
+		announcement.Status = StatusDraft
+	case decision.PublishDirectly:
+		announcement.Status = StatusPublished
+		announcement.PublishedAt = &now
+	default:
+		announcement.Status = StatusPending
+	}
+
 	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
-		if checkErr := checkDepartments(ctx, repositories.Announcements, audience); checkErr != nil {
+		if checkErr := checkDepartments(ctx, repositories.Announcements, content.Audience); checkErr != nil {
 			return checkErr
 		}
-		if createErr := repositories.Announcements.Create(ctx, &announcement, audience); createErr != nil {
+		// An unpublished Announcement keeps its working copy (including its
+		// Audience rules) in step with its open revision.
+		if createErr := repositories.Announcements.Create(ctx, &announcement, content.Audience); createErr != nil {
 			return createErr
 		}
-		return repositories.AuditLogs.Create(ctx, &auth.AuditLog{
-			ActorID:      &actorID,
-			Action:       "announcement.published",
-			ResourceType: "announcement",
-			ResourceID:   &announcement.ID,
-			Metadata:     map[string]interface{}{"title": title, "category": string(category), "audience_rules": len(audience)},
-		})
+		if announcement.Status == StatusPublished {
+			return audit(ctx, repositories, actorID, "announcement.published", announcement.ID, nil)
+		}
+
+		revision := content.revision(announcement.ID, actorID, now)
+		if announcement.Status == StatusPending {
+			revision.submit(decision, now)
+		}
+		if revisionErr := repositories.Announcements.CreateRevision(ctx, &revision); revisionErr != nil {
+			return revisionErr
+		}
+		if announcement.Status == StatusPending {
+			return audit(ctx, repositories, actorID, "announcement.submitted", announcement.ID, nil)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create announcement: %w", err)
 	}
-
-	publisherName, err := s.repository.FullName(ctx, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("load publisher: %w", err)
-	}
-	responses, err := s.toResponses(ctx, []FeedEntry{{Announcement: announcement, PublisherName: publisherName}})
-	if err != nil {
-		return nil, err
-	}
-	return &responses[0], nil
+	return s.single(ctx, announcement)
 }
 
 // Feed returns one page of the Announcements whose Audience includes the reader.
 func (s *Service) Feed(ctx context.Context, actorID, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
-	if limit <= 0 {
-		limit = defaultFeedLimit
-	}
-	if limit > maxFeedLimit {
-		limit = maxFeedLimit
-	}
+	limit = pageLimit(limit)
 	after, err := decodeCursor(cursor)
 	if err != nil {
 		return nil, nil, err
@@ -135,7 +136,7 @@ func (s *Service) Feed(ctx context.Context, actorID, cursor string, limit int) (
 	return responses, meta, nil
 }
 
-func (s *Service) validate(input CreateAnnouncementInput) (string, string, Category, []AudienceRule, error) {
+func (s *Service) validate(input contentInput) (announcementContent, error) {
 	details := map[string]string{}
 	title := strings.TrimSpace(input.Title)
 	body := strings.TrimSpace(input.Body)
@@ -152,16 +153,14 @@ func (s *Service) validate(input CreateAnnouncementInput) (string, string, Categ
 	if input.ExpiresAt != nil && !input.ExpiresAt.After(s.now()) {
 		details["expires_at"] = "must be in the future"
 	}
-
 	audience, audienceProblem := toAudience(input.Audience)
 	if audienceProblem != "" {
 		details["audience"] = audienceProblem
 	}
 	if len(details) > 0 {
-		return "", "", "", nil, apperrors.NewValidation("invalid announcement", details)
+		return announcementContent{}, apperrors.NewValidation("invalid announcement", details)
 	}
-
-	return title, body, category, audience, nil
+	return announcementContent{Title: title, Body: body, Category: category, Audience: audience, ExpiresAt: input.ExpiresAt}, nil
 }
 
 // toAudience validates Audience rules. An empty list means the whole college.

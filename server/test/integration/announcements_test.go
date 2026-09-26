@@ -248,7 +248,7 @@ func TestFeedPagesReturnEveryAnnouncementOnceNewestFirst(t *testing.T) {
 	}
 }
 
-func TestAuthorsWithoutPublishingAuthorityAreRefusedForNow(t *testing.T) {
+func TestAuthorsWithoutPublishingAuthorityWaitForApproval(t *testing.T) {
 	h := apitest.New(t)
 	cs := h.DepartmentID(t, "CS")
 	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
@@ -262,8 +262,8 @@ func TestAuthorsWithoutPublishingAuthorityAreRefusedForNow(t *testing.T) {
 		body   map[string]any
 		status int
 	}{
-		{"faculty to own department", faculty.Token, map[string]any{"title": "Lab update", "audience": []map[string]any{{"department_id": cs}}}, http.StatusForbidden},
-		{"HOD to another department", ecHOD.Token, map[string]any{"title": "Guest lecture", "audience": []map[string]any{{"department_id": cs}}}, http.StatusForbidden},
+		{"faculty to own department", faculty.Token, map[string]any{"title": "Lab update", "audience": []map[string]any{{"department_id": cs}}}, http.StatusCreated},
+		{"HOD to another department", ecHOD.Token, map[string]any{"title": "Guest lecture", "audience": []map[string]any{{"department_id": cs}}}, http.StatusCreated},
 		{"student", reader.Token, map[string]any{"title": "Party tonight"}, http.StatusForbidden},
 		{"placement officer, non-placement", placement.Token, map[string]any{"title": "Sports day", "category": "official"}, http.StatusForbidden},
 		{"placement officer, placement", placement.Token, map[string]any{"title": "Infosys drive on Monday", "category": "placement"}, http.StatusCreated},
@@ -277,7 +277,7 @@ func TestAuthorsWithoutPublishingAuthorityAreRefusedForNow(t *testing.T) {
 	titles := feedTitles(t, h, reader.Token)
 	for _, refused := range []string{"Lab update", "Guest lecture", "Party tonight", "Sports day"} {
 		if contains(titles, refused) {
-			t.Errorf("feed %v shows refused announcement %q", titles, refused)
+			t.Errorf("feed %v shows unapproved or refused announcement %q", titles, refused)
 		}
 	}
 	if !contains(titles, "Infosys drive on Monday") {
