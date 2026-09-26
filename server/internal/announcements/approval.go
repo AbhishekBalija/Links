@@ -147,6 +147,9 @@ func (s *Service) Submit(ctx context.Context, actorID, id string) (*Announcement
 			return apperrors.NewConflict("this announcement has nothing to submit")
 		}
 		content := revision.content()
+		if expiredErr := notExpired(content, s.now()); expiredErr != nil {
+			return expiredErr
+		}
 		if !CanPost(grants, content.Category) {
 			return apperrors.NewForbidden("you can't post this kind of announcement")
 		}
@@ -243,6 +246,9 @@ func (s *Service) Review(ctx context.Context, actorID, id string, input ReviewIn
 			return audit(ctx, repositories, actorID, "announcement.rejected", announcement.ID, map[string]interface{}{"note": note})
 		}
 
+		if expiredErr := notExpired(revision.content(), now); expiredErr != nil {
+			return expiredErr
+		}
 		if checkErr := checkDepartments(ctx, repositories.Announcements, revision.content().Audience); checkErr != nil {
 			return checkErr
 		}
@@ -346,6 +352,15 @@ func (s *Service) Mine(ctx context.Context, actorID, cursor string, limit int) (
 		responses[i].ReviewNote = notes[responses[i].ID]
 	}
 	return responses, meta, nil
+}
+
+// notExpired refuses content whose expiry has already passed: publishing it
+// would say "published" while no reader could ever see it.
+func notExpired(content announcementContent, now time.Time) error {
+	if content.ExpiresAt != nil && !content.ExpiresAt.After(now) {
+		return apperrors.NewValidation("invalid announcement", map[string]string{"expires_at": "has already passed; edit the announcement and set a new date"})
+	}
+	return nil
 }
 
 // canApprove reports whether the grants cover this revision's approver.

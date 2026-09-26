@@ -223,6 +223,10 @@ func (r *GormRepository) FullName(ctx context.Context, userID string) (string, e
 // FindForUpdate loads an Announcement and locks its row until the transaction
 // ends, so approvals, rejections and resubmissions of it happen one at a time.
 func (r *GormRepository) FindForUpdate(ctx context.Context, id string) (*Announcement, error) {
+	// An ID that isn't a UUID can't match any row; asking Postgres would error.
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, nil
+	}
 	var announcement Announcement
 	err := r.db.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE"}).

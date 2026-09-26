@@ -282,3 +282,49 @@ func TestApprovalStepsAreAudited(t *testing.T) {
 		}
 	}
 }
+
+func TestMalformedAnnouncementIDIsNotFound(t *testing.T) {
+	h := apitest.New(t)
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	calls := []struct {
+		method, path, token string
+		body                any
+	}{
+		{http.MethodPatch, "/api/v1/announcements/abc", faculty.Token, map[string]any{"title": "Title", "body": "Body", "category": "department"}},
+		{http.MethodPost, "/api/v1/announcements/abc/submit-for-approval", faculty.Token, nil},
+		{http.MethodPatch, "/api/v1/announcements/abc/approval", admin.Token, map[string]string{"decision": "approve"}},
+	}
+	for _, call := range calls {
+		if response := h.Do(t, call.method, call.path, call.token, call.body); response.Status != http.StatusNotFound {
+			t.Errorf("%s %s: status = %d, want %d: %s", call.method, call.path, response.Status, http.StatusNotFound, response.Body)
+		}
+	}
+}
+
+func TestExpiredAnnouncementCannotBeSubmittedOrApproved(t *testing.T) {
+	h := apitest.New(t)
+	cs := h.DepartmentID(t, "CS")
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	csHOD := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	body := func(title string, draft bool) map[string]any {
+		return map[string]any{"title": title, "draft": draft, "expires_at": "2099-01-01T00:00:00Z", "audience": []map[string]any{{"department_id": cs}}}
+	}
+	draft, _ := createdStatus(t, publish(t, h, faculty.Token, body("Expiring draft", true)))
+	pending, _ := createdStatus(t, publish(t, h, faculty.Token, body("Expiring submission", false)))
+
+	// Time can't pass inside a test, so move both expiries into the past.
+	if err := h.DB().Exec(`UPDATE announcement_revisions SET expires_at = now() - interval '1 minute'`).Error; err != nil {
+		t.Fatalf("backdate expiry: %v", err)
+	}
+
+	if response := h.Do(t, http.MethodPost, "/api/v1/announcements/"+draft+"/submit-for-approval", faculty.Token, nil); response.Status != http.StatusBadRequest {
+		t.Errorf("submit status = %d, want %d: %s", response.Status, http.StatusBadRequest, response.Body)
+	}
+	if response := review(t, h, csHOD.Token, pending, "approve", ""); response.Status != http.StatusBadRequest {
+		t.Errorf("approve status = %d, want %d: %s", response.Status, http.StatusBadRequest, response.Body)
+	}
+	if response := review(t, h, csHOD.Token, pending, "reject", "Expired, please update the date"); response.Status != http.StatusOK {
+		t.Errorf("reject status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
+	}
+}
