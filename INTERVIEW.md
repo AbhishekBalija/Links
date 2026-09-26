@@ -128,3 +128,16 @@ A withdrawn Announcement is off every feed. If its pending edit stayed in the
 queue, an approver could approve it and bring the notice back without anyone
 deciding to republish it. Closing the edit, in the same transaction as the
 withdrawal, keeps the queue showing only things that can still go live.
+
+## Testing
+
+### Why have three kinds of tests instead of just end-to-end ones?
+
+Each layer catches different bugs at a different cost (the "test pyramid").
+Vitest unit tests check pure logic, like how an expiry date reads ("tomorrow"
+vs "in 2 days") or whether a group can have a batch. They run in Node in
+about 200 ms, so every edge case can have its own test. The Go API tests hit a
+real Postgres in an isolated schema, which is where rules like "who may
+approve this" live. Playwright runs a few whole journeys in a browser (a
+faculty member submits, the HOD approves, a student sees it). Those are slow
+and break more easily, so they cover the paths that matter, not every branch.
