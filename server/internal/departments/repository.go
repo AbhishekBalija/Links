@@ -116,7 +116,7 @@ func (r *GormRepository) CanAssignHOD(ctx context.Context, userID, departmentID 
 	err := r.db.WithContext(ctx).
 		Table("role_assignments").
 		Where(
-			"user_id = ? AND role = ? AND scope_type = ? AND scope_id = ?",
+			"user_id = ? AND role = ? AND scope_type = ? AND scope_id = ? AND starts_at <= now() AND (ends_at IS NULL OR ends_at > now())",
 			userID,
 			auth.RoleHOD,
 			"department",

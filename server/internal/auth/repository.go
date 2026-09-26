@@ -136,7 +136,10 @@ func (r *GormUserRepository) CreateStudentIdentity(ctx context.Context, identity
 
 func (r *GormUserRepository) GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error) {
 	var roles []RoleAssignment
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&roles).Error
+	// Only roles in effect now count: started, and not yet ended.
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND starts_at <= now() AND (ends_at IS NULL OR ends_at > now())", userID).
+		Find(&roles).Error
 	return roles, err
 }
 
