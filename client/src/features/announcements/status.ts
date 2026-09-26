@@ -75,3 +75,9 @@ export function waited(iso: string, now = new Date()) {
   const text = hours < 24 ? (hours === 1 ? 'waiting 1 hour' : `waiting ${hours} hours`) : days === 1 ? 'waiting 1 day' : `waiting ${days} days`
   return { text, long: hours > 72 }
 }
+
+// hasExpired is true once an item's expiry date has passed; a queue item
+// like that can only be sent back.
+export function hasExpired(item: { expires_at: string | null }, now = new Date()) {
+  return item.expires_at !== null && new Date(item.expires_at) <= now
+}
