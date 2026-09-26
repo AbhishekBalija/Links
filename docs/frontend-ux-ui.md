@@ -538,19 +538,52 @@ Status components must include text, not only color.
 
 ### Typography
 
-- Use a clean sans-serif typeface.
-- Keep headings compact inside product UI.
-- Avoid huge hero-style typography inside dashboards.
-- Use numeric tabular styles for counts where possible.
+The approved direction is "Gazette": a campus notice board set like a
+well-made newspaper. Screens are designed on the LINKS screens canvas before
+they are built.
+
+- **Newsreader** (serif) for page titles, section headings and the body of a
+  notice, where reading matters.
+- **Hanken Grotesk** (sans) for everything you scan or act on: navigation,
+  list titles, buttons, labels.
+- **JetBrains Mono** for dates and counts, so numbers line up.
+- All three are self-hosted through Fontsource; no request goes to a font CDN.
+- Keep headings compact inside product UI and avoid hero-sized type in
+  dashboards; the Home greeting is the largest text in the app.
 
 ### Color
 
-Use a restrained palette:
+Tokens are defined once in `client/src/index.css` and used by name
+(`bg-paper`, `text-ink-2`, `bg-tag-placement`); components never use raw hex
+values.
 
-- Neutral background
-- Strong readable text
-- One primary accent
-- Semantic colors for status
+| Token | Value | Use |
+|---|---|---|
+| paper | `#F4F0E8` | Page background |
+| rail | `#EFE9DE` | Desktop sidebar |
+| surface | `#FBF8F2` | Panels and cards |
+| line | `#E8E0D2` | Panel borders (no underlines or ruled dividers) |
+| ink / ink-2 / ink-3 | `#1B1814` / `#4A443D` / `#6A6258` | Text, secondary text, meta |
+| rust / rust-deep | `#9C4A2B` / `#7A3920` | The one accent: links and "you are here" only |
+| tag-official | `#1B1814` on `#FBF8F2` text | Official notices carry the most weight |
+| tag-department | `#2F4250` on `#E3E8EB` | Department notices |
+| tag-placement | `#7A3920` on `#F3E4D9` | Placement notices |
+| warning | `#8A5A12`, soft `#F5EADA`, ink `#6B460E` | Expiring soon, waiting long |
+| danger | `#8E1F3D`, soft `#F6E3E8`, ink `#6B1730` | Errors, sent back (kept far from rust) |
+| success | `#3F6B45` | Approved, done |
+
+WCAG AA contrast, checked for every text and background pair in use:
+
+| Pair | Ratio |
+|---|---|
+| ink on paper | 15.56 |
+| ink-2 on paper | 8.45 |
+| ink-3 on paper / surface / rail | 5.28 / 5.66 / 4.96 |
+| rust on paper / surface | 5.39 / 5.78 |
+| placement / department / official tag | 6.95 / 8.44 / 16.68 |
+| warning on surface / paper | 5.58 / 5.20 |
+| warning-ink on warning-soft | 7.04 |
+| danger-ink / danger on danger-soft | 9.53 / 7.07 |
 
 Avoid a one-note blue/purple dashboard. The interface should feel official and readable, not decorative.
 
