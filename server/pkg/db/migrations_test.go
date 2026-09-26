@@ -10,9 +10,9 @@ func TestMigrationFilesReturnsSortedUpMigrations(t *testing.T) {
 	t.Parallel()
 
 	fsys := fstest.MapFS{
-		"002_second.up.sql":     &fstest.MapFile{Data: []byte("SELECT 1;")},
-		"001_first.up.sql":      &fstest.MapFile{Data: []byte("SELECT 1;")},
-		"003_ignore.down.sql":   &fstest.MapFile{Data: []byte("SELECT 1;")},
+		"002_second.up.sql":   &fstest.MapFile{Data: []byte("SELECT 1;")},
+		"001_first.up.sql":    &fstest.MapFile{Data: []byte("SELECT 1;")},
+		"003_ignore.down.sql": &fstest.MapFile{Data: []byte("SELECT 1;")},
 	}
 
 	files, err := migrationFiles(fsys)

@@ -101,8 +101,8 @@ func TestSecurity_InputValidation_RequestAccess(t *testing.T) {
 			expect: http.StatusBadRequest,
 		},
 		{
-			name: "empty JSON object",
-			body: map[string]interface{}{},
+			name:   "empty JSON object",
+			body:   map[string]interface{}{},
 			expect: http.StatusBadRequest,
 		},
 		{
