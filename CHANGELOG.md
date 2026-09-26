@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Home summary endpoint (#39): the signed-in user's latest notices, plus
+  what's waiting for approvers and the state of an author's own
+  announcements. Announcements gain a detail endpoint, a category filter, a
+  publishing preview and approver names on pending items.
+
 ## [0.2.0] - 2026-09-26
 
 Phase 2 begins: department management and targeted announcements with

@@ -166,6 +166,24 @@ GET /api/v1/reports/placement
 GET /api/v1/reports/events
 ```
 
+Built so far (#39): `GET /api/v1/dashboard` returns the signed-in user's Home
+summary. Sections a user doesn't need are left out, and later features add
+sections without changing these:
+
+```json
+{
+  "user": { "full_name": "...", "roles": ["faculty"], "department": { "id": "...", "code": "CS", "name": "..." } },
+  "notices": { "items": [/* newest five from the feed */], "has_more": true },
+  "approvals": { "pending_count": 2, "oldest_submitted_at": "..." },
+  "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 }
+}
+```
+
+- `approvals` appears only for HODs, the principal and admins.
+- `my_announcements` appears only for users who can post.
+- `department` is the Student identity's Department, otherwise the first
+  Department-scoped role, otherwise `null`.
+
 ## Admin Users
 
 ```text
@@ -256,6 +274,20 @@ own submissions are never listed.
 which the author sees in `/mine` as `review_note`. `403` for anyone who isn't
 this Announcement's approver or who submitted it; `409` if it isn't waiting
 for approval, including when another approver acted first.
+
+`GET /api/v1/announcements/:id` returns one Announcement to its author, to an
+approver it's waiting for, or to a reader whose feed includes it (published
+only). Anyone else gets `404`, so unpublished Announcements stay private.
+
+`POST /api/v1/announcements/preview` with `{"category": "...", "audience": [...]}`
+returns `{"publishes_directly": true}` or `{"publishes_directly": false,
+"approver": "CS HOD"}`, using the same rule as posting. The composer uses it to
+say what will happen before posting.
+
+Pending items carry `approver` ("CS HOD" or "Principal or admin"). For their
+author, a published Announcement with a waiting or rejected edit carries
+`edit: {status, review_note, approver}`. The feed accepts `category` to show
+one category only.
 
 `GET /api/v1/announcements/mine` (any signed-in user, so former authors keep
 seeing their history) lists the caller's own Announcements in any
