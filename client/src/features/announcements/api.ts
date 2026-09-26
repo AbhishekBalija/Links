@@ -1,7 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiPage, apiRequest } from '../../shared/api/client'
 import type { Category, FeedMeta } from '../notices/types'
-import type { Authored, Department, Draft, MineFilter, Preview, RuleInput } from './types'
+import type { Authored, Department, Draft, MineFilter, Preview, QueueItem, RuleInput } from './types'
 
 const base = '/api/v1/announcements'
 
@@ -106,5 +106,34 @@ export function useWithdraw() {
   return useMutation({
     mutationFn: (id: string) => apiRequest<Authored>(`${base}/${id}/withdraw`, { method: 'POST' }),
     onSuccess: invalidate,
+  })
+}
+
+// useQueue loads what the approver may act on, oldest first.
+export function useQueue() {
+  return useInfiniteQuery({
+    queryKey: ['queue'],
+    initialPageParam: '',
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limit: '50' })
+      if (pageParam) params.set('cursor', pageParam)
+      return apiPage<QueueItem[], FeedMeta>(`${base}/approvals?${params}`, { signal })
+    },
+    getNextPageParam: (lastPage) => lastPage.meta?.next_cursor || undefined,
+  })
+}
+
+export function useReview() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, decision, note }: { id: string; decision: 'approve' | 'reject'; note?: string }) =>
+      apiRequest<Authored>(`${base}/${id}/approval`, { method: 'PATCH', body: JSON.stringify({ decision, note: note ?? '' }) }),
+    // Whatever happened (including "someone else acted first"), the queue,
+    // Home counts and feeds may have changed.
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ['queue'] })
+      client.invalidateQueries({ queryKey: ['dashboard'] })
+      client.invalidateQueries({ queryKey: ['notices'] })
+    },
   })
 }

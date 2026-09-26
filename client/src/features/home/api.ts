@@ -15,9 +15,10 @@ export type Dashboard = {
   my_announcements?: { draft: number; pending: number; rejected: number; edits_waiting: number }
 }
 
-export function useDashboard() {
+export function useDashboard(enabled = true) {
   return useQuery({
     queryKey: ['dashboard'],
+    enabled,
     queryFn: ({ signal }) => apiRequest<Dashboard>('/api/v1/dashboard', { signal }),
   })
 }

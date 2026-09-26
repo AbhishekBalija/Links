@@ -6,6 +6,9 @@ import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared
 import { useAuthStore } from '../../auth/store'
 import { NoticeList, NoticeListSkeleton } from '../../notices/components/NoticeList'
 import { useRefetchAtExpiry } from '../../notices/useRefetchAtExpiry'
+import { useQueue } from '../../announcements/api'
+import { waited } from '../../announcements/status'
+import { audienceLabel } from '../../notices/format'
 import { useDashboard, type Dashboard } from '../api'
 
 function greeting(now: Date) {
@@ -17,14 +20,6 @@ function greeting(now: Date) {
 
 function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] ?? ''
-}
-
-// waitedFor turns the oldest submission time into "2 days" or "3 hours".
-function waitedFor(iso: string, now: Date) {
-  const hours = Math.max(1, Math.round((now.getTime() - new Date(iso).getTime()) / 3600000))
-  if (hours < 24) return hours === 1 ? '1 hour' : `${hours} hours`
-  const days = Math.round(hours / 24)
-  return days === 1 ? '1 day' : `${days} days`
 }
 
 export default function Home() {
@@ -83,7 +78,7 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
       {/* Phones stack review, your announcements, then notices. Desktop moves
           your announcements into a side column. */}
       <div className={cn('grid items-start gap-5 lg:gap-7', mine && 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]')}>
-        {approvals && <ReviewPanel approvals={approvals} now={now} />}
+        {approvals && <ReviewPanel approvals={approvals} />}
         {mine && <MinePanel mine={mine} />}
         <LatestNotices notices={notices.items} />
       </div>
@@ -92,28 +87,53 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
 }
 
 // ReviewPanel comes first for approvers: reviewing is their main job here.
-// The approval queue screen (#42) will link from it.
-function ReviewPanel({ approvals, now }: { approvals: NonNullable<Dashboard['approvals']>; now: Date }) {
+// It shows the three oldest items; each opens straight in the queue.
+function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approvals']> }) {
   const count = approvals.pending_count
+  const queue = useQueue()
+  const oldest = (queue.data?.pages[0]?.data ?? []).slice(0, 3)
   return (
-    <section aria-labelledby="review-h" className="flex lg:col-start-1 flex-col gap-2 rounded-xl border border-line bg-surface px-5 py-5 lg:px-7 lg:py-6">
-      <div className="flex items-baseline gap-3">
-        <h2 id="review-h" className="font-serif text-xl font-medium lg:text-2xl">
-          Waiting for your review
-        </h2>
-        <span className="font-mono text-sm text-rust">{count}</span>
-      </div>
-      <p className="text-[15px] text-ink-2">
-        {count === 0
-          ? 'Nothing is waiting for you.'
-          : `${count === 1 ? 'One announcement is' : `${count} announcements are`} waiting.`}
-        {count > 0 && approvals.oldest_submitted_at && (
-          <>
-            {' '}
-            The oldest has waited <span className="font-semibold text-warning">{waitedFor(approvals.oldest_submitted_at, now)}</span>.
-          </>
+    <section aria-labelledby="review-h" className="flex flex-col gap-1.5 rounded-xl border border-line bg-surface px-5 py-5 lg:col-start-1 lg:px-7 lg:py-6">
+      <div className="flex items-baseline justify-between gap-3 pb-1">
+        <div className="flex items-baseline gap-3">
+          <h2 id="review-h" className="font-serif text-xl font-medium lg:text-2xl">
+            Waiting for your review
+          </h2>
+          <span className="font-mono text-sm text-rust">{count}</span>
+        </div>
+        {count > 0 && (
+          <Link to="/approvals" className="shrink-0 text-sm font-semibold">
+            <span className="lg:hidden">Queue →</span>
+            <span className="hidden lg:inline">Open approval queue →</span>
+          </Link>
         )}
-      </p>
+      </div>
+      {count === 0 ? (
+        <p className="text-[15px] text-ink-2">Nothing is waiting for you.</p>
+      ) : (
+        <ul className="-mx-3 flex flex-col">
+          {oldest.map((item) => {
+            const wait = waited(item.submitted_at)
+            return (
+              <li key={item.id}>
+                <Link
+                  to={`/approvals/${item.id}`}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-lg px-3 py-3 text-ink hover:bg-paper hover:text-ink"
+                >
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-[15px] font-semibold lg:text-base">{item.title}</span>
+                    <span className="text-[13px] text-ink-3">
+                      {item.publisher_name} · {audienceLabel(item.audience)}
+                      {item.kind === 'edit' && ' · edit to a live notice'}
+                    </span>
+                  </span>
+                  <span className={cn('font-mono text-xs whitespace-nowrap', wait.long ? 'text-warning' : 'text-ink-3')}>{wait.text}</span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </section>
   )
 }

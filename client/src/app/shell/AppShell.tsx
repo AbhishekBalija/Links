@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '../../features/auth/store'
 import { Avatar } from './Avatar'
 import { LogoutButton } from './LogoutButton'
-import { mainRoleLabel, navFor, type NavItem } from './nav'
+import { useDashboard } from '../../features/home/api'
+import { canApprove, mainRoleLabel, navFor, type NavItem } from './nav'
 
 // AppShell frames every signed-in screen: a sidebar on desktop and a bottom
 // navigation bar on phones, where students do most of their reading.
@@ -14,7 +15,12 @@ export function AppShell() {
   const name = user?.profile.full_name ?? user?.email ?? ''
   // The composer and an opened announcement have their own action bar at the
   // bottom on phones, so the tab bar steps aside there.
-  const focused = /^\/mine\/.+/.test(useLocation().pathname)
+  const focused = /^\/(mine|approvals)\/.+/.test(useLocation().pathname)
+  // Approvers see how many announcements are waiting for them.
+  const approver = canApprove(roles)
+  const dashboard = useDashboard(approver)
+  const waiting = approver ? dashboard.data?.approvals?.pending_count : undefined
+  const badges: Record<string, number | undefined> = { '/approvals': waiting || undefined }
 
   return (
     <div className="min-h-dvh bg-paper text-ink lg:flex">
@@ -33,7 +39,7 @@ export function AppShell() {
         <ul className="flex flex-col gap-1 text-[15px]">
           {items.map((item) => (
             <li key={item.to}>
-              <SidebarLink item={item} />
+              <SidebarLink item={item} badge={badges[item.to]} />
             </li>
           ))}
         </ul>
@@ -60,14 +66,14 @@ export function AppShell() {
         style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
       >
         {items.map((item) => (
-          <TabLink key={item.to} item={item} />
+          <TabLink key={item.to} item={item} badge={badges[item.to]} />
         ))}
       </nav>
     </div>
   )
 }
 
-function SidebarLink({ item }: { item: NavItem }) {
+function SidebarLink({ item, badge }: { item: NavItem; badge?: number }) {
   return (
     <NavLink
       to={item.to}
@@ -84,14 +90,15 @@ function SidebarLink({ item }: { item: NavItem }) {
       {({ isActive }) => (
         <>
           <span aria-hidden="true" className={cn('size-1.5 rounded-full', isActive && 'bg-rust')} />
-          {item.label}
+          <span className="flex-1">{item.label}</span>
+          {badge !== undefined && <Count n={badge} />}
         </>
       )}
     </NavLink>
   )
 }
 
-function TabLink({ item }: { item: NavItem }) {
+function TabLink({ item, badge }: { item: NavItem; badge?: number }) {
   const Icon = item.icon
   return (
     <NavLink
@@ -104,8 +111,24 @@ function TabLink({ item }: { item: NavItem }) {
         )
       }
     >
-      <Icon aria-hidden="true" className="size-[22px]" strokeWidth={1.8} />
+      <span className="relative">
+        <Icon aria-hidden="true" className="size-[22px]" strokeWidth={1.8} />
+        {badge !== undefined && (
+          <span className="absolute -top-2 left-[21px]">
+            <Count n={badge} small />
+          </span>
+        )}
+      </span>
       {item.short ?? item.label}
     </NavLink>
+  )
+}
+
+function Count({ n, small }: { n: number; small?: boolean }) {
+  return (
+    <span className={cn('rounded-full bg-rust font-mono font-medium text-surface', small ? 'px-[5px] text-[10px] leading-4' : 'px-[7px] py-px text-[11px]')}>
+      {n}
+      <span className="sr-only"> waiting</span>
+    </span>
   )
 }
