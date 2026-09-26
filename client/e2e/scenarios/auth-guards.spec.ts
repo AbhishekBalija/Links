@@ -8,6 +8,7 @@ import {
   getUserIdByEmail,
   adminApproveUser,
   submitAccessRequestViaUI,
+  expectHome,
 } from '../helpers/auth'
 
 const TS = Date.now()
@@ -59,15 +60,15 @@ test.describe('Auth Guards', () => {
 
     // Login
 	await loginViaUI(page, STUDENT.email, STUDENT.password)
-	await expect(page.locator('h2')).toContainText('Welcome')
+	await expectHome(page)
 
 	// A role-bearing user cannot remain on the pending-account screen.
 	await page.goto('/account-pending')
 	await page.waitForURL((url) => url.pathname === '/')
-	await expect(page.locator('h2')).toContainText('Welcome')
+	await expectHome(page)
 
 	// Logout
-    await page.click('button:has-text("Log out")')
+    await page.getByRole('button', { name: 'Log out' }).click()
     await page.waitForURL('**/login')
     await expect(page.locator('h1')).toContainText('Log in')
 
@@ -121,7 +122,7 @@ test.describe('Zero-Role User → /account-pending', () => {
     await expect(page.locator('h1')).toContainText('Account setup incomplete')
 
     // Logout should work from account-pending
-    await page.click('button:has-text("Log out")')
+    await page.getByRole('button', { name: 'Log out' }).click()
     await page.waitForURL('**/login')
   })
 })

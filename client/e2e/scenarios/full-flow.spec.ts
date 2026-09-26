@@ -8,6 +8,7 @@ import {
   getUserIdByEmail,
   adminApproveUser,
   cleanupTestUsers,
+  expectHome,
 } from '../helpers/auth'
 
 const TS = Date.now()
@@ -71,8 +72,8 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 		await expect(page.locator('h1')).toContainText('Account activated')
 
     await loginViaUI(page, STUDENT.email, STUDENT.password)
-    await expect(page.locator('h2')).toContainText('Welcome')
-    await expect(page.locator('strong')).toHaveText('student')
+    await expectHome(page)
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByText('Student', { exact: true })).toBeVisible()
   })
 
   test('5. Edit Profile — save values', async ({ page }) => {
@@ -89,7 +90,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 	await page.click('button:has-text("Save")')
 
     await page.waitForURL('**/')
-    await expect(page.locator('h2')).toContainText('Welcome')
+    await expectHome(page)
   })
 
   test('6. Profile edits persist after navigation', async ({ page }) => {
@@ -107,7 +108,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 
   test('7. Session persists on page refresh', async ({ page, context }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
-    await expect(page.locator('h2')).toContainText('Welcome')
+    await expectHome(page)
 
     const refreshCookie = (await context.cookies()).find((cookie) => cookie.name === 'refresh_token')
     expect(refreshCookie).toBeDefined()
@@ -126,8 +127,8 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
       data: { access_token: expect.any(String) },
     })
 
-    await expect(page.locator('h2')).toContainText('Welcome')
-    await expect(page.locator('button:has-text("Log out")')).toBeVisible()
+    await expectHome(page)
+    await expect(page.getByRole('button', { name: 'Log out' })).toBeVisible()
   })
 
 	test('8. Profile edits survive refresh and optional fields can be cleared', async ({ page }) => {
