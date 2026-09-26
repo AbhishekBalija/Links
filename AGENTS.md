@@ -48,6 +48,34 @@ Direct pushes to `master` are blocked by a GitHub ruleset; every change goes thr
 - PR description: what changed, why (with `Closes #N`), how to test, screenshots for UI changes. Let CodeRabbit review; address or dismiss its comments before merging.
 - The developer tests the "How to test" steps before merging; merging closes the issue.
 
+## Working agreement
+
+How the owner and agents have agreed to work, beyond the rules above. It applies to every session, local or cloud.
+
+**Always**
+- Only the owner merges, or tells an agent to merge a specific PR. Open the PR, get CI green, and stop.
+- One concern per PR. Behaviour changes and pure moves or refactors never share a PR.
+- Test first at the agreed seam: a failing API test in `server/test/integration/` (or a Vitest unit test for client logic), then the code.
+- Bun only, never npm. Propose any new dependency with a reason and wait for the owner's OK.
+- No em dashes in code, docs, commits or PRs.
+- Judge outside or agent-written PRs on merit. Closing one with a short explanation is fine.
+
+**UI work**
+- Design before code, on the one "LINKS screens" canvas (a Claude Design artifact; the owner has the link), in the approved Gazette style from `docs/frontend-ux-ui.md` and the tokens in `client/src/index.css`.
+- Draw every state, not just the main view: desktop and phone, loading, empty or first-time, error, validation, confirmations, "leaving with changes", each role's variant, and each status's action bar.
+- While designing, ask of every screen: what does the user do first? Is the common case the fewest steps? Are the actions in one predictable place (one primary action per area, few button styles)? Could a first-time student or faculty member finish without help?
+- Wait for the owner's approval before writing UI code. When the owner says they like a design, critique it first: a numbered list of weaknesses, button placement and ease of use first, each with a concrete fix.
+- UI PRs include screenshots of every state on desktop (1440 wide) and phone (390 wide), committed under `docs/screenshots/<issue>-<name>/` and linked in the PR.
+
+**Refactors**
+- Split by responsibility, not line count. Move code unchanged, diff the function or declaration list before and after, and keep all tests passing.
+- Refactor just before changing an area, not as ongoing churn.
+
+**Unattended sessions (cloud, overnight)**
+- Don't merge, don't close issues, and don't start work that needs a design approval. Stop at the approval point and leave a comment on the issue saying what is ready for review.
+- If the session can't reach a database, say so in the PR. GitHub CI runs the API and e2e tests against Postgres, and a green CI is required.
+- End with a comment on the issue: what was done, what's open, and any question for the owner.
+
 ## Done means
 
 - `go vet ./...` and `go test ./...` pass in `server/`, with `TEST_DATABASE_URL` pointing at a throwaway local database so the API tests in `server/test/integration/` run; `bun run lint`, `bun run test` and `bun run build` pass in `client/`; the Playwright e2e suite passes for auth or flow changes.
