@@ -80,3 +80,17 @@ func TestPolicy_PlacementPermissions(t *testing.T) {
 		}
 	}
 }
+
+func TestPolicy_OnlyAdminCanManageDepartments(t *testing.T) {
+	p := auth.NewPolicy()
+
+	if err := p.Authorize(&auth.Actor{Roles: []string{string(auth.RoleAdmin)}}, auth.PermissionManageDepartments); err != nil {
+		t.Errorf("admin should manage departments: %v", err)
+	}
+
+	for _, role := range []auth.Role{auth.RolePrincipal, auth.RoleHOD, auth.RoleFaculty, auth.RoleStudent} {
+		if err := p.Authorize(&auth.Actor{Roles: []string{string(role)}}, auth.PermissionManageDepartments); err == nil {
+			t.Errorf("%s should not manage departments", role)
+		}
+	}
+}

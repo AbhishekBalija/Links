@@ -19,6 +19,7 @@ const (
 	PermissionViewApplicantData   Permission = "view_applicant_data"
 	PermissionShortlistApplicants Permission = "shortlist_applicants"
 	PermissionManageUsersAndRoles Permission = "manage_users_and_roles"
+	PermissionManageDepartments   Permission = "manage_departments"
 )
 
 type Policy struct {
@@ -39,6 +40,7 @@ func NewPolicy() *Policy {
 			PermissionViewApplicantData:   {RolePlacementOfficer, RolePrincipal, RoleAdmin},
 			PermissionShortlistApplicants: {RolePlacementOfficer, RolePrincipal, RoleAdmin},
 			PermissionManageUsersAndRoles: {RolePrincipal, RoleAdmin},
+			PermissionManageDepartments:   {RoleAdmin},
 		},
 	}
 }
