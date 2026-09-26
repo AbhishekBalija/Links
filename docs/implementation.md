@@ -9,7 +9,7 @@
 This is **not** another spec. The specs already exist and are good:
 `product-requirements.md`, `architecture.md`, `database-design.md`, `api-spec.md`, `auth.md`,
 `security.md`, `frontend-ux-ui.md`, `frontend-contract.md`, `notifications.md`, `scaling.md`,
-`deployment.md`, `environment.md`, `monitoring.md`, `backend-standards.md`, `decision-log.md`,
+`deployment.md`, `environment.md`, `monitoring.md`, `backend-standards.md`, `docs/adr/`,
 `roadmap.md`.
 
 This doc answers three questions those files don't answer:
@@ -39,7 +39,7 @@ Concretely, your job is:
 - Making product decisions the docs flagged as open or ambiguous.
 - Reviewing and approving every migration before it touches staging/production.
 - Manually testing each phase end-to-end as a real user, in each relevant role.
-- Approving new entries in `decision-log.md` — these are official records, not boilerplate.
+- Approving new entries in `docs/adr/` — these are official records, not boilerplate.
 - Visual/UX taste calls on screens the agent builds, against the `frontend-ux-ui.md` checklist.
 
 **Per-task loop, every time:**
@@ -48,7 +48,7 @@ Concretely, your job is:
 2. Tell the agent the task and name the docs from that map. Let it read them before writing anything.
 3. Have it implement in one small, reviewable unit at a time (one endpoint, one screen, one migration) — not a whole phase in one shot.
 4. You verify against that step's Definition of Done before moving to the next step.
-5. If a new decision got made along the way, it goes in `decision-log.md`, and the relevant doc gets updated (per `AGENTS.md` Documentation Rules) — `My_Plan.md` excluded.
+5. If a new decision got made along the way, it goes in `docs/adr/`, and the relevant doc gets updated (per `AGENTS.md`) — `My_Plan.md` excluded.
 
 ---
 
@@ -60,7 +60,7 @@ Do this first, in this order, before Phase 0 starts:
 2. Neon PostgreSQL project — get the connection string for at least a dev/staging database.
 3. Vercel account — for the frontend and backend Services deployment described in `deployment.md`.
 4. Generate JWT signing secrets and decide where they'll live per environment (local `.env.local`, Vercel environment variables) — per `environment.md` rules: no secrets in git, different secrets per environment.
-5. Decide whether the beta status of Vercel Services is acceptable before the first production deployment. If not, record a replacement hosting decision in `decision-log.md`.
+5. Decide whether the beta status of Vercel Services is acceptable before the first production deployment. If not, record a replacement hosting decision in `docs/adr/`.
 6. Resend account and Cloudinary/S3 account — these aren't needed until Phase 5 (email/push) and whenever media upload is built, so they can be deferred, but create the accounts early so you're not blocked mid-phase.
 
 None of this can be delegated — the agent has no way to create accounts or hold credentials.
@@ -96,7 +96,7 @@ Why this exact order: Phase 1 (auth + RBAC) gates literally everything else, sin
 | 4.2  | Explicit `config.Load()` with validation, fail-fast on missing required vars from `environment.md`, no `init()` side effects                                                       | Agent                                                    |
 | 4.3  | Structured JSON logger + request-ID middleware                                                                                                                                     | Agent                                                    |
 | 4.4  | DB connection with pool settings from `database-design.md` defaults                                                                                                                | Agent                                                    |
-| 4.5  | Pick and wire a SQL migration tool (e.g. a migrate-style CLI) — this is a small technical decision not pinned in the docs                                                          | Agent proposes, you approve, log it in `decision-log.md` |
+| 4.5  | Pick and wire a SQL migration tool (e.g. a migrate-style CLI) — this is a small technical decision not pinned in the docs                                                          | Agent proposes, you approve, log it in `docs/adr/` |
 | 4.6  | Standard success/error response envelope per `api-spec.md`                                                                                                                         | Agent                                                    |
 | 4.7  | `GET /api/health` and `GET /api/ready` per `api-spec.md` and `deployment.md` smoke test                                                                                            | Agent                                                    |
 | 4.8  | Minimal CI (build, vet, test on PR)                                                                                                                                                | Agent                                                    |
@@ -119,7 +119,7 @@ Why this exact order: Phase 1 (auth + RBAC) gates literally everything else, sin
 
 This is the highest-risk phase. Every other module depends on its data model and its RBAC policy layer being right. Don't rush it, and don't let the agent start Events/Placement work before this is solid.
 
-**Docs to load:** `architecture.md`, `backend-standards.md`, `decision-log.md` (Backend architecture); `auth.md`, `security.md`, `database-design.md` (Authentication/RBAC); `api-spec.md`, `frontend-contract.md` (API changes).
+**Docs to load:** `architecture.md`, `backend-standards.md`, `docs/adr/` (Backend architecture); `auth.md`, `security.md`, `database-design.md` (Authentication/RBAC); `api-spec.md`, `frontend-contract.md` (API changes).
 
 | Step | What                                                                                                                                                                                                                   | Who                                                                                                                                                  |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -139,11 +139,12 @@ This is the highest-risk phase. Every other module depends on its data model and
 | 5.14 | Frontend: auth context, silent token refresh, protected routes                                                                                                                                                         | Agent                                                                                                                                                |
 | 5.15 | Automated and manual run-through: request access → admin approves → activation-link UI → login → edit profile → refresh/logout, for at least a student and an admin account                                            | Agent maintains the isolated Playwright suite; **you complete the final preview/staging run-through**                                                 |
 
-**Current release-candidate status (2026-08-28):** the Phase 1 PR passes all Go
-tests, vet, API/client builds, lint, and 12 isolated-schema Playwright tests. It
-remains **Ready for Dev Verification** until the Vercel preview is tested, the
-PR review/CI gates pass, and the developer signs off. Do not treat the automated
-run as the manual Definition of Done.
+**Completed status (2026-08-30):** Phase 1 PR #6 is merged and its server,
+client, and E2E CI checks pass. Public production smoke checks passed for SPA
+deep links, the root-to-login redirect, health/readiness, public-profile
+not-found, and unauthenticated `/me` and admin-route protection. The developer
+also completed the authenticated production flow and manual cross-department
+and privacy checks. Phase 1 is complete and Phase 2 is now active.
 
 **Definition of Done for Phase 1:**
 
@@ -163,9 +164,13 @@ run as the manual Definition of Done.
 | 6.2  | Role-based dashboard endpoints — build the **student** one first since it's used the most, then the rest                                                                                                                                                    | Agent                                                                                                                                                                 |
 | 6.3  | Campus directory with filters, Postgres full-text/trigram search per `scaling.md`                                                                                                                                                                           | Agent                                                                                                                                                                 |
 | 6.4  | Announcements: model, audience-rule targeting engine, CRUD                                                                                                                                                                                                  | Agent                                                                                                                                                                 |
-| 6.5  | **Open decision:** `product-requirements.md` says HOD/admin approval is "applied if required" for announcements without saying which announcement types require it. Decide the rule (e.g. department-only notices skip approval, college-wide ones need it) | **You decide**, log in `decision-log.md`, then agent implements the gate                                                                                              |
+| 6.5  | **Open decision:** `product-requirements.md` says HOD/admin approval is "applied if required" for announcements without saying which announcement types require it. Decide the rule (e.g. department-only notices skip approval, college-wide ones need it) | **You decide**, log in `docs/adr/`, then agent implements the gate                                                                                              |
 | 6.6  | Frontend: role dashboards, directory, department pages, announcement feed + composer, per `frontend-ux-ui.md`                                                                                                                                               | Agent builds; **you review every screen against the UI Quality Checklist in `frontend-ux-ui.md`** — this is the doc's most concrete acceptance test, use it literally |
 | 6.7  | Manual UX pass across at least student + HOD views                                                                                                                                                                                                          | **You**                                                                                                                                                               |
+
+**Tracking:** each Phase 2 step is a GitHub issue in the "Phase 2: Campus Hub"
+milestone: 6.1 is #10 (implemented in PR #9), 6.2 #11, 6.3 #12, 6.4 #13,
+6.5 #14, 6.6 #15, 6.7 #16, and the bulk CSV import #17.
 
 **Definition of Done for Phase 2:**
 
@@ -228,7 +233,7 @@ The required club, alumni, and mentorship tables are already defined in `databas
 
 | Step | What                                                                                                                                                            | Who                                                                                                                                                                                           |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9.1  | Review existing club/alumni/mentorship tables in `database-design.md` against current college policy; add only approved gaps, preserving existing schema references and conventions (UUID keys, `timestamptz`, explicit migrations) | Agent drafts gaps if any; **you approve**, then updates go to `database-design.md` and `decision-log.md` per `AGENTS.md`'s documentation rule                                                |
+| 9.1  | Review existing club/alumni/mentorship tables in `database-design.md` against current college policy; add only approved gaps, preserving existing schema references and conventions (UUID keys, `timestamptz`, explicit migrations) | Agent drafts gaps if any; **you approve**, then updates go to `database-design.md` and `docs/adr/` per `AGENTS.md`'s documentation rule                                                |
 | 9.2  | Club pages + join-interest form                                                                                                                                 | Agent                                                                                                                                                                                         |
 | 9.3  | Alumni profile + USN-based verification (reusing Phase 1's logic)                                                                                               | Agent                                                                                                                                                                                         |
 | 9.4  | Mentorship request flow                                                                                                                                         | Agent                                                                                                                                                                                         |
@@ -251,9 +256,14 @@ The required club, alumni, and mentorship tables are already defined in `databas
 ## 10. Practices That Run Through Every Phase, Not Just One
 
 - Before merging anything, run the **Definition of Done** checklist from `backend-standards.md` (contract documented, validation implemented, authorization enforced, business logic tested, migration added, audit log added where sensitive, no sensitive fields leaked).
-- Any new product or architecture decision gets a `decision-log.md` entry — agent can draft the ADR text, but **you approve the wording**, since these are the project's official record.
+- Any new product or architecture decision gets a new ADR in `docs/adr/` — agent can draft the ADR text, but **you approve the wording**, since these are the project's official record.
 - Before starting any new task, check the `AGENTS.md` Task-to-Doc Map yourself and tell the agent which docs apply — don't let it guess.
 - If reality ever diverges from a doc, update the doc. The one exception is `My_Plan.md`, which stays frozen unless you explicitly ask to change it.
+- Work is tracked in GitHub Issues, one milestone per phase. The developer tests a PR's "How to test" steps before merging it, and merging closes the issue.
+- Tests that write data run against an isolated database or schema (the e2e harness creates its own), never the shared Neon dev branch.
+- Never weaken a test assertion to make CI pass. In Phase 1 a loosened e2e check hid a live bug (the dashboard showed "no role" because `roles` was typed as objects but sent as strings).
+- Automated e2e tests catch what manual testing misses: in Phase 1 they found that reloading the page logged the user out, because the access token was only in memory. `initializeAuth` now restores the session from the refresh cookie first.
+- Never print activation links or raw tokens to logs. To test activation locally, use a real Resend key or insert a known token hash in a test database.
 - As new env vars get activated phase by phase (JWT secrets in Phase 1, storage/email keys in Phase 5's lead-up, VAPID keys in Phase 5), keep `environment.md` in sync with what `config.go` actually validates.
 
 ---
@@ -274,7 +284,7 @@ Pulled together from every phase above, so you can prep ahead of time:
 - Every cross-role manual security check (cross-department, applicant-visibility, suspended-user).
 - VAPID key generation and push-prompt copy (Phase 5).
 - The Redis-or-not call (Phase 5), based on real metrics.
-- Final review of every `decision-log.md` entry.
+- Final review of every new ADR in `docs/adr/`.
 
 ---
 

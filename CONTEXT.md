@@ -1,0 +1,88 @@
+# LINKS
+
+The official campus hub for MITT: verified identities, targeted announcements, event approvals and placement workflows. Not a chat platform or social network.
+
+## Identity and access
+
+**USN**:
+The VTU University Seat Number, `4MN<joining year><department code><roll>` (e.g. `4MN22CS001`), the primary identity key for students and alumni.
+_Avoid_: roll number, student ID
+
+**Student identity**:
+The record that ties a user to their USN, Department and joining year.
+
+**Access request**:
+A person's request to join LINKS with their Gmail, USN and Department, waiting for an HOD or admin to approve or reject it.
+_Avoid_: signup, registration
+
+**Approval**:
+An HOD or admin accepting an Access request: the user becomes verified, gets the student role, and is sent an Activation link.
+_Avoid_: verification (the `is_verified` flag is its result, not the step)
+
+**Activation**:
+The user setting their password through a single-use emailed link, which moves the account from `pending` to `active`.
+
+**Account status**:
+Where an account is in its lifecycle: `pending`, `active`, `rejected` or `suspended`. Only `active` accounts can use protected features.
+
+**Role assignment**:
+A Role granted to a user with a Scope. A user can hold several.
+_Avoid_: user role, user type
+
+**Scope**:
+Where a Role assignment applies: global, one Department, or one club.
+
+**Public profile**:
+A user's profile that others can view, with contact details hidden unless the user chooses to show them.
+
+## Roles
+
+**Student**:
+A current MITT B.E. student with a Student identity.
+
+**Student coordinator**:
+A Student who can propose events and post limited announcements within their Scope.
+
+**HOD**:
+Head of a Department. Reviews that Department's access requests and events, and sees only summaries of its students' placement applications.
+_Avoid_: head, department admin
+
+**Placement officer**:
+The staff member who posts Opportunities and manages Applications and Shortlists.
+
+**Principal**:
+College head with college-wide summaries and final Event approval.
+
+**Admin**:
+Operator of LINKS with full user, role and Department management.
+
+## College structure
+
+**Department**:
+An academic B.E. department of MITT, identified by its Department code, with at most one HOD.
+_Avoid_: branch
+
+**Department code**:
+The two-letter VTU course code of a Department (`CS`, `AD`, `AI`, `CV`, `EC`, `ME`), also part of every USN in that Department. Never changes once created.
+
+## Campus hub
+
+**Announcement**:
+An official notice sent to an Audience.
+_Avoid_: post, message
+
+**Audience**:
+The users an Announcement or Opportunity targets, described by Department, batch, year, Role and eligibility rules.
+
+**Event proposal**:
+An event submitted by a Student coordinator (or staff), which needs HOD review and then Principal or admin final approval before it is published.
+
+**Opportunity**:
+A job, internship or training posted by the Placement officer to an Audience.
+_Avoid_: job post, drive
+
+**Application**:
+A Student's application to an Opportunity, made inside LINKS (internal) or tracked from an external link. Visible only to the Student, the Placement officer, the Principal and admins.
+
+**Shortlist**:
+The Applications the Placement officer moves forward for an Opportunity.

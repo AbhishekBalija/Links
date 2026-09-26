@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	"github.com/AbhishekBalija/Links/server/internal/departments"
 	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"github.com/AbhishekBalija/Links/server/internal/profiles"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
@@ -92,6 +93,12 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 
 	adminHandler := auth.NewAdminHandler(authService, policy)
 	adminHandler.RegisterAdminRoutes(v1)
+
+	departmentRepo := departments.NewGormRepository(database.GORM())
+	departmentUnitOfWork := departments.NewGormUnitOfWork(database.GORM())
+	departmentService := departments.NewService(departmentRepo, departmentUnitOfWork)
+	departmentHandler := departments.NewHandler(departmentService, policy)
+	departmentHandler.RegisterRoutes(v1)
 
 	profileRepo := profiles.NewGormProfileRepository(database.GORM())
 	profileUnitOfWork := profiles.NewGormUnitOfWork(database.GORM())

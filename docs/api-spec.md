@@ -178,6 +178,13 @@ POST   /api/v1/admin/users/:id/roles
 DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId
 ```
 
+`PATCH /api/v1/admin/users/:id/verify` accepts an optional `scope_type` and
+`scope_id` for the student role (global when omitted). A `department` scope
+must carry an existing department's ID, otherwise it returns
+`400 VALIDATION_ERROR`. The department row is share-locked while the role is
+created, so a concurrent department delete either waits and returns `409` or
+runs first and the approval returns `400`.
+
 ## Announcements
 
 ```text
@@ -224,10 +231,42 @@ GET   /api/v1/opportunities/:id/export
 ```text
 GET /api/v1/departments
 GET /api/v1/departments/:code
+POST /api/v1/admin/departments
+PUT /api/v1/admin/departments/:code
+DELETE /api/v1/admin/departments/:code
 GET /api/v1/departments/:code/announcements
 GET /api/v1/departments/:code/events
 GET /api/v1/departments/:code/reports
 ```
+
+The list and detail routes require authentication. Department mutations require
+the `admin` role. Department codes are immutable uppercase VTU course codes.
+
+Create request:
+
+```json
+{
+  "code": "AI",
+  "name": "Computer Science and Engineering (AI and ML)",
+  "description": null,
+  "hodUserId": null
+}
+```
+
+Update replaces the editable fields for the department identified by `:code`:
+
+```json
+{
+  "name": "Computer Science and Engineering (AI and ML)",
+  "description": null,
+  "hodUserId": null
+}
+```
+
+Create the department before assigning its HOD. On update, `hodUserId` must
+identify a user with an existing HOD role scoped to that same department. Delete
+returns `409 CONFLICT` when student identities or scoped role assignments still
+reference the department.
 
 ## Clubs
 
@@ -263,7 +302,7 @@ DELETE /api/v1/push-subscriptions/:id
 
 - Every write endpoint must authenticate.
 - Every protected endpoint must authorize resource access.
-- Every list endpoint must paginate.
+- Every list endpoint must paginate, except small reference lists that only admins can grow and that clients need whole, such as `GET /api/v1/departments` (one row per MITT department).
 - Every CSV export must be audited.
 - Every request body must have a DTO.
 - Never return password hashes, refresh tokens, or private applicant notes to unauthorized users.

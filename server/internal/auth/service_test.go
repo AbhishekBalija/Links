@@ -20,20 +20,21 @@ import (
 // the calls the path under test actually makes.
 
 type fakeUserRepo struct {
-	findByEmail           func(ctx context.Context, email string) (*User, error)
-	findByID              func(ctx context.Context, id string) (*User, error)
-	findByIDForUpdate     func(ctx context.Context, id string) (*User, error)
-	findPendingUsers      func(ctx context.Context) ([]User, error)
-	findEmailByUserID     func(ctx context.Context, userID string) (*string, error)
-	findPhoneByUserID     func(ctx context.Context, userID string) (*string, error)
-	findDepartmentByCode  func(ctx context.Context, code string) (*Department, error)
-	create                func(ctx context.Context, user *User) error
-	update                func(ctx context.Context, user *User) error
-	updateStatus          func(ctx context.Context, id string, status UserStatus) error
-	createProfile         func(ctx context.Context, profile *Profile) error
-	createStudentIdentity func(ctx context.Context, identity *StudentIdentity) error
-	getRoleAssignments    func(ctx context.Context, userID string) ([]RoleAssignment, error)
-	createRoleAssignment  func(ctx context.Context, ra *RoleAssignment) error
+	findByEmail            func(ctx context.Context, email string) (*User, error)
+	findByID               func(ctx context.Context, id string) (*User, error)
+	findByIDForUpdate      func(ctx context.Context, id string) (*User, error)
+	findPendingUsers       func(ctx context.Context) ([]User, error)
+	findEmailByUserID      func(ctx context.Context, userID string) (*string, error)
+	findPhoneByUserID      func(ctx context.Context, userID string) (*string, error)
+	findDepartmentByCode   func(ctx context.Context, code string) (*Department, error)
+	lockDepartmentForShare func(ctx context.Context, id string) (bool, error)
+	create                 func(ctx context.Context, user *User) error
+	update                 func(ctx context.Context, user *User) error
+	updateStatus           func(ctx context.Context, id string, status UserStatus) error
+	createProfile          func(ctx context.Context, profile *Profile) error
+	createStudentIdentity  func(ctx context.Context, identity *StudentIdentity) error
+	getRoleAssignments     func(ctx context.Context, userID string) ([]RoleAssignment, error)
+	createRoleAssignment   func(ctx context.Context, ra *RoleAssignment) error
 
 	createdUsers           []*User
 	updatedUsers           []*User
@@ -100,6 +101,13 @@ func (f *fakeUserRepo) FindDepartmentByCode(ctx context.Context, code string) (*
 		return f.findDepartmentByCode(ctx, code)
 	}
 	return nil, nil
+}
+
+func (f *fakeUserRepo) LockDepartmentForShare(ctx context.Context, id string) (bool, error) {
+	if f.lockDepartmentForShare != nil {
+		return f.lockDepartmentForShare(ctx, id)
+	}
+	return true, nil
 }
 
 func (f *fakeUserRepo) Update(ctx context.Context, user *User) error {
