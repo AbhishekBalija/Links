@@ -121,3 +121,10 @@ Announcement.
 A 403 confirms the Announcement exists, which leaks drafts and pending notices
 the caller shouldn't know about. Treating someone else's Announcement as not
 found gives nothing away.
+
+### Why does withdrawing close a pending edit instead of leaving it?
+
+A withdrawn Announcement is off every feed. If its pending edit stayed in the
+queue, an approver could approve it and bring the notice back without anyone
+deciding to republish it. Closing the edit, in the same transaction as the
+withdrawal, keeps the queue showing only things that can still go live.

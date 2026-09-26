@@ -196,8 +196,8 @@ POST  /api/v1/announcements/:id/submit-for-approval
 PATCH /api/v1/announcements/:id/approval
 ```
 
-Also built: `GET /api/v1/announcements/mine` and `GET /api/v1/announcements/approvals`.
-Editing a published Announcement and withdrawing come with #29.
+Also built: `GET /api/v1/announcements/mine`, `GET /api/v1/announcements/approvals`
+and `POST /api/v1/announcements/:id/withdraw`.
 
 `POST /api/v1/announcements` (roles: student coordinator, faculty, HOD,
 placement officer, principal, admin):
@@ -225,9 +225,22 @@ placement officer, principal, admin):
 - `400` for an unknown Department, a role that isn't a LINKS role, an empty
   rule, a batch year outside 2000 to 2100, or an expiry in the past.
 
-`PATCH /api/v1/announcements/:id` (author only) replaces the content of a
-`draft` or `rejected` Announcement with the same fields as create. `409` while
-it's `pending` or once it's published. Someone else's Announcement is `404`.
+`PATCH /api/v1/announcements/:id` (author only) edits an Announcement with the
+same fields as create. Someone else's Announcement is `404`.
+
+- `draft` or `rejected`: the content is replaced.
+- `published`: an author with Publishing authority over the new Audience edits
+  it directly. Anyone else's edit waits for approval in the same queue, while
+  readers keep seeing the approved version until it's approved. A rejected edit
+  shows its note in `/mine`, and editing again resubmits it. `409` while another
+  edit is already waiting.
+- `pending` or `withdrawn`: `409`.
+
+`POST /api/v1/announcements/:id/withdraw` takes a published Announcement down
+for everyone. Allowed for its author and for whoever would approve it (the
+Department's HOD for a single-Department Audience, the principal or an admin);
+`403` for anyone else, `409` if it isn't published. An edit still waiting for
+approval is closed.
 
 `POST /api/v1/announcements/:id/submit-for-approval` (author only) submits a
 `draft` or `rejected` Announcement. With Publishing authority it publishes
