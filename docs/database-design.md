@@ -173,6 +173,34 @@ announcements (
 )
 ```
 
+### announcement_revisions
+
+Content waiting for Announcement approval (ADR 0017): a new Announcement's first
+version, or an edit to a published one. Approving a revision copies it onto the
+Announcement. At most one open (draft, pending or rejected) revision per
+Announcement.
+
+```sql
+announcement_revisions (
+  id uuid primary key,
+  announcement_id uuid not null references announcements(id),
+  title text not null,
+  body text not null,
+  category text not null,
+  audience jsonb not null,             -- audience rules as submitted
+  expires_at timestamptz,
+  status text not null,                -- draft | pending | approved | rejected
+  approver_department_id uuid,         -- that Department's HOD; null = principal/admin
+  submitted_by uuid not null references users(id),
+  submitted_at timestamptz,
+  reviewed_by uuid references users(id),
+  reviewed_at timestamptz,
+  review_note text,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+)
+```
+
 ### audience_rules
 
 An Announcement's Audience is its audience rules (`target_type = 'announcement'`).

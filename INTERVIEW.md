@@ -96,3 +96,28 @@ down, so they see one item twice or miss one. The cursor remembers the last
 item seen (its published time and ID) and asks for older ones, so pages stay
 stable. It's also faster, because Postgres can seek straight to that point in
 the index instead of counting past skipped rows.
+
+## Announcement Approval
+
+### Why store content waiting for approval in a separate revisions table?
+
+An approved Announcement that gets edited must keep showing the approved text
+until the edit is approved. If the edit overwrote the Announcement row, students
+would see unreviewed text immediately. Keeping the pending content in a
+revision, and copying it onto the Announcement only when approved, keeps the
+public version and the proposed version apart. A new Announcement's first
+version goes through the same path, so there is one approval flow, not two.
+
+### How do you stop two approvers from both acting on the same submission?
+
+Approving, rejecting and resubmitting all start by locking the Announcement row
+with `SELECT ... FOR UPDATE`. The second approver waits for the first to
+commit, then sees the revision is no longer pending and gets `409 Conflict`. A
+partial unique index also guarantees at most one open revision per
+Announcement.
+
+### Why return 404 instead of 403 when someone edits another person's announcement?
+
+A 403 confirms the Announcement exists, which leaks drafts and pending notices
+the caller shouldn't know about. Treating someone else's Announcement as not
+found gives nothing away.

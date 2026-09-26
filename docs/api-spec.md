@@ -196,8 +196,8 @@ POST  /api/v1/announcements/:id/submit-for-approval
 PATCH /api/v1/announcements/:id/approval
 ```
 
-Built so far (#27): `GET /api/v1/announcements` and `POST /api/v1/announcements`.
-The approval endpoints arrive with #28 and #29.
+Also built: `GET /api/v1/announcements/mine` and `GET /api/v1/announcements/approvals`.
+Editing a published Announcement and withdrawing come with #29.
 
 `POST /api/v1/announcements` (roles: student coordinator, faculty, HOD,
 placement officer, principal, admin):
@@ -208,7 +208,8 @@ placement officer, principal, admin):
   "body": "The CS labs are closed for maintenance this Friday.",
   "category": "department",
   "audience": [{ "department_id": "<uuid>", "batch_year": 2022, "role": "student" }],
-  "expires_at": "2026-10-01T00:00:00Z"
+  "expires_at": "2026-10-01T00:00:00Z",
+  "draft": false
 }
 ```
 
@@ -217,12 +218,34 @@ placement officer, principal, admin):
 - `audience` is a list of rules. The fields in one rule must all match a
   reader; matching any rule is enough. An empty or missing list means the
   whole college. Each rule needs at least one field.
-- The author's current roles are read from the database. With Publishing
-  authority over the whole Audience (ADR 0017), it returns `201` with the
-  published Announcement. Without it, it returns `403` until Announcement
-  approval is built (#28).
+- The author's current roles are read from the database (ADR 0017). With
+  Publishing authority over the whole Audience, it returns `201` with status
+  `published`. Otherwise status is `pending` and it waits for Announcement
+  approval. `"draft": true` saves it as `draft` without submitting.
 - `400` for an unknown Department, a role that isn't a LINKS role, an empty
   rule, a batch year outside 2000 to 2100, or an expiry in the past.
+
+`PATCH /api/v1/announcements/:id` (author only) replaces the content of a
+`draft` or `rejected` Announcement with the same fields as create. `409` while
+it's `pending` or once it's published. Someone else's Announcement is `404`.
+
+`POST /api/v1/announcements/:id/submit-for-approval` (author only) submits a
+`draft` or `rejected` Announcement. With Publishing authority it publishes
+straight away; otherwise it becomes `pending`.
+
+`GET /api/v1/announcements/approvals` (roles: HOD, principal, admin) lists what
+the caller may approve, oldest first: single-Department submissions for the
+Departments they are HOD of, or everything for the principal and admins. Their
+own submissions are never listed.
+
+`PATCH /api/v1/announcements/:id/approval` with
+`{"decision": "approve" | "reject", "note": "..."}`. Rejecting needs a note,
+which the author sees in `/mine` as `review_note`. `403` for anyone who isn't
+this Announcement's approver or who submitted it; `409` if it isn't waiting
+for approval, including when another approver acted first.
+
+`GET /api/v1/announcements/mine` lists the caller's own Announcements in any
+status, newest first.
 
 `GET /api/v1/announcements?limit=20&cursor=...` returns the reader's feed:
 published, unexpired Announcements whose Audience includes them, newest first.

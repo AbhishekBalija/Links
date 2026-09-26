@@ -11,7 +11,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
   principal, admins and the placement officer (placement notices) publish
   Announcements to an Audience of Departments, batch years and roles, or the
   whole college. Readers get a paginated feed of what targets them, and
-  expired notices drop out. Approval for other authors comes next (#28).
+  expired notices drop out.
+- Announcement approval (#28): faculty, student coordinators and anyone
+  posting outside their own authority submit Announcements for approval. The
+  Department's HOD approves single-Department ones, the principal or an admin
+  everything else. Approvers get a queue, rejections carry a note, authors can
+  save drafts, fix rejected ones and resubmit, and see all their own
+  Announcements with their status.
 - API tests run the real router against an isolated Postgres schema (#26).
 - Department management (#10): any signed-in user can list and read
   departments, and admins can create, update and delete them. Codes can't
