@@ -98,7 +98,11 @@ type AudienceRule struct {
 // Repository is the Announcements data access used by the service.
 type Repository interface {
 	Create(ctx context.Context, announcement *Announcement, audience []AudienceRule) error
-	Feed(ctx context.Context, reader Reader, cursor *FeedCursor, limit int) ([]FeedEntry, error)
+	Feed(ctx context.Context, reader Reader, category Category, cursor *FeedCursor, limit int) ([]FeedEntry, error)
+	VisibleTo(ctx context.Context, reader Reader, id string) (*FeedEntry, error)
+	Find(ctx context.Context, id string) (*FeedEntry, error)
+	QueueSummary(ctx context.Context, scope ApproverScope) (int, *time.Time, error)
+	AuthorCounts(ctx context.Context, authorID string) (map[Status]int, int, error)
 	AudienceRules(ctx context.Context, announcementIDs []string) ([]AudienceRuleView, error)
 	Audience(ctx context.Context, announcementID string) ([]AudienceRule, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)

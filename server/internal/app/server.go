@@ -7,6 +7,7 @@ import (
 
 	"github.com/AbhishekBalija/Links/server/internal/announcements"
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	"github.com/AbhishekBalija/Links/server/internal/dashboard"
 	"github.com/AbhishekBalija/Links/server/internal/departments"
 	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"github.com/AbhishekBalija/Links/server/internal/profiles"
@@ -105,6 +106,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	announcementUnitOfWork := announcements.NewGormUnitOfWork(database.GORM())
 	announcementService := announcements.NewService(announcementRepo, userRepo, announcementUnitOfWork)
 	announcements.NewHandler(announcementService, policy).RegisterRoutes(v1)
+	dashboard.NewHandler(dashboard.NewService(dashboard.NewGormRepository(database.GORM()), announcementService), policy).RegisterRoutes(v1)
 
 	profileRepo := profiles.NewGormProfileRepository(database.GORM())
 	profileUnitOfWork := profiles.NewGormUnitOfWork(database.GORM())

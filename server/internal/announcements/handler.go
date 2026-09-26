@@ -27,6 +27,8 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	announcements.POST("", h.Create)
 	announcements.GET("/mine", h.Mine)
 	announcements.GET("/approvals", h.Queue)
+	announcements.GET("/:id", h.Get)
+	announcements.POST("/preview", h.Preview)
 	announcements.PATCH("/:id", h.Update)
 	announcements.POST("/:id/submit-for-approval", h.Submit)
 	announcements.PATCH("/:id/approval", h.Review)
@@ -34,7 +36,43 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 }
 
 func (h *Handler) Feed(c *gin.Context) {
-	h.list(c, auth.PermissionViewTargetedNotices, h.service.Feed)
+	category := c.Query("category")
+	h.list(c, auth.PermissionViewTargetedNotices, func(ctx context.Context, actorID, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error) {
+		return h.service.Feed(ctx, actorID, category, cursor, limit)
+	})
+}
+
+// Get is open to any signed-in user; the service returns 404 unless the caller
+// may see this Announcement.
+func (h *Handler) Get(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewTargetedNotices)
+	if actor == nil {
+		return
+	}
+	result, err := h.service.Get(c.Request.Context(), actor.UserID, c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+func (h *Handler) Preview(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionPostAnnouncement)
+	if actor == nil {
+		return
+	}
+	var input PreviewInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body", nil)
+		return
+	}
+	result, err := h.service.Preview(c.Request.Context(), actor.UserID, input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
 }
 
 func (h *Handler) Create(c *gin.Context) {

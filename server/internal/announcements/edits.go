@@ -113,7 +113,7 @@ func (s *Service) Withdraw(ctx context.Context, actorID, id string) (*Announceme
 	if err != nil {
 		return nil, fmt.Errorf("withdraw announcement: %w", err)
 	}
-	return s.single(ctx, withdrawn)
+	return s.single(ctx, actorID, withdrawn)
 }
 
 func departmentPointer(id string) *string {

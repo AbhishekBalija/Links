@@ -138,7 +138,7 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateAn
 	if err != nil {
 		return nil, fmt.Errorf("update announcement: %w", err)
 	}
-	return s.single(ctx, updated)
+	return s.single(ctx, actorID, updated)
 }
 
 // Submit sends the author's draft or rejected Announcement for approval, or
@@ -199,7 +199,7 @@ func (s *Service) Submit(ctx context.Context, actorID, id string) (*Announcement
 	if err != nil {
 		return nil, fmt.Errorf("submit announcement: %w", err)
 	}
-	return s.single(ctx, submitted)
+	return s.single(ctx, actorID, submitted)
 }
 
 // Review approves or rejects an Announcement waiting for approval. Only its
@@ -280,7 +280,7 @@ func (s *Service) Review(ctx context.Context, actorID, id string, input ReviewIn
 	if err != nil {
 		return nil, fmt.Errorf("review announcement: %w", err)
 	}
-	return s.single(ctx, reviewed)
+	return s.single(ctx, actorID, reviewed)
 }
 
 // Queue lists the Announcements waiting for this approver, oldest first.
@@ -294,17 +294,7 @@ func (s *Service) Queue(ctx context.Context, actorID, cursor string, limit int) 
 	if err != nil {
 		return nil, nil, err
 	}
-	scope := ApproverScope{UserID: actorID}
-	for _, grant := range grants {
-		switch grant.Role {
-		case auth.RolePrincipal, auth.RoleAdmin:
-			scope.All = true
-		case auth.RoleHOD:
-			if grant.DepartmentID != "" {
-				scope.DepartmentIDs = append(scope.DepartmentIDs, grant.DepartmentID)
-			}
-		}
-	}
+	scope := approverScope(actorID, grants)
 	if !scope.All && len(scope.DepartmentIDs) == 0 {
 		return nil, nil, apperrors.NewForbidden("you don't approve announcements")
 	}
@@ -349,22 +339,8 @@ func (s *Service) Mine(ctx context.Context, actorID, cursor string, limit int) (
 		return nil, nil, err
 	}
 
-	ids := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		ids = append(ids, entry.ID)
-	}
-	revisions, err := s.repository.LatestRevisions(ctx, ids)
-	if err != nil {
-		return nil, nil, fmt.Errorf("load revisions: %w", err)
-	}
-	notes := map[string]*string{}
-	for _, revision := range revisions {
-		if revision.Status == RevisionRejected {
-			notes[revision.AnnouncementID] = revision.ReviewNote
-		}
-	}
-	for i := range responses {
-		responses[i].ReviewNote = notes[responses[i].ID]
+	if err := s.decorate(ctx, responses, true); err != nil {
+		return nil, nil, err
 	}
 	return responses, meta, nil
 }
@@ -453,17 +429,14 @@ func audit(ctx context.Context, repositories Repositories, actorID, action, anno
 	})
 }
 
-// single builds the response for one Announcement after a change.
-func (s *Service) single(ctx context.Context, announcement Announcement) (*AnnouncementResponse, error) {
+// single builds the response for one Announcement after a change, with
+// workflow details for its author.
+func (s *Service) single(ctx context.Context, actorID string, announcement Announcement) (*AnnouncementResponse, error) {
 	publisherName, err := s.repository.FullName(ctx, announcement.PublisherID)
 	if err != nil {
 		return nil, fmt.Errorf("load publisher: %w", err)
 	}
-	responses, err := s.toResponses(ctx, []FeedEntry{{Announcement: announcement, PublisherName: publisherName}})
-	if err != nil {
-		return nil, err
-	}
-	return &responses[0], nil
+	return s.decorated(ctx, FeedEntry{Announcement: announcement, PublisherName: publisherName}, announcement.PublisherID == actorID)
 }
 
 // queueResponses shows each pending revision as it would be published.
@@ -493,7 +466,12 @@ func (s *Service) queueResponses(ctx context.Context, entries []QueueEntry) ([]A
 			}
 			audience = append(audience, view)
 		}
+		approver, nameErr := s.approverName(ctx, entry.ApproverDepartmentID)
+		if nameErr != nil {
+			return nil, nameErr
+		}
 		responses = append(responses, AnnouncementResponse{
+			Approver:      &approver,
 			ID:            entry.AnnouncementID,
 			Title:         entry.Title,
 			Body:          entry.Body,

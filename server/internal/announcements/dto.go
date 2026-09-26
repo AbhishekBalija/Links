@@ -58,6 +58,10 @@ type AnnouncementResponse struct {
 	ExpiresAt     *time.Time             `json:"expires_at"`
 	CreatedAt     time.Time              `json:"created_at"`
 	ReviewNote    *string                `json:"review_note,omitempty"`
+	// Approver names who approves a pending Announcement.
+	Approver *string `json:"approver,omitempty"`
+	// Edit is a waiting or rejected edit to a published one (author only).
+	Edit *EditResponse `json:"edit,omitempty"`
 }
 
 // FeedMeta carries the cursor for the next page; empty when there are no more.

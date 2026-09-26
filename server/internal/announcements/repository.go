@@ -116,12 +116,12 @@ func (r *GormRepository) insertAudience(ctx context.Context, announcementID stri
 	return nil
 }
 
-// Feed returns published, unexpired Announcements whose Audience includes the
-// reader, newest first. A rule matches when one of the reader's Memberships
+// visibleQuery selects published, unexpired Announcements whose Audience
+// includes the reader. A rule matches when one of the reader's Memberships
 // satisfies the rule's role and Department together and the batch year (if
 // set) matches; any matching rule is enough; no rules means the whole college.
-func (r *GormRepository) Feed(ctx context.Context, reader Reader, cursor *FeedCursor, limit int) ([]FeedEntry, error) {
-	args := []any{}
+func visibleQuery(reader Reader) (string, []any) {
+	args := []any{targetTypeAnnouncement}
 	matchesRule := "FALSE"
 	if len(reader.Memberships) > 0 {
 		rows := make([]string, 0, len(reader.Memberships))
@@ -153,7 +153,17 @@ func (r *GormRepository) Feed(ctx context.Context, reader Reader, cursor *FeedCu
 		    )
 		    OR ` + matchesRule + `
 		  )`
-	args = append([]any{targetTypeAnnouncement}, args...)
+	return query, args
+}
+
+// Feed returns one page of the reader's visible Announcements, newest first,
+// optionally limited to one category.
+func (r *GormRepository) Feed(ctx context.Context, reader Reader, category Category, cursor *FeedCursor, limit int) ([]FeedEntry, error) {
+	query, args := visibleQuery(reader)
+	if category != "" {
+		query += ` AND a.category = ?`
+		args = append(args, category)
+	}
 	if cursor != nil {
 		query += ` AND (a.published_at, a.id) < (?, CAST(? AS uuid))`
 		args = append(args, cursor.PublishedAt, cursor.ID)
@@ -164,6 +174,82 @@ func (r *GormRepository) Feed(ctx context.Context, reader Reader, cursor *FeedCu
 	var entries []FeedEntry
 	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&entries).Error
 	return entries, err
+}
+
+// VisibleTo returns the Announcement if it is in the reader's feed.
+func (r *GormRepository) VisibleTo(ctx context.Context, reader Reader, id string) (*FeedEntry, error) {
+	query, args := visibleQuery(reader)
+	query += ` AND a.id = ?`
+	args = append(args, id)
+	var entries []FeedEntry
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&entries).Error; err != nil || len(entries) == 0 {
+		return nil, err
+	}
+	return &entries[0], nil
+}
+
+// Find loads an Announcement with its publisher's name, without locking.
+func (r *GormRepository) Find(ctx context.Context, id string) (*FeedEntry, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, nil
+	}
+	var entries []FeedEntry
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT a.*, p.full_name AS publisher_name
+		FROM announcements a
+		JOIN profiles p ON p.user_id = a.publisher_id
+		WHERE a.id = ?`, id,
+	).Scan(&entries).Error
+	if err != nil || len(entries) == 0 {
+		return nil, err
+	}
+	return &entries[0], nil
+}
+
+// QueueSummary counts the pending revisions an approver may act on and when
+// the oldest was submitted.
+func (r *GormRepository) QueueSummary(ctx context.Context, scope ApproverScope) (int, *time.Time, error) {
+	query := `SELECT count(*) AS count, min(submitted_at) AS oldest FROM announcement_revisions
+		WHERE status = 'pending' AND submitted_by <> ?`
+	args := []any{scope.UserID}
+	if !scope.All {
+		if len(scope.DepartmentIDs) == 0 {
+			return 0, nil, nil
+		}
+		query += ` AND approver_department_id IN ?`
+		args = append(args, scope.DepartmentIDs)
+	}
+	var row struct {
+		Count  int        `gorm:"column:count"`
+		Oldest *time.Time `gorm:"column:oldest"`
+	}
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&row).Error
+	return row.Count, row.Oldest, err
+}
+
+// AuthorCounts counts the author's Announcements by status, and their
+// published Announcements with an edit waiting for approval.
+func (r *GormRepository) AuthorCounts(ctx context.Context, authorID string) (map[Status]int, int, error) {
+	var rows []struct {
+		Status Status `gorm:"column:status"`
+		Count  int    `gorm:"column:count"`
+	}
+	if err := r.db.WithContext(ctx).Raw(
+		`SELECT status, count(*) AS count FROM announcements WHERE publisher_id = ? GROUP BY status`, authorID,
+	).Scan(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	counts := map[Status]int{}
+	for _, row := range rows {
+		counts[row.Status] = row.Count
+	}
+	var editsWaiting int64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT count(*) FROM announcements a
+		JOIN announcement_revisions v ON v.announcement_id = a.id AND v.status = 'pending'
+		WHERE a.publisher_id = ? AND a.status = 'published'`, authorID,
+	).Scan(&editsWaiting).Error
+	return counts, int(editsWaiting), err
 }
 
 // AudienceRules returns the Audience rules of the given Announcements.
