@@ -134,16 +134,19 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 		}
 
 		if input.USN != "" {
+			// The Batch comes from the USN, never from the form, so it
+			// can't be missing or disagree with the USN (#45).
+			batchYear, err := BatchYearFromUSN(input.USN)
+			if err != nil {
+				return apperrors.NewValidation("invalid USN: "+err.Error(), nil)
+			}
 			identity := &StudentIdentity{
 				UserID:       user.ID,
 				USN:          input.USN,
 				DepartmentID: deptID,
-				BatchYear:    0,
+				BatchYear:    batchYear,
 				CreatedAt:    time.Now(),
 				UpdatedAt:    time.Now(),
-			}
-			if input.BatchYear != nil {
-				identity.BatchYear = *input.BatchYear
 			}
 			if err := repos.Users.CreateStudentIdentity(ctx, identity); err != nil {
 				return fmt.Errorf("create student identity: %w", err)

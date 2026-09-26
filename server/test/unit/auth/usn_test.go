@@ -84,3 +84,27 @@ func TestValidateUSN_UnknownDepartment(t *testing.T) {
 		t.Error("ValidateUSN(4MN20MB002) expected error for unknown dept code MB, got nil")
 	}
 }
+
+func TestBatchYearFromUSN(t *testing.T) {
+	tests := []struct {
+		usn  string
+		want int
+	}{
+		{"4MN23CS001", 2023},
+		{"4MN20EC002", 2020},
+		{"4mn21ec042", 2021},
+		{"4MN05ME100", 2005},
+		// Lateral entry (roll 400+) is assumed to carry the batch's year,
+		// not the year they joined second year (ADR 0019).
+		{"4MN21EC401", 2021},
+	}
+	for _, test := range tests {
+		got, err := auth.BatchYearFromUSN(test.usn)
+		if err != nil || got != test.want {
+			t.Errorf("BatchYearFromUSN(%q) = %d, %v; want %d", test.usn, got, err, test.want)
+		}
+	}
+	if _, err := auth.BatchYearFromUSN("not-a-usn"); err == nil {
+		t.Error("BatchYearFromUSN accepted an invalid USN")
+	}
+}

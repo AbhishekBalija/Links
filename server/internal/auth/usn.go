@@ -48,6 +48,18 @@ func ValidateUSN(usn string) (string, error) {
 	return code, nil
 }
 
+// BatchYearFromUSN reads a student's Batch from the joining year in their
+// USN: 4MN23CS001 joined in 2023. An admin can later move a year-back
+// student to another Batch (ADR 0019); this is only where it starts.
+func BatchYearFromUSN(usn string) (int, error) {
+	matches := usnRegex.FindStringSubmatch(toUSNCase(usn))
+	if matches == nil {
+		return 0, fmt.Errorf("invalid USN format")
+	}
+	year := matches[1]
+	return 2000 + int(year[0]-'0')*10 + int(year[1]-'0'), nil
+}
+
 // toUSNCase normalizes a USN to uppercase (matching the existing convention
 // documented in database-design.md and migration 004).
 func toUSNCase(usn string) string {
