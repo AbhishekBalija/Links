@@ -286,7 +286,8 @@ same rule as posting. `reach` counts the active users the Audience matches
 right now, matched the same way as the feed. The composer uses it to say what
 will happen, and to whom, before posting.
 
-Pending items carry `approver` ("CS HOD" or "Principal or admin"). For their
+Pending and sent-back items carry `approver` ("CS HOD" or "Principal or
+admin"): who it waits for, or who sent it back. For their
 author, a published Announcement with a waiting or rejected edit carries
 `edit: {status, review_note, approver}`. The feed accepts `category` to show
 one category only.

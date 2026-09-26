@@ -249,6 +249,12 @@ func (s *Service) decorate(ctx context.Context, responses []AnnouncementResponse
 		case StatusRejected:
 			if forAuthor && revision.Status == RevisionRejected {
 				responses[i].ReviewNote = revision.ReviewNote
+				// Who sent it back, so the author knows whose note it is.
+				approver, nameErr := s.approverName(ctx, revision.ApproverDepartmentID)
+				if nameErr != nil {
+					return nameErr
+				}
+				responses[i].Approver = &approver
 			}
 		case StatusPublished:
 			if forAuthor && (revision.Status == RevisionPending || revision.Status == RevisionRejected) {
@@ -260,13 +266,12 @@ func (s *Service) decorate(ctx context.Context, responses []AnnouncementResponse
 				if edit.Audience == nil {
 					edit.Audience = []StoredRule{}
 				}
-				if revision.Status == RevisionPending {
-					approver, nameErr := s.approverName(ctx, revision.ApproverDepartmentID)
-					if nameErr != nil {
-						return nameErr
-					}
-					edit.Approver = &approver
+				// The approver it's waiting for, or who sent it back.
+				approver, nameErr := s.approverName(ctx, revision.ApproverDepartmentID)
+				if nameErr != nil {
+					return nameErr
 				}
+				edit.Approver = &approver
 				responses[i].Edit = edit
 				// Kept for older clients that read the note from the item itself.
 				if revision.Status == RevisionRejected {

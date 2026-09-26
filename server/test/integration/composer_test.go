@@ -66,11 +66,13 @@ func TestPreviewCountsThePeopleTheAudienceReaches(t *testing.T) {
 }
 
 type mineItem struct {
-	Title string `json:"title"`
-	Edit  *struct {
-		Status string  `json:"status"`
-		Title  *string `json:"title"`
-		Body   *string `json:"body"`
+	Title    string  `json:"title"`
+	Approver *string `json:"approver"`
+	Edit     *struct {
+		Status   string  `json:"status"`
+		Title    *string `json:"title"`
+		Body     *string `json:"body"`
+		Approver *string `json:"approver"`
 	} `json:"edit"`
 }
 
@@ -161,5 +163,24 @@ func TestSentBackEditCarriesItsOwnTextForTheAuthor(t *testing.T) {
 	}
 	if got.Data.Edit == nil || got.Data.Edit.Title == nil || *got.Data.Edit.Title != "Meeting at 4 pm" || got.Data.Edit.Body == nil {
 		t.Fatalf("edit = %+v, want the sent-back edit's own text so the author can fix it", got.Data.Edit)
+	}
+	if got.Data.Edit.Approver == nil || *got.Data.Edit.Approver != "CS HOD" {
+		t.Errorf("edit approver = %v, want CS HOD, who sent it back", got.Data.Edit.Approver)
+	}
+}
+
+func TestSentBackAnnouncementNamesWhoSentItBack(t *testing.T) {
+	h := apitest.New(t)
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	id, _ := createdStatus(t, publish(t, h, faculty.Token, map[string]any{"title": "Lab timings", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "CS")}}}))
+	review(t, h, hod.Token, id, "reject", "Add Thursday")
+
+	var got struct {
+		Data mineItem `json:"data"`
+	}
+	h.Do(t, http.MethodGet, "/api/v1/announcements/"+id, faculty.Token, nil).Decode(t, &got)
+	if got.Data.Approver == nil || *got.Data.Approver != "CS HOD" {
+		t.Errorf("approver = %v, want CS HOD", got.Data.Approver)
 	}
 }
