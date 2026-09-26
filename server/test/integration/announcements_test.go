@@ -3,6 +3,7 @@ package integration
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/AbhishekBalija/Links/server/test/apitest"
 )
@@ -332,5 +333,52 @@ func TestEndedHODRoleNoLongerPublishesEvenWithAnOldToken(t *testing.T) {
 	})
 	if response.Status != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d: %s", response.Status, http.StatusForbidden, response.Body)
+	}
+}
+
+func TestDepartmentTargetedByAnAnnouncementCannotBeDeleted(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	create := h.Do(t, http.MethodPost, "/api/v1/admin/departments", admin.Token, map[string]string{"code": "IS", "name": "Information Science"})
+	if create.Status != http.StatusCreated {
+		t.Fatalf("create department status = %d: %s", create.Status, create.Body)
+	}
+	mustPublish(t, h, admin.Token, map[string]any{
+		"title": "IS orientation", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "IS")}},
+	})
+
+	response := h.Do(t, http.MethodDelete, "/api/v1/admin/departments/IS", admin.Token, nil)
+	if response.Status != http.StatusConflict {
+		t.Fatalf("delete status = %d, want %d: %s", response.Status, http.StatusConflict, response.Body)
+	}
+}
+
+func TestAnnouncementRacingADepartmentDeleteGetsAValidationError(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	h.Do(t, http.MethodPost, "/api/v1/admin/departments", admin.Token, map[string]string{"code": "IS", "name": "Information Science"})
+	is := h.DepartmentID(t, "IS")
+
+	// Hold the department row the way a delete does, then delete it after the
+	// announcement request has started.
+	tx := h.DB().Begin()
+	if err := tx.Exec(`SELECT id FROM departments WHERE id = ? FOR UPDATE`, is).Error; err != nil {
+		t.Fatalf("lock department: %v", err)
+	}
+	done := make(chan apitest.Response, 1)
+	go func() {
+		done <- publish(t, h, admin.Token, map[string]any{"title": "IS orientation", "audience": []map[string]any{{"department_id": is}}})
+	}()
+	time.Sleep(300 * time.Millisecond)
+	if err := tx.Exec(`DELETE FROM departments WHERE id = ?`, is).Error; err != nil {
+		t.Fatalf("delete department: %v", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	response := <-done
+	if response.Status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", response.Status, http.StatusBadRequest, response.Body)
 	}
 }

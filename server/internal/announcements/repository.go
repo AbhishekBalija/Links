@@ -150,13 +150,15 @@ func (r *GormRepository) AudienceRules(ctx context.Context, announcementIDs []st
 	return rules, err
 }
 
-// CountDepartments counts how many of the given Department IDs exist.
-func (r *GormRepository) CountDepartments(ctx context.Context, departmentIDs []string) (int, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Table("departments").
-		Where("id IN ?", departmentIDs).
-		Count(&count).Error
-	return int(count), err
+// LockDepartments counts how many of the given Department IDs exist and
+// share-locks them until the transaction ends, so a concurrent Department
+// delete either waits for this Announcement or runs first and fails the check.
+func (r *GormRepository) LockDepartments(ctx context.Context, departmentIDs []string) (int, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).Raw(
+		`SELECT id FROM departments WHERE id IN ? FOR SHARE`, departmentIDs,
+	).Scan(&ids).Error
+	return len(ids), err
 }
 
 // StudentPlacement returns the reader's Department and batch year from their

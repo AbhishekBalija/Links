@@ -42,7 +42,7 @@ func NewService(repository Repository, roles RoleReader, unitOfWork UnitOfWork) 
 // Audience publish immediately (ADR 0017). Announcement approval for everyone
 // else is not built yet, so they get 403 for now.
 func (s *Service) Create(ctx context.Context, actorID string, input CreateAnnouncementInput) (*AnnouncementResponse, error) {
-	title, body, category, audience, err := s.validate(ctx, input)
+	title, body, category, audience, err := s.validate(input)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +71,9 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateAnnoun
 		UpdatedAt:   now,
 	}
 	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
+		if checkErr := checkDepartments(ctx, repositories.Announcements, audience); checkErr != nil {
+			return checkErr
+		}
 		if createErr := repositories.Announcements.Create(ctx, &announcement, audience); createErr != nil {
 			return createErr
 		}
@@ -132,7 +135,7 @@ func (s *Service) Feed(ctx context.Context, actorID, cursor string, limit int) (
 	return responses, meta, nil
 }
 
-func (s *Service) validate(ctx context.Context, input CreateAnnouncementInput) (string, string, Category, []AudienceRule, error) {
+func (s *Service) validate(input CreateAnnouncementInput) (string, string, Category, []AudienceRule, error) {
 	details := map[string]string{}
 	title := strings.TrimSpace(input.Title)
 	body := strings.TrimSpace(input.Body)
@@ -150,7 +153,7 @@ func (s *Service) validate(ctx context.Context, input CreateAnnouncementInput) (
 		details["expires_at"] = "must be in the future"
 	}
 
-	audience, departmentIDs, audienceProblem := toAudience(input.Audience)
+	audience, audienceProblem := toAudience(input.Audience)
 	if audienceProblem != "" {
 		details["audience"] = audienceProblem
 	}
@@ -158,57 +161,64 @@ func (s *Service) validate(ctx context.Context, input CreateAnnouncementInput) (
 		return "", "", "", nil, apperrors.NewValidation("invalid announcement", details)
 	}
 
-	if len(departmentIDs) > 0 {
-		found, err := s.repository.CountDepartments(ctx, departmentIDs)
-		if err != nil {
-			return "", "", "", nil, fmt.Errorf("check departments: %w", err)
-		}
-		if found != len(departmentIDs) {
-			return "", "", "", nil, apperrors.NewValidation("invalid announcement",
-				map[string]string{"audience": "a department in the audience doesn't exist"})
-		}
-	}
 	return title, body, category, audience, nil
 }
 
-// toAudience validates Audience rules and returns them with the distinct
-// Department IDs they mention. An empty list means the whole college.
-func toAudience(inputs []AudienceRuleInput) ([]AudienceRule, []string, string) {
+// toAudience validates Audience rules. An empty list means the whole college.
+func toAudience(inputs []AudienceRuleInput) ([]AudienceRule, string) {
 	if len(inputs) > maxAudienceRules {
-		return nil, nil, fmt.Sprintf("use at most %d rules", maxAudienceRules)
+		return nil, fmt.Sprintf("use at most %d rules", maxAudienceRules)
 	}
 	rules := make([]AudienceRule, 0, len(inputs))
-	seen := map[string]bool{}
-	departmentIDs := []string{}
 	for _, input := range inputs {
 		if input.DepartmentID == nil && input.BatchYear == nil && input.Role == nil {
-			return nil, nil, "each rule needs a department, batch year or role; leave the audience empty for the whole college"
+			return nil, "each rule needs a department, batch year or role; leave the audience empty for the whole college"
 		}
 		rule := AudienceRule{BatchYear: input.BatchYear}
 		if input.DepartmentID != nil {
 			if _, err := uuid.Parse(*input.DepartmentID); err != nil {
-				return nil, nil, "a department in the audience doesn't exist"
+				return nil, "a department in the audience doesn't exist"
 			}
 			id := *input.DepartmentID
 			rule.DepartmentID = &id
-			if !seen[id] {
-				seen[id] = true
-				departmentIDs = append(departmentIDs, id)
-			}
 		}
 		if input.BatchYear != nil && (*input.BatchYear < 2000 || *input.BatchYear > 2100) {
-			return nil, nil, "batch year must be between 2000 and 2100"
+			return nil, "batch year must be between 2000 and 2100"
 		}
 		if input.Role != nil {
 			role := auth.Role(*input.Role)
 			if !audienceRoles[role] {
-				return nil, nil, fmt.Sprintf("%q is not a LINKS role", *input.Role)
+				return nil, fmt.Sprintf("%q is not a LINKS role", *input.Role)
 			}
 			rule.Role = &role
 		}
 		rules = append(rules, rule)
 	}
-	return rules, departmentIDs, ""
+	return rules, ""
+}
+
+// checkDepartments makes sure every Department in the Audience exists, holding
+// a share lock on them for the rest of the transaction.
+func checkDepartments(ctx context.Context, repository Repository, audience []AudienceRule) error {
+	seen := map[string]bool{}
+	ids := []string{}
+	for _, rule := range audience {
+		if rule.DepartmentID != nil && !seen[*rule.DepartmentID] {
+			seen[*rule.DepartmentID] = true
+			ids = append(ids, *rule.DepartmentID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	found, err := repository.LockDepartments(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("check departments: %w", err)
+	}
+	if found != len(ids) {
+		return apperrors.NewValidation("invalid announcement", map[string]string{"audience": "a department in the audience doesn't exist"})
+	}
+	return nil
 }
 
 // grants loads the roles the user holds right now from the database, not the

@@ -300,8 +300,8 @@ Update replaces the editable fields for the department identified by `:code`:
 
 Create the department before assigning its HOD. On update, `hodUserId` must
 identify a user with an existing HOD role scoped to that same department. Delete
-returns `409 CONFLICT` when student identities or scoped role assignments still
-reference the department.
+returns `409 CONFLICT` when student identities, scoped role assignments or
+announcement audience rules still reference the department.
 
 ## Clubs
 
