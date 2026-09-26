@@ -269,6 +269,10 @@ the caller may approve, oldest first: single-Department submissions for the
 Departments they are HOD of, or everything for the principal and admins. Their
 own submissions are never listed.
 
+Each item carries `kind` (`new`, or `edit` for a change to a published
+Announcement), `submitted_at`, and for an edit `live: {title, body}`, the
+text readers see now, so the approver can compare.
+
 `PATCH /api/v1/announcements/:id/approval` with
 `{"decision": "approve" | "reject", "note": "..."}`. Rejecting needs a note,
 which the author sees in `/mine` as `review_note`. `403` for anyone who isn't

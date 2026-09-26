@@ -62,6 +62,19 @@ type AnnouncementResponse struct {
 	Approver *string `json:"approver,omitempty"`
 	// Edit is a waiting or rejected edit to a published one (author only).
 	Edit *EditResponse `json:"edit,omitempty"`
+
+	// Approval queue only: whether it's a "new" Announcement or an "edit" to
+	// a published one, when it was submitted, and for an edit the text
+	// readers see now.
+	Kind        string       `json:"kind,omitempty"`
+	SubmittedAt *time.Time   `json:"submitted_at,omitempty"`
+	Live        *LiveContent `json:"live,omitempty"`
+}
+
+// LiveContent is the published text an edit would replace.
+type LiveContent struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
 }
 
 // FeedMeta carries the cursor for the next page; empty when there are no more.
