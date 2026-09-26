@@ -32,7 +32,9 @@ func NewPolicy() *Policy {
 			PermissionViewPublicProfiles:  allRoles(),
 			PermissionEditOwnProfile:      allRoles(),
 			PermissionViewTargetedNotices: allRoles(),
-			PermissionPostAnnouncement:    {RoleHOD, RolePrincipal, RoleAdmin},
+			// Who may post at all (docs/auth.md). Whether a post publishes directly
+			// or needs approval is decided in the announcements service (ADR 0017).
+			PermissionPostAnnouncement:    {RoleStudentCoordinator, RoleFaculty, RoleHOD, RolePlacementOfficer, RolePrincipal, RoleAdmin},
 			PermissionProposeEvent:        {RoleStudentCoordinator, RoleFaculty, RoleHOD, RolePlacementOfficer, RolePrincipal, RoleAdmin},
 			PermissionReviewBranchEvent:   {RoleHOD, RolePrincipal, RoleAdmin},
 			PermissionFinalEventApproval:  {RolePrincipal, RoleAdmin},
