@@ -22,6 +22,6 @@ A student doesn't become alumni just because four years have passed since the jo
 
 ## Consequences
 
-- Graduation needs a screen and a bulk path, which ties into CSV import (#17).
+- Graduation needs a screen and a bulk path, which ties into CSV import (#17) and is tracked in #46.
 - Placement eligibility rules (Phase 3) can read Academic status instead of guessing from the batch.
-- Batch has to be filled in reliably at sign-up; today it is saved as `0` (see the batch year issue).
+- Batch has to be filled in reliably at sign-up; today it is saved as `0` (#45).
