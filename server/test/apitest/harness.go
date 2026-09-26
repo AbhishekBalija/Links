@@ -69,6 +69,13 @@ func New(t *testing.T) *Harness {
 	database := openDatabase(t, withSearchPath(t, baseURL, schema))
 	t.Cleanup(func() { _ = database.Close() })
 
+	// Refuse to go on if the connection isn't really in the test schema, so a
+	// driver ignoring search_path can never write into a real schema.
+	var current string
+	if err := database.GORM().Raw(`SELECT current_schema()`).Scan(&current).Error; err != nil || current != schema {
+		t.Fatalf("test connection uses schema %q, want %q: %v", current, schema, err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := database.Migrate(ctx, migrations.FS); err != nil {
