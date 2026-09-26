@@ -97,6 +97,7 @@ type Repository interface {
 	Create(ctx context.Context, announcement *Announcement, audience []AudienceRule) error
 	Feed(ctx context.Context, reader Reader, cursor *FeedCursor, limit int) ([]FeedEntry, error)
 	AudienceRules(ctx context.Context, announcementIDs []string) ([]AudienceRuleView, error)
+	Audience(ctx context.Context, announcementID string) ([]AudienceRule, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	FullName(ctx context.Context, userID string) (string, error)

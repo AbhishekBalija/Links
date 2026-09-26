@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	announcements.PATCH("/:id", h.Update)
 	announcements.POST("/:id/submit-for-approval", h.Submit)
 	announcements.PATCH("/:id/approval", h.Review)
+	announcements.POST("/:id/withdraw", h.Withdraw)
 }
 
 func (h *Handler) Feed(c *gin.Context) {
@@ -106,6 +107,20 @@ func (h *Handler) Review(c *gin.Context) {
 		return
 	}
 	result, err := h.service.Review(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+// Withdraw is open to any signed-in user; the service decides who may withdraw.
+func (h *Handler) Withdraw(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewTargetedNotices)
+	if actor == nil {
+		return
+	}
+	result, err := h.service.Withdraw(c.Request.Context(), actor.UserID, c.Param("id"))
 	if err != nil {
 		writeError(c, err)
 		return

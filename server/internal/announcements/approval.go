@@ -74,7 +74,10 @@ func (r Revision) content() announcementContent {
 	return announcementContent{Title: r.Title, Body: r.Body, Category: r.Category, Audience: audience, ExpiresAt: r.ExpiresAt}
 }
 
-// Update replaces the content of the author's draft or rejected Announcement.
+// Update edits the author's Announcement. A draft or rejected one is simply
+// rewritten. A published one follows ADR 0017: an author with Publishing
+// authority edits it directly, anyone else's edit waits for approval while
+// readers keep seeing the approved version.
 func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateAnnouncementInput) (*AnnouncementResponse, error) {
 	content, err := s.validate(input.contentInput)
 	if err != nil {
@@ -90,35 +93,44 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateAn
 
 	var updated Announcement
 	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
-		announcement, revision, loadErr := authoredWithRevision(ctx, repositories, actorID, id)
-		if loadErr != nil {
-			return loadErr
+		announcement, findErr := repositories.Announcements.FindForUpdate(ctx, id)
+		if findErr != nil {
+			return findErr
+		}
+		if announcement == nil || announcement.PublisherID != actorID {
+			return apperrors.NewNotFound("announcement not found")
 		}
 		switch announcement.Status {
 		case StatusDraft, StatusRejected:
+		case StatusPublished:
+			if editErr := s.editPublished(ctx, repositories, grants, actorID, announcement, content); editErr != nil {
+				return editErr
+			}
+			updated = *announcement
+			return nil
 		case StatusPending:
 			return apperrors.NewConflict("this announcement is waiting for approval and can't be edited now")
 		default:
-			return apperrors.NewConflict("editing a published announcement isn't available yet")
+			return apperrors.NewConflict("a withdrawn announcement can't be edited")
+		}
+
+		revision, revisionErr := repositories.Announcements.OpenRevision(ctx, announcement.ID)
+		if revisionErr != nil {
+			return revisionErr
+		}
+		if revision == nil {
+			return apperrors.NewConflict("this announcement has nothing to change")
 		}
 		if checkErr := checkDepartments(ctx, repositories.Announcements, content.Audience); checkErr != nil {
 			return checkErr
 		}
-
 		now := s.now().UTC()
-		announcement.Title, announcement.Body, announcement.Category = content.Title, content.Body, content.Category
-		announcement.ExpiresAt, announcement.UpdatedAt = content.ExpiresAt, now
-		if saveErr := repositories.Announcements.UpdateAnnouncement(ctx, announcement); saveErr != nil {
+		if applyErr := applyContent(ctx, repositories, announcement, content, now); applyErr != nil {
+			return applyErr
+		}
+		revision.setContent(content, now)
+		if saveErr := repositories.Announcements.UpdateRevision(ctx, revision); saveErr != nil {
 			return saveErr
-		}
-		if audienceErr := repositories.Announcements.ReplaceAudience(ctx, announcement.ID, content.Audience); audienceErr != nil {
-			return audienceErr
-		}
-		fresh := content.revision(announcement.ID, actorID, now)
-		revision.Title, revision.Body, revision.Category = fresh.Title, fresh.Body, fresh.Category
-		revision.Audience, revision.ExpiresAt, revision.UpdatedAt = fresh.Audience, fresh.ExpiresAt, now
-		if revisionErr := repositories.Announcements.UpdateRevision(ctx, revision); revisionErr != nil {
-			return revisionErr
 		}
 		updated = *announcement
 		return nil
@@ -401,20 +413,31 @@ func authoredWithRevision(ctx context.Context, repositories Repositories, actorI
 // publishRevision copies an approved revision onto its Announcement and
 // publishes it. The first publish sets published_at; later edits keep it.
 func publishRevision(ctx context.Context, repositories Repositories, announcement *Announcement, revision *Revision, now time.Time) error {
-	content := revision.content()
 	if err := repositories.Announcements.UpdateRevision(ctx, revision); err != nil {
 		return err
 	}
-	announcement.Title, announcement.Body, announcement.Category = content.Title, content.Body, content.Category
-	announcement.ExpiresAt, announcement.UpdatedAt = content.ExpiresAt, now
 	announcement.Status = StatusPublished
 	if announcement.PublishedAt == nil {
 		announcement.PublishedAt = &now
 	}
+	return applyContent(ctx, repositories, announcement, revision.content(), now)
+}
+
+// applyContent writes content onto the Announcement and its Audience rules.
+func applyContent(ctx context.Context, repositories Repositories, announcement *Announcement, content announcementContent, now time.Time) error {
+	announcement.Title, announcement.Body, announcement.Category = content.Title, content.Body, content.Category
+	announcement.ExpiresAt, announcement.UpdatedAt = content.ExpiresAt, now
 	if err := repositories.Announcements.UpdateAnnouncement(ctx, announcement); err != nil {
 		return err
 	}
 	return repositories.Announcements.ReplaceAudience(ctx, announcement.ID, content.Audience)
+}
+
+// setContent replaces the revision's content, keeping its workflow state.
+func (r *Revision) setContent(content announcementContent, now time.Time) {
+	fresh := content.revision(r.AnnouncementID, r.SubmittedBy, now)
+	r.Title, r.Body, r.Category = fresh.Title, fresh.Body, fresh.Category
+	r.Audience, r.ExpiresAt, r.UpdatedAt = fresh.Audience, fresh.ExpiresAt, now
 }
 
 func audit(ctx context.Context, repositories Repositories, actorID, action, announcementID string, metadata map[string]interface{}) error {
