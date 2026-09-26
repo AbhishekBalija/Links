@@ -6,6 +6,7 @@ A student doesn't become alumni just because four years have passed since the jo
 
 - **Academic status** on the Student identity: `studying`, `completed_with_backlogs`, `graduated` or `left`.
 - **Batch** is the batch a student currently belongs to. It starts as the joining year in the USN and an admin can change it for a year-back student. Audience rules match on it, never on the USN directly.
+- **Assumption, not yet confirmed with the college:** lateral-entry students (diploma holders joining second year, roll numbers 400 and up) get a USN carrying the year of the batch they join, so the USN year is their Batch too. If that turns out wrong, they would start one batch late, and an admin can move them.
 - **Graduation**: once a year, an admin or HOD opens the final-year list with everyone selected, unticks students with backlogs (or uploads the results list), and confirms. For each confirmed student, in one transaction with an audit log:
   - the student Role assignment ends (`ends_at`, kept for history);
   - they get the alumni Role;
