@@ -60,3 +60,36 @@ Seeding is setup, not the thing under test. Creating an HOD through the real
 access-request, approval and activation flow would make every test slow and
 fragile. The behaviour being tested always goes through the public HTTP API, so
 tests keep passing when the internals are refactored.
+
+## Targeted Announcements
+
+### Why is the publishing rule a pure function instead of living in the handler or SQL?
+
+"Does this author publish directly, and if not, who approves?" depends only on
+the author's roles and the Audience. As a pure function it can be tested with a
+table of every role and Audience combination in milliseconds, without a server
+or database. The service gathers the inputs (roles from the database) and acts
+on the answer.
+
+### Why read the author's roles from the database when the JWT already has them?
+
+The token only carries role names, not which Department an HOD is scoped to,
+and it keeps working for up to 15 minutes after a role is removed. Publishing
+authority needs the scope and must stop the moment a role ends, so the service
+loads the roles that are in effect right now.
+
+### How does the feed decide who sees an Announcement?
+
+Each Announcement has a list of Audience rules. Within one rule, every field
+it sets (Department, batch year, role) must match the reader: that's AND.
+Across rules, matching any one is enough: that's OR. No rules means the whole
+college. This lets one notice target "CS final years or CS faculty" without a
+special case.
+
+### Why cursor pagination instead of page numbers?
+
+With `OFFSET`, a notice published while a student is scrolling shifts every row
+down, so they see one item twice or miss one. The cursor remembers the last
+item seen (its published time and ID) and asks for older ones, so pages stay
+stable. It's also faster, because Postgres can seek straight to that point in
+the index instead of counting past skipped rows.

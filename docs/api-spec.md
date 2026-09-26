@@ -196,6 +196,41 @@ POST  /api/v1/announcements/:id/submit-for-approval
 PATCH /api/v1/announcements/:id/approval
 ```
 
+Built so far (#27): `GET /api/v1/announcements` and `POST /api/v1/announcements`.
+The approval endpoints arrive with #28 and #29.
+
+`POST /api/v1/announcements` (roles: student coordinator, faculty, HOD,
+placement officer, principal, admin):
+
+```json
+{
+  "title": "CS lab closed on Friday",
+  "body": "The CS labs are closed for maintenance this Friday.",
+  "category": "department",
+  "audience": [{ "department_id": "<uuid>", "batch_year": 2022, "role": "student" }],
+  "expires_at": "2026-10-01T00:00:00Z"
+}
+```
+
+- `category` is `official`, `department` or `placement`. The placement officer
+  can only post `placement`.
+- `audience` is a list of rules. The fields in one rule must all match a
+  reader; matching any rule is enough. An empty or missing list means the
+  whole college. Each rule needs at least one field.
+- The author's current roles are read from the database. With Publishing
+  authority over the whole Audience (ADR 0017), it returns `201` with the
+  published Announcement. Without it, it returns `403` until Announcement
+  approval is built (#28).
+- `400` for an unknown Department, a role that isn't a LINKS role, an empty
+  rule, a batch year outside 2000 to 2100, or an expiry in the past.
+
+`GET /api/v1/announcements?limit=20&cursor=...` returns the reader's feed:
+published, unexpired Announcements whose Audience includes them, newest first.
+The reader's Departments come from their Student identity and their
+Department-scoped roles, and their batch year from their Student identity.
+`limit` defaults to 20 (max 50). `meta.next_cursor` is present when there is
+another page.
+
 ## Events
 
 ```text
