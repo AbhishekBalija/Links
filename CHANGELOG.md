@@ -6,6 +6,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
+LINKS gets its look and its screens: everyone can read notices, staff can
+write them, and approvers can review them, on desktop and phone.
+
 ### Added
 - Home summary endpoint (#39): the signed-in user's latest notices, plus
   what's waiting for approvers and the state of an author's own
@@ -37,6 +42,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
   announcements for a batch (e.g. "CS students, batch 2023") never reached
   them (#45). The Batch now comes from the USN, and existing students are
   fixed by migration 015.
+
+### Changed
+- The first visit downloads about 42% less (743 kB to 409 kB): each page,
+  and Sentry's session replay, load only when needed (#52).
+- Only Vercel production builds upload source maps to Sentry; local builds
+  no longer do (#51).
+- Strict TypeScript, gofmt checked in CI, Vitest unit tests for the client's
+  logic (#53) and unit tests for sign-in, activation and profile privacy
+  (#8). ADR 0020 records that migrations only go forward.
+- The composer and the auth service are split into smaller files (#54,
+  #56), with no change in behaviour.
 
 ## [0.2.0] - 2026-09-26
 
@@ -105,6 +121,7 @@ records.
 - Audit logs for approvals and status changes.
 - Security tests for the auth surface and a Playwright e2e suite run in CI.
 
-[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/AbhishekBalija/Links/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AbhishekBalija/Links/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AbhishekBalija/Links/releases/tag/v0.1.0
