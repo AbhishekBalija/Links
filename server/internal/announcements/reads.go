@@ -44,8 +44,9 @@ type AuthorSummary struct {
 	EditsWaiting int `json:"edits_waiting"`
 }
 
-// Get returns one Announcement. Its author can always read it; an approver can
-// read one waiting for them; a reader can read a published one in their feed.
+// Get returns one Announcement. Its author can always read it; an approver
+// sees what's waiting for them (a new Announcement or an edit) as submitted;
+// a reader can read a published one in their feed.
 // Anyone else gets 404, so unpublished Announcements stay private.
 func (s *Service) Get(ctx context.Context, actorID, id string) (*AnnouncementResponse, error) {
 	entry, err := s.repository.Find(ctx, id)
@@ -64,15 +65,22 @@ func (s *Service) Get(ctx context.Context, actorID, id string) (*AnnouncementRes
 	if err != nil {
 		return nil, err
 	}
-	if entry.Status == StatusPending {
-		revision, revisionErr := s.repository.OpenRevision(ctx, entry.ID)
-		if revisionErr != nil {
-			return nil, fmt.Errorf("load revision: %w", revisionErr)
+	// Something waiting for this approver (a new Announcement or an edit to a
+	// published one) is shown as submitted, exactly as in their queue.
+	revision, err := s.repository.OpenRevision(ctx, entry.ID)
+	if err != nil {
+		return nil, fmt.Errorf("load revision: %w", err)
+	}
+	if revision != nil && revision.Status == RevisionPending && revision.SubmittedBy != actorID && canApprove(grants, revision) {
+		submitterName, nameErr := s.repository.FullName(ctx, revision.SubmittedBy)
+		if nameErr != nil {
+			return nil, fmt.Errorf("load submitter: %w", nameErr)
 		}
-		if revision != nil && revision.Status == RevisionPending && canApprove(grants, revision) {
-			return s.decorated(ctx, *entry, false)
+		responses, responseErr := s.queueResponses(ctx, []QueueEntry{{Revision: *revision, SubmitterName: submitterName}})
+		if responseErr != nil {
+			return nil, responseErr
 		}
-		return nil, notFound
+		return &responses[0], nil
 	}
 	if entry.Status != StatusPublished {
 		return nil, notFound

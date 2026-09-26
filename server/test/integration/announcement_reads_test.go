@@ -147,3 +147,24 @@ func TestPreviewMatchesWhatPostingDoes(t *testing.T) {
 		t.Errorf("student preview status = %d, want %d", forbidden.Status, http.StatusForbidden)
 	}
 }
+
+func TestApproverReadsTheEditWaitingForThem(t *testing.T) {
+	h := apitest.New(t)
+	studentsOnly := []map[string]any{{"department_id": h.DepartmentID(t, "CS"), "role": "student"}}
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	id, _ := createdStatus(t, publish(t, h, faculty.Token, map[string]any{"title": "Students only", "audience": studentsOnly}))
+	review(t, h, hod.Token, id, "approve", "")
+	edit(t, h, faculty.Token, id, "Students only, corrected", studentsOnly)
+
+	// The HOD isn't in the students-only Audience, but the edit is waiting for them.
+	response := h.Do(t, http.MethodGet, "/api/v1/announcements/"+id, hod.Token, nil)
+	if response.Status != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
+	}
+	var got detail
+	response.Decode(t, &got)
+	if got.Data.Title != "Students only, corrected" || got.Data.Status != "pending" {
+		t.Errorf("approver sees %q (%s), want the pending edit's text", got.Data.Title, got.Data.Status)
+	}
+}
