@@ -24,6 +24,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
   live and ended; opening one gives Edit and Withdraw (with a
   confirmation). Leaving the composer with unsaved text offers to keep it
   as a draft.
+- The approval queue (#42): HODs, the principal and admins review what's
+  waiting for them, oldest first, with the full text, who it goes to and
+  how many people it reaches. Approving asks once more (Enter confirms);
+  sending back needs a note. Edits to live notices can be compared with the
+  live version, items that expired while waiting can only be sent back, and
+  if someone else acts first the queue says so and refreshes. Home lists the
+  oldest waiting items, and the sidebar shows the count.
 
 ## [0.2.0] - 2026-09-26
 

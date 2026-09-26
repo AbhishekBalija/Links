@@ -43,3 +43,12 @@ export type Draft = {
   audience: RuleInput[]
   expires_at: string | null
 }
+
+// Something waiting in the approver's queue.
+export type QueueItem = Notice & {
+  kind: 'new' | 'edit'
+  submitted_at: string
+  approver: string
+  // For an edit: the text readers see now.
+  live?: { title: string; body: string }
+}

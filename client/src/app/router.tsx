@@ -7,12 +7,13 @@ import ActivateAccount from '../features/auth/pages/ActivateAccount'
 import Home from '../features/home/pages/Home'
 import Notices from '../features/notices/pages/Notices'
 import NoticeDetail from '../features/notices/pages/NoticeDetail'
+import ApprovalQueue from '../features/announcements/pages/ApprovalQueue'
 import Compose from '../features/announcements/pages/Compose'
 import MyAnnouncement from '../features/announcements/pages/MyAnnouncement'
 import MyAnnouncements from '../features/announcements/pages/MyAnnouncements'
 import { useAuthStore } from '../features/auth/store'
 import { AppShell } from './shell/AppShell'
-import { canPost } from './shell/nav'
+import { canApprove, canPost } from './shell/nav'
 import EditProfile from '../features/profiles/pages/EditProfile'
 
 export function AppRouter() {
@@ -33,6 +34,10 @@ export function AppRouter() {
           <Route path="/notices/:id" element={<NoticeDetail />} />
           <Route path="/mine" element={<MyAnnouncements />} />
           <Route path="/mine/:id" element={<MyAnnouncement />} />
+          <Route element={<ApproverRoute />}>
+            <Route path="/approvals" element={<ApprovalQueue />} />
+            <Route path="/approvals/:id" element={<ApprovalQueue />} />
+          </Route>
           <Route element={<PosterRoute />}>
             <Route path="/mine/new" element={<Compose />} />
             <Route path="/mine/:id/edit" element={<Compose />} />
@@ -50,4 +55,11 @@ export function AppRouter() {
 function PosterRoute() {
   const roles = useAuthStore((s) => s.user?.roles) ?? []
   return canPost(roles) ? <Outlet /> : <Navigate to="/mine" replace />
+}
+
+// ApproverRoute keeps the queue to HODs, the principal and admins. The server
+// decides what each of them may approve.
+function ApproverRoute() {
+  const roles = useAuthStore((s) => s.user?.roles) ?? []
+  return canApprove(roles) ? <Outlet /> : <Navigate to="/" replace />
 }

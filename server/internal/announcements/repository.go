@@ -388,14 +388,20 @@ type ApproverScope struct {
 type QueueEntry struct {
 	Revision
 	SubmitterName string `gorm:"column:submitter_name"`
+	// The Announcement as readers see it now: published means this is an edit.
+	AnnouncementStatus Status `gorm:"column:announcement_status"`
+	LiveTitle          string `gorm:"column:live_title"`
+	LiveBody           string `gorm:"column:live_body"`
 }
 
 // Queue returns pending revisions the approver may act on, oldest first.
 func (r *GormRepository) Queue(ctx context.Context, scope ApproverScope, after *FeedCursor, limit int) ([]QueueEntry, error) {
 	query := `
-		SELECT v.*, p.full_name AS submitter_name
+		SELECT v.*, p.full_name AS submitter_name,
+		       a.status AS announcement_status, a.title AS live_title, a.body AS live_body
 		FROM announcement_revisions v
 		JOIN profiles p ON p.user_id = v.submitted_by
+		JOIN announcements a ON a.id = v.announcement_id
 		WHERE v.status = 'pending' AND v.submitted_by <> ?`
 	args := []any{scope.UserID}
 	if !scope.All {

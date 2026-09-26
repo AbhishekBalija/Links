@@ -473,7 +473,9 @@ func (s *Service) queueResponses(ctx context.Context, entries []QueueEntry) ([]A
 		if nameErr != nil {
 			return nil, nameErr
 		}
-		responses = append(responses, AnnouncementResponse{
+		response := AnnouncementResponse{
+			Kind:          "new",
+			SubmittedAt:   entry.SubmittedAt,
 			Approver:      &approver,
 			ID:            entry.AnnouncementID,
 			Title:         entry.Title,
@@ -485,7 +487,12 @@ func (s *Service) queueResponses(ctx context.Context, entries []QueueEntry) ([]A
 			Audience:      audience,
 			ExpiresAt:     entry.ExpiresAt,
 			CreatedAt:     entry.CreatedAt,
-		})
+		}
+		if entry.AnnouncementStatus == StatusPublished {
+			response.Kind = "edit"
+			response.Live = &LiveContent{Title: entry.LiveTitle, Body: entry.LiveBody}
+		}
+		responses = append(responses, response)
 	}
 	return responses, nil
 }

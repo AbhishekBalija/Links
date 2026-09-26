@@ -64,3 +64,14 @@ export function approverPhrase(approver: string | null | undefined) {
   if (approver === 'Principal or admin') return 'the principal or an admin'
   return `the ${approver}`
 }
+
+const HOUR = 3600_000
+
+// waited says how long something has been waiting for approval. Over three
+// days counts as long, and is shown in the warning colour.
+export function waited(iso: string, now = new Date()) {
+  const hours = Math.max(1, Math.round((now.getTime() - new Date(iso).getTime()) / HOUR))
+  const days = Math.round(hours / 24)
+  const text = hours < 24 ? (hours === 1 ? 'waiting 1 hour' : `waiting ${hours} hours`) : days === 1 ? 'waiting 1 day' : `waiting ${days} days`
+  return { text, long: hours > 72 }
+}
