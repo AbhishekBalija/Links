@@ -176,7 +176,15 @@ export async function seedMember(
       ? (await client.query('SELECT id FROM departments WHERE code = $1', [member.department])).rows[0].id
       : null
     if (member.batch && dept) {
-      const usn = `4MN${String(member.batch).slice(2)}${member.department}${String(Math.floor(Math.random() * 900) + 100)}`
+      // USNs are unique, and other specs seed students too, so pick a roll
+      // number that is still free rather than trusting a random one.
+      let usn = ''
+      for (let attempt = 0; attempt < 50 && !usn; attempt++) {
+        const candidate = `4MN${String(member.batch).slice(2)}${member.department}${String(Math.floor(Math.random() * 900) + 100)}`
+        const taken = await client.query('SELECT 1 FROM student_identities WHERE lower(usn) = lower($1)', [candidate])
+        if (taken.rowCount === 0) usn = candidate
+      }
+      if (!usn) throw new Error('no free USN found for the seeded student')
       await client.query(
         `INSERT INTO student_identities (user_id, usn, department_id, batch_year) VALUES ($1, $2, $3, $4)`,
         [account.userId, usn, dept, member.batch],
