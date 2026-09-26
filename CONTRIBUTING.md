@@ -1,39 +1,59 @@
 # Contributing to LINKS
 
-Thanks for your interest in contributing! LINKS is the primary campus hub for MITT students.
+Thanks for helping. This guide covers setup, the workflow, and what a good
+pull request looks like.
 
-## How to Contribute
+## Setup
 
-1. **Fork** the repository (if you're an external contributor).
-2. **Create a branch** off `master` using the naming convention below.
-3. **Make your changes** with atomic, well-scoped commits.
-4. **Open a pull request** into `master`.
-5. **Wait for CodeRabbit** — an automated reviewer will check your PR. Address its comments before requesting a merge.
+Follow [Run locally](README.md#run-locally) in the README. Use your own local
+database or Neon branch for development, never a shared one for tests.
 
-## Branch Naming
+## Before you start
 
-| Type | Prefix | Example |
-|------|--------|---------|
-| Feature | `feat/` | `feat/auth-system` |
-| Bug fix | `fix/` | `fix/login-redirect` |
-| Docs/tooling/config | `chore/` | `chore/ci-setup` |
+- Read [`CONTEXT.md`](CONTEXT.md) for the domain words (USN, Access request,
+  Approval, Activation, Role assignment, Scope) and use them in code and docs.
+- Architecture decisions live in [`docs/adr/`](docs/adr). If your change
+  alters one, add a new ADR instead of silently diverging.
+- Check [`docs/roadmap.md`](docs/roadmap.md) and the open issues; comment on
+  an issue before starting larger work.
 
-## Commit Messages
+## Workflow
 
-- Use imperative mood: "Add auth middleware" not "Added auth middleware".
-- Include the *why* in the body when the reason isn't obvious.
-- Keep commits atomic — one logical change per commit.
+- Branch from `master`: `feat/...`, `fix/...`, `chore/...`, `docs/...`.
+- Never push to `master`; open a pull request. CI must pass, and CodeRabbit
+  reviews every PR: address or dismiss its comments before merging.
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
+  (`feat(server): ...`, `fix(client): ...`), and user-visible changes get a
+  line in [CHANGELOG.md](CHANGELOG.md) under Unreleased.
 
-## Code Standards
+## Checks
 
-- **Backend**: See [docs/backend-standards.md](docs/backend-standards.md) for Go conventions, layering rules, and testing requirements.
-- **Frontend**: See [docs/frontend-ux-ui.md](docs/frontend-ux-ui.md) for UI/UX guidelines.
-- **Security**: See [docs/security.md](docs/security.md) for security requirements and privacy rules.
+```sh
+cd server && go vet ./... && go test ./...
+cd client && bun run lint && bun run build
+```
 
-## Reporting Issues
+The Playwright e2e suite (`client/e2e/`) creates and drops its own schema; CI
+runs it against a throwaway Postgres. Code standards: Go in
+[docs/backend-standards.md](docs/backend-standards.md), UI in
+[docs/frontend-ux-ui.md](docs/frontend-ux-ui.md), security in
+[docs/security.md](docs/security.md).
 
-Open a GitHub issue with a clear description of the problem, steps to reproduce, and expected behavior.
+## Pull requests
 
-## Questions?
+Describe what changed, why, and how to test it, and add screenshots for UI
+changes (the template asks for these). Keep pull requests focused on one
+change.
 
-Check the [docs/](docs/) directory for architecture, API specs, and product requirements.
+## Releases
+
+LINKS uses [Semantic Versioning](https://semver.org/) and stays on 0.x while
+it is pre-1.0: a minor bump for a finished phase or a notable set of
+features, a patch bump for fixes only. A release is a `chore/release-X.Y.Z`
+pull request that moves the Unreleased entries in CHANGELOG.md into a dated
+section. After it merges, the merge commit is tagged `vX.Y.Z` and published as
+a GitHub release with that changelog section as its notes.
+
+## Code of conduct
+
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
