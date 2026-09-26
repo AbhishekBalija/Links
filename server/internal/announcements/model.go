@@ -52,6 +52,9 @@ const (
 	RevisionPending  RevisionStatus = "pending"
 	RevisionApproved RevisionStatus = "approved"
 	RevisionRejected RevisionStatus = "rejected"
+	// RevisionClosed can never go live: its Announcement was withdrawn, or a
+	// direct edit replaced it.
+	RevisionClosed RevisionStatus = "closed"
 )
 
 // StoredRule is an Audience rule as saved on a revision.

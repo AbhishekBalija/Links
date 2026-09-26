@@ -180,3 +180,41 @@ func TestEditsAndWithdrawalsAreAudited(t *testing.T) {
 		}
 	}
 }
+
+func TestWithdrawnAnnouncementCannotBeResubmitted(t *testing.T) {
+	h := apitest.New(t)
+	csAudience := []map[string]any{{"department_id": h.DepartmentID(t, "CS")}}
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	reader := student(t, h, "CS", 2023)
+
+	withPendingEdit := publishedByFaculty(t, h, faculty, hod, "Withdrawn with a pending edit")
+	edit(t, h, faculty.Token, withPendingEdit, "Pending edit text", csAudience)
+	withRejectedEdit := publishedByFaculty(t, h, faculty, hod, "Withdrawn with a rejected edit")
+	edit(t, h, faculty.Token, withRejectedEdit, "Rejected edit text", csAudience)
+	review(t, h, hod.Token, withRejectedEdit, "reject", "No")
+
+	for _, id := range []string{withPendingEdit, withRejectedEdit} {
+		if response := withdraw(t, h, hod.Token, id); response.Status != http.StatusOK {
+			t.Fatalf("withdraw status = %d: %s", response.Status, response.Body)
+		}
+		if response := h.Do(t, http.MethodPost, "/api/v1/announcements/"+id+"/submit-for-approval", faculty.Token, nil); response.Status != http.StatusConflict {
+			t.Errorf("resubmit after withdraw status = %d, want %d: %s", response.Status, http.StatusConflict, response.Body)
+		}
+	}
+	if queue := queueTitles(t, h, hod.Token); len(queue) != 0 {
+		t.Errorf("queue %v should be empty after withdrawals", queue)
+	}
+	authored := mine(t, h, faculty.Token)
+	for _, title := range []string{"Withdrawn with a pending edit", "Withdrawn with a rejected edit"} {
+		if got := authored[title].Status; got != "withdrawn" {
+			t.Errorf("%q status = %q, want withdrawn", title, got)
+		}
+	}
+	titles := feedTitles(t, h, reader.Token)
+	for _, gone := range []string{"Pending edit text", "Rejected edit text", "Withdrawn with a pending edit", "Withdrawn with a rejected edit"} {
+		if contains(titles, gone) {
+			t.Errorf("feed %v shows %q", titles, gone)
+		}
+	}
+}

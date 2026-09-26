@@ -8,8 +8,6 @@ import (
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
-const withdrawnNote = "The announcement was withdrawn."
-
 // editPublished changes a published Announcement. With Publishing authority
 // over the new Audience the edit applies at once; otherwise it becomes a
 // pending revision and readers keep seeing the approved version. A rejected
@@ -30,9 +28,8 @@ func (s *Service) editPublished(ctx context.Context, repositories Repositories, 
 	decision := DecidePublishing(grants, content.Category, content.Audience)
 	if decision.PublishDirectly {
 		if open != nil {
-			// The author can now publish this themselves, so close the old edit.
-			open.setContent(content, now)
-			open.Status, open.SubmittedAt = RevisionApproved, &now
+			// The direct edit replaces the old edit, which keeps its own history.
+			open.Status, open.UpdatedAt = RevisionClosed, now
 			if saveErr := repositories.Announcements.UpdateRevision(ctx, open); saveErr != nil {
 				return saveErr
 			}
@@ -99,12 +96,9 @@ func (s *Service) Withdraw(ctx context.Context, actorID, id string) (*Announceme
 			return openErr
 		}
 		if open != nil {
-			note := withdrawnNote
-			open.Status, open.ReviewNote = RevisionRejected, &note
-			open.ReviewedBy, open.ReviewedAt, open.UpdatedAt = &actorID, &now, now
-			if open.SubmittedAt == nil {
-				open.SubmittedAt = &now
-			}
+			// Closed, not rejected: a rejected revision can be resubmitted, and a
+			// withdrawn Announcement must never come back that way.
+			open.Status, open.UpdatedAt = RevisionClosed, now
 			if saveErr := repositories.Announcements.UpdateRevision(ctx, open); saveErr != nil {
 				return saveErr
 			}

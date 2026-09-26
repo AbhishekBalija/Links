@@ -155,6 +155,9 @@ func (s *Service) Submit(ctx context.Context, actorID, id string) (*Announcement
 		if loadErr != nil {
 			return loadErr
 		}
+		if announcement.Status == StatusWithdrawn || announcement.Status == StatusPending {
+			return apperrors.NewConflict("this announcement can't be submitted now")
+		}
 		if revision.Status != RevisionDraft && revision.Status != RevisionRejected {
 			return apperrors.NewConflict("this announcement has nothing to submit")
 		}
