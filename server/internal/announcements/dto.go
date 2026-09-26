@@ -9,12 +9,33 @@ type AudienceRuleInput struct {
 	Role         *string `json:"role"`
 }
 
-type CreateAnnouncementInput struct {
+// contentInput is the editable part of an Announcement.
+type contentInput struct {
 	Title     string              `json:"title" binding:"required"`
 	Body      string              `json:"body" binding:"required"`
 	Category  string              `json:"category" binding:"required"`
 	Audience  []AudienceRuleInput `json:"audience"`
 	ExpiresAt *time.Time          `json:"expires_at"`
+}
+
+// CreateAnnouncementInput posts an Announcement; Draft saves it without
+// publishing or submitting it.
+type CreateAnnouncementInput struct {
+	contentInput
+	Draft bool `json:"draft"`
+}
+
+func (i CreateAnnouncementInput) content() contentInput { return i.contentInput }
+
+// UpdateAnnouncementInput replaces a draft or rejected Announcement's content.
+type UpdateAnnouncementInput struct {
+	contentInput
+}
+
+// ReviewInput approves or rejects an Announcement waiting for approval.
+type ReviewInput struct {
+	Decision string `json:"decision" binding:"required"`
+	Note     string `json:"note"`
 }
 
 type AudienceRuleResponse struct {
@@ -36,6 +57,7 @@ type AnnouncementResponse struct {
 	PublishedAt   *time.Time             `json:"published_at"`
 	ExpiresAt     *time.Time             `json:"expires_at"`
 	CreatedAt     time.Time              `json:"created_at"`
+	ReviewNote    *string                `json:"review_note,omitempty"`
 }
 
 // FeedMeta carries the cursor for the next page; empty when there are no more.

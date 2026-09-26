@@ -1,6 +1,7 @@
 package announcements
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -24,24 +25,15 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	announcements := v1.Group("/announcements")
 	announcements.GET("", h.Feed)
 	announcements.POST("", h.Create)
+	announcements.GET("/mine", h.Mine)
+	announcements.GET("/approvals", h.Queue)
+	announcements.PATCH("/:id", h.Update)
+	announcements.POST("/:id/submit-for-approval", h.Submit)
+	announcements.PATCH("/:id/approval", h.Review)
 }
 
 func (h *Handler) Feed(c *gin.Context) {
-	actor := h.authorize(c, auth.PermissionViewTargetedNotices)
-	if actor == nil {
-		return
-	}
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "0"))
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid limit", map[string]string{"limit": "use a whole number"})
-		return
-	}
-	items, meta, err := h.service.Feed(c.Request.Context(), actor.UserID, c.Query("cursor"), limit)
-	if err != nil {
-		writeError(c, err)
-		return
-	}
-	response.Success(c, http.StatusOK, items, meta)
+	h.list(c, auth.PermissionViewTargetedNotices, h.service.Feed)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -60,6 +52,84 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusCreated, result, nil)
+}
+
+func (h *Handler) Mine(c *gin.Context) {
+	h.list(c, auth.PermissionPostAnnouncement, h.service.Mine)
+}
+
+func (h *Handler) Queue(c *gin.Context) {
+	h.list(c, auth.PermissionApproveAnnouncement, h.service.Queue)
+}
+
+func (h *Handler) Update(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionPostAnnouncement)
+	if actor == nil {
+		return
+	}
+	var input UpdateAnnouncementInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body", nil)
+		return
+	}
+	result, err := h.service.Update(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+func (h *Handler) Submit(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionPostAnnouncement)
+	if actor == nil {
+		return
+	}
+	result, err := h.service.Submit(c.Request.Context(), actor.UserID, c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+func (h *Handler) Review(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionApproveAnnouncement)
+	if actor == nil {
+		return
+	}
+	var input ReviewInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid request body", nil)
+		return
+	}
+	result, err := h.service.Review(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+type listFunc func(ctx context.Context, actorID, cursor string, limit int) ([]AnnouncementResponse, *FeedMeta, error)
+
+// list serves a cursor-paginated list after checking the permission.
+func (h *Handler) list(c *gin.Context, permission auth.Permission, load listFunc) {
+	actor := h.authorize(c, permission)
+	if actor == nil {
+		return
+	}
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "0"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid limit", map[string]string{"limit": "use a whole number"})
+		return
+	}
+	items, meta, err := load(c.Request.Context(), actor.UserID, c.Query("cursor"), limit)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, items, meta)
 }
 
 func (h *Handler) authorize(c *gin.Context, permission auth.Permission) *auth.Actor {

@@ -2,12 +2,14 @@ package announcements
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const targetTypeAnnouncement = "announcement"
@@ -81,6 +83,21 @@ func (r *GormRepository) Create(ctx context.Context, announcement *Announcement,
 	if err := r.db.WithContext(ctx).Create(announcement).Error; err != nil {
 		return err
 	}
+	return r.insertAudience(ctx, announcement.ID, audience)
+}
+
+// ReplaceAudience swaps an Announcement's Audience rules for new ones.
+func (r *GormRepository) ReplaceAudience(ctx context.Context, announcementID string, audience []AudienceRule) error {
+	err := r.db.WithContext(ctx).Exec(
+		`DELETE FROM audience_rules WHERE target_type = ? AND target_id = ?`, targetTypeAnnouncement, announcementID,
+	).Error
+	if err != nil {
+		return err
+	}
+	return r.insertAudience(ctx, announcementID, audience)
+}
+
+func (r *GormRepository) insertAudience(ctx context.Context, announcementID string, audience []AudienceRule) error {
 	for _, rule := range audience {
 		var role *string
 		if rule.Role != nil {
@@ -90,7 +107,7 @@ func (r *GormRepository) Create(ctx context.Context, announcement *Announcement,
 		err := r.db.WithContext(ctx).Exec(
 			`INSERT INTO audience_rules (id, target_type, target_id, department_id, batch_year, role)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
-			uuid.NewString(), targetTypeAnnouncement, announcement.ID, rule.DepartmentID, rule.BatchYear, role,
+			uuid.NewString(), targetTypeAnnouncement, announcementID, rule.DepartmentID, rule.BatchYear, role,
 		).Error
 		if err != nil {
 			return err
@@ -201,4 +218,141 @@ func (r *GormRepository) FullName(ctx context.Context, userID string) (string, e
 		return "", err
 	}
 	return names[0], nil
+}
+
+// FindForUpdate loads an Announcement and locks its row until the transaction
+// ends, so approvals, rejections and resubmissions of it happen one at a time.
+func (r *GormRepository) FindForUpdate(ctx context.Context, id string) (*Announcement, error) {
+	var announcement Announcement
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&announcement).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &announcement, err
+}
+
+func (r *GormRepository) UpdateAnnouncement(ctx context.Context, announcement *Announcement) error {
+	return r.db.WithContext(ctx).Save(announcement).Error
+}
+
+func (r *GormRepository) CreateRevision(ctx context.Context, revision *Revision) error {
+	if revision.ID == "" {
+		revision.ID = uuid.NewString()
+	}
+	return r.db.WithContext(ctx).Create(revision).Error
+}
+
+func (r *GormRepository) UpdateRevision(ctx context.Context, revision *Revision) error {
+	return r.db.WithContext(ctx).Save(revision).Error
+}
+
+// OpenRevision returns the Announcement's draft, pending or rejected revision, if any.
+func (r *GormRepository) OpenRevision(ctx context.Context, announcementID string) (*Revision, error) {
+	var revision Revision
+	err := r.db.WithContext(ctx).
+		Where("announcement_id = ? AND status IN ?", announcementID, []RevisionStatus{RevisionDraft, RevisionPending, RevisionRejected}).
+		First(&revision).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &revision, err
+}
+
+// LatestRevisions returns the newest revision of each given Announcement.
+func (r *GormRepository) LatestRevisions(ctx context.Context, announcementIDs []string) ([]Revision, error) {
+	var revisions []Revision
+	if len(announcementIDs) == 0 {
+		return revisions, nil
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT ON (announcement_id) *
+		FROM announcement_revisions
+		WHERE announcement_id IN ?
+		ORDER BY announcement_id, created_at DESC, id DESC`, announcementIDs,
+	).Scan(&revisions).Error
+	return revisions, err
+}
+
+// ApproverScope is what an approver may approve: everything (principal or
+// admin), or single-Department submissions for the Departments they are HOD of.
+// Their own submissions are never included.
+type ApproverScope struct {
+	UserID        string
+	All           bool
+	DepartmentIDs []string
+}
+
+// QueueEntry is a pending revision with its submitter's name.
+type QueueEntry struct {
+	Revision
+	SubmitterName string `gorm:"column:submitter_name"`
+}
+
+// Queue returns pending revisions the approver may act on, oldest first.
+func (r *GormRepository) Queue(ctx context.Context, scope ApproverScope, after *FeedCursor, limit int) ([]QueueEntry, error) {
+	query := `
+		SELECT v.*, p.full_name AS submitter_name
+		FROM announcement_revisions v
+		JOIN profiles p ON p.user_id = v.submitted_by
+		WHERE v.status = 'pending' AND v.submitted_by <> ?`
+	args := []any{scope.UserID}
+	if !scope.All {
+		if len(scope.DepartmentIDs) == 0 {
+			return []QueueEntry{}, nil
+		}
+		query += ` AND v.approver_department_id IN ?`
+		args = append(args, scope.DepartmentIDs)
+	}
+	if after != nil {
+		query += ` AND (v.submitted_at, v.id) > (?, CAST(? AS uuid))`
+		args = append(args, after.PublishedAt, after.ID)
+	}
+	query += ` ORDER BY v.submitted_at, v.id LIMIT ?`
+	args = append(args, limit)
+
+	var entries []QueueEntry
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&entries).Error
+	return entries, err
+}
+
+// Authored returns the author's Announcements in any status, newest first.
+func (r *GormRepository) Authored(ctx context.Context, authorID string, after *FeedCursor, limit int) ([]FeedEntry, error) {
+	query := `
+		SELECT a.*, p.full_name AS publisher_name
+		FROM announcements a
+		JOIN profiles p ON p.user_id = a.publisher_id
+		WHERE a.publisher_id = ?`
+	args := []any{authorID}
+	if after != nil {
+		query += ` AND (a.created_at, a.id) < (?, CAST(? AS uuid))`
+		args = append(args, after.PublishedAt, after.ID)
+	}
+	query += ` ORDER BY a.created_at DESC, a.id DESC LIMIT ?`
+	args = append(args, limit)
+
+	var entries []FeedEntry
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&entries).Error
+	return entries, err
+}
+
+// DepartmentCodes maps Department IDs to their codes.
+func (r *GormRepository) DepartmentCodes(ctx context.Context, departmentIDs []string) (map[string]string, error) {
+	codes := map[string]string{}
+	if len(departmentIDs) == 0 {
+		return codes, nil
+	}
+	var rows []struct {
+		ID   string `gorm:"column:id"`
+		Code string `gorm:"column:code"`
+	}
+	if err := r.db.WithContext(ctx).Raw(`SELECT id, code FROM departments WHERE id IN ?`, departmentIDs).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		codes[row.ID] = row.Code
+	}
+	return codes, nil
 }
