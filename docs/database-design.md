@@ -163,9 +163,9 @@ announcements (
   id uuid primary key,
   title text not null,
   body text not null,
+  category text not null,       -- official | department | placement
   publisher_id uuid not null references users(id),
-  status text not null,
-  visibility text not null,
+  status text not null,         -- draft | pending | published | rejected | withdrawn
   published_at timestamptz,
   expires_at timestamptz,
   created_at timestamptz not null,
@@ -174,6 +174,11 @@ announcements (
 ```
 
 ### audience_rules
+
+An Announcement's Audience is its audience rules (`target_type = 'announcement'`).
+Fields set in one rule must all match; matching any rule is enough; no rules
+means the whole college. Visibility comes from these rules, so announcements
+have no separate visibility column.
 
 ```sql
 audience_rules (

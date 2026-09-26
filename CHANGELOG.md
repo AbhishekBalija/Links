@@ -7,6 +7,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Targeted announcements, first slice (#27): HODs (own Department), the
+  principal, admins and the placement officer (placement notices) publish
+  Announcements to an Audience of Departments, batch years and roles, or the
+  whole college. Readers get a paginated feed of what targets them, and
+  expired notices drop out. Approval for other authors comes next (#28).
+- API tests run the real router against an isolated Postgres schema (#26).
 - Department management (#10): any signed-in user can list and read
   departments, and admins can create, update and delete them. Codes can't
   change, a department still in use can't be deleted, and every change is
