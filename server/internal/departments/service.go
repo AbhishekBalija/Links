@@ -139,7 +139,7 @@ func (s *Service) Delete(ctx context.Context, actorID, code string) error {
 	}
 
 	err := s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
-		department, findErr := repositories.Departments.FindByCode(ctx, normalizedCode)
+		department, findErr := repositories.Departments.FindByCodeForUpdate(ctx, normalizedCode)
 		if findErr != nil {
 			return findErr
 		}

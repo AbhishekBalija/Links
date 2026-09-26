@@ -40,6 +40,10 @@ func (r *fakeRepository) FindByCode(_ context.Context, code string) (*Department
 	return &copy, nil
 }
 
+func (r *fakeRepository) FindByCodeForUpdate(ctx context.Context, code string) (*Department, error) {
+	return r.FindByCode(ctx, code)
+}
+
 func (r *fakeRepository) Create(_ context.Context, department *Department) error {
 	department.ID = "department-" + department.Code
 	copy := *department

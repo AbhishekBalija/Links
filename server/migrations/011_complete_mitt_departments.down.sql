@@ -10,12 +10,14 @@ WHERE code = 'AI'
       AND scope_id = departments.id
   );
 
+-- Revert only rows that still carry the 011 names.
 UPDATE departments
 SET name = CASE code
   WHEN 'CS' THEN 'Computer Science & Engineering'
   WHEN 'AD' THEN 'Artificial Intelligence & Data Science'
   WHEN 'EC' THEN 'Electronics & Communication Engineering'
-  ELSE name
 END,
 updated_at = now()
-WHERE code IN ('CS', 'AD', 'EC');
+WHERE (code = 'CS' AND name = 'Computer Science and Engineering')
+   OR (code = 'AD' AND name = 'Artificial Intelligence and Data Science')
+   OR (code = 'EC' AND name = 'Electronics and Communication Engineering');

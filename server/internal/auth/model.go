@@ -215,6 +215,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *User) error
 	UpdateStatus(ctx context.Context, id string, status UserStatus) error
 	FindDepartmentByCode(ctx context.Context, code string) (*Department, error)
+	LockDepartmentForShare(ctx context.Context, id string) (bool, error)
 	CreateProfile(ctx context.Context, profile *Profile) error
 	CreateStudentIdentity(ctx context.Context, identity *StudentIdentity) error
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)

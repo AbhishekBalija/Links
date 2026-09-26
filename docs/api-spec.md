@@ -178,6 +178,13 @@ POST   /api/v1/admin/users/:id/roles
 DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId
 ```
 
+`PATCH /api/v1/admin/users/:id/verify` accepts an optional `scope_type` and
+`scope_id` for the student role (global when omitted). A `department` scope
+must carry an existing department's ID, otherwise it returns
+`400 VALIDATION_ERROR`. The department row is share-locked while the role is
+created, so a concurrent department delete either waits and returns `409` or
+runs first and the approval returns `400`.
+
 ## Announcements
 
 ```text
@@ -295,7 +302,7 @@ DELETE /api/v1/push-subscriptions/:id
 
 - Every write endpoint must authenticate.
 - Every protected endpoint must authorize resource access.
-- Every list endpoint must paginate.
+- Every list endpoint must paginate, except small reference lists that only admins can grow and that clients need whole, such as `GET /api/v1/departments` (one row per MITT department).
 - Every CSV export must be audited.
 - Every request body must have a DTO.
 - Never return password hashes, refresh tokens, or private applicant notes to unauthorized users.
