@@ -661,7 +661,7 @@ newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
 ## Opportunities and Applications
 
 The placement workflow is ADR 0024. Built so far: drafts, publishing, the
-feed and Applications.
+feed, Applications, and the applicant list with status updates.
 
 ```text
 GET   /api/v1/opportunities
@@ -673,10 +673,11 @@ POST  /api/v1/opportunities/:id/publish
 POST  /api/v1/opportunities/:id/close
 POST  /api/v1/opportunities/:id/apply
 POST  /api/v1/opportunities/:id/withdraw
+GET   /api/v1/opportunities/:id/applications
+PATCH /api/v1/opportunity-applications/:id/status
 ```
 
-Planned in the same workflow: the applicant list with status updates, and the
-applicant export.
+Planned in the same workflow: the applicant export.
 
 ### Opportunities
 
@@ -799,6 +800,46 @@ selected it is `409`, and without an Application `404`. Withdrawing is final.
 
 Both return the caller's Application (`my_application` above) and are audited
 (`application_submitted`, `application_withdrawn`) in the same transaction.
+
+### Applicant list and status updates
+
+`GET /api/v1/opportunities/:id/applications` (placement staff,
+`view_applicant_data`; `403` for anyone else, `404` for an unknown
+Opportunity) lists its Applications in the order they were made:
+
+```json
+{
+  "data": [{
+    "id": "uuid",
+    "opportunity_id": "uuid",
+    "student": {
+      "user_id": "uuid", "full_name": "...", "username": "...",
+      "email": "...", "usn": "4MN23CS001", "department_code": "CS", "batch_year": 2023
+    },
+    "mode": "internal",
+    "status": "applied",
+    "applied_at": "...", "withdrawn_at": null, "status_changed_at": null
+  }],
+  "meta": { "next_cursor": "..." }
+}
+```
+
+- Filters: `status` (`applied`, `shortlisted`, `rejected`, `selected`,
+  `withdrawn`), `department` (a Department code, any case) and `batch` (the
+  Student's Batch); `cursor` and `limit` (1 to 50, default 20). A bad filter
+  or cursor is `400`.
+- Never a phone number. Opening the list (a request without a cursor) is
+  audited as `applicants_viewed` with the filters.
+
+`PATCH /api/v1/opportunity-applications/:id/status` (placement staff,
+`shortlist_applicants`) with `{"from": "applied", "status": "shortlisted"}`
+moves an Application among `applied`, `shortlisted`, `rejected` and
+`selected`, in any direction so a mistake can be undone. `from` is the status
+the caller saw: the Application row is locked, and if its status has moved on
+the change is `409` rather than an overwrite. A withdrawn Application is the
+Student's decision (`409`); `withdrawn`, an unknown status or the current one
+as the target is `400`; an unknown ID is `404`. Returns the Application as in
+the list, and is audited as `application_status_changed` with `from` and `to`.
 
 ## Departments
 

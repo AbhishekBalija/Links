@@ -134,6 +134,9 @@ type Repository interface {
 	UpdateApplication(ctx context.Context, application *Application) error
 	FindApplicationForUpdate(ctx context.Context, opportunityID, studentID string) (*Application, error)
 	ApplicationsOf(ctx context.Context, studentID string, opportunityIDs []string) ([]Application, error)
+	Applicants(ctx context.Context, opportunityID string, filter ApplicantFilter, after *Cursor, limit int) ([]ApplicantRow, error)
+	Applicant(ctx context.Context, applicationID string) (*ApplicantRow, error)
+	FindApplicationByIDForUpdate(ctx context.Context, id string) (*Application, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
 }
@@ -213,3 +216,43 @@ type Application struct {
 }
 
 func (Application) TableName() string { return "opportunity_applications" }
+
+// staffStatus reports whether placement staff may move an Application to
+// this status. withdrawn is the Student's alone.
+func staffStatus(status ApplicationStatus) bool {
+	switch status {
+	case ApplicationApplied, ApplicationShortlisted, ApplicationRejected, ApplicationSelected:
+		return true
+	}
+	return false
+}
+
+func validApplicationStatus(status ApplicationStatus) bool {
+	return staffStatus(status) || status == ApplicationWithdrawn
+}
+
+// ApplicantFilter narrows an Opportunity's applicant list.
+type ApplicantFilter struct {
+	Status       *ApplicationStatus
+	DepartmentID *string
+	BatchYear    *int
+}
+
+// ApplicantRow is one Application with the Student details placement staff
+// need. It never carries a phone number (ADR 0024).
+type ApplicantRow struct {
+	ID              string            `gorm:"column:id"`
+	OpportunityID   string            `gorm:"column:opportunity_id"`
+	StudentID       string            `gorm:"column:student_id"`
+	FullName        string            `gorm:"column:full_name"`
+	Username        string            `gorm:"column:username"`
+	Email           *string           `gorm:"column:email"`
+	USN             *string           `gorm:"column:usn"`
+	DepartmentCode  *string           `gorm:"column:department_code"`
+	BatchYear       *int              `gorm:"column:batch_year"`
+	Mode            Mode              `gorm:"column:mode"`
+	Status          ApplicationStatus `gorm:"column:status"`
+	AppliedAt       time.Time         `gorm:"column:applied_at"`
+	WithdrawnAt     *time.Time        `gorm:"column:withdrawn_at"`
+	StatusChangedAt *time.Time        `gorm:"column:status_changed_at"`
+}

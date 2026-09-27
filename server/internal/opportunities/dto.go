@@ -132,3 +132,62 @@ func toApplicationResponse(application Application) *ApplicationResponse {
 		WithdrawnAt:   application.WithdrawnAt,
 	}
 }
+
+// ApplicantQuery is the applicant list's query string, unchecked.
+type ApplicantQuery struct {
+	Status     string
+	Department string
+	Batch      string
+	Cursor     string
+	Limit      int
+}
+
+// StatusInput moves an Application. From is the status the caller saw, so a
+// change that raced theirs is refused instead of overwritten.
+type StatusInput struct {
+	From   string `json:"from" binding:"required"`
+	Status string `json:"status" binding:"required"`
+}
+
+type ApplicantStudent struct {
+	UserID         string  `json:"user_id"`
+	FullName       string  `json:"full_name"`
+	Username       string  `json:"username"`
+	Email          *string `json:"email"`
+	USN            *string `json:"usn"`
+	DepartmentCode *string `json:"department_code"`
+	BatchYear      *int    `json:"batch_year"`
+}
+
+// ApplicantResponse is one Application in the applicant list.
+type ApplicantResponse struct {
+	ID              string            `json:"id"`
+	OpportunityID   string            `json:"opportunity_id"`
+	Student         ApplicantStudent  `json:"student"`
+	Mode            Mode              `json:"mode"`
+	Status          ApplicationStatus `json:"status"`
+	AppliedAt       time.Time         `json:"applied_at"`
+	WithdrawnAt     *time.Time        `json:"withdrawn_at"`
+	StatusChangedAt *time.Time        `json:"status_changed_at"`
+}
+
+func toApplicantResponse(row ApplicantRow) ApplicantResponse {
+	return ApplicantResponse{
+		ID:            row.ID,
+		OpportunityID: row.OpportunityID,
+		Student: ApplicantStudent{
+			UserID:         row.StudentID,
+			FullName:       row.FullName,
+			Username:       row.Username,
+			Email:          row.Email,
+			USN:            row.USN,
+			DepartmentCode: row.DepartmentCode,
+			BatchYear:      row.BatchYear,
+		},
+		Mode:            row.Mode,
+		Status:          row.Status,
+		AppliedAt:       row.AppliedAt,
+		WithdrawnAt:     row.WithdrawnAt,
+		StatusChangedAt: row.StatusChangedAt,
+	}
+}

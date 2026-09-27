@@ -218,6 +218,15 @@ one list of everything they applied to. So "I applied" creates an Application
 with `mode = external`: the same one-per-student rule, the same statuses the
 office can update when the company replies, and the same place in reports.
 
+### How do two placement staff avoid overwriting each other's shortlisting?
+
+Each status change sends the status the caller saw (`from`) with the one they
+want. The server locks the Application row (`SELECT ... FOR UPDATE`), and if
+the status is no longer `from`, it answers `409` instead of writing. So if
+one officer shortlists a student while another, looking at a stale page,
+rejects them, the second one is told it changed and reloads. The lock makes
+the check and the write one step; the `from` makes a stale screen visible.
+
 ### Why can any placement staff member edit any Opportunity?
 
 Events belong to their proposer, but the placement office is a small team that

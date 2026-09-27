@@ -14,6 +14,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Placement staff see each Opportunity's applicants (name, email, USN,
+  Department, Batch, never phone numbers), filtered by status, Department
+  and Batch, and move Applications between applied, shortlisted, rejected and
+  selected. A change based on a status someone else already changed is
+  refused, and opening the list and every change are audited.
 - Students apply to an open internal Opportunity they are eligible for, once,
   and withdraw while it is still only applied; for an external one they mark
   that they applied on the company's site so it is tracked. Each Opportunity

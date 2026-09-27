@@ -129,4 +129,4 @@ _Avoid_: criteria, target
 A Student's application to an Opportunity, made inside LINKS (internal) or their record that they applied on the company's site (external). One per Student per Opportunity; withdrawing is final. Visible only to the Student, the Placement officer, the Principal and admins.
 
 **Shortlist**:
-The Applications the Placement officer moves forward for an Opportunity.
+The Applications placement staff move forward for an Opportunity: those with the status shortlisted, before selection or rejection.
