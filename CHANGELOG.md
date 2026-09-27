@@ -21,6 +21,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   when the event starts; the cancellation reason on a cancelled event; and
   "Coming up" on Home. Phones keep five tabs, so an HOD's People tab moves
   to Home's department link.
+- Proposers can delete their own event drafts. Anything already submitted is
+  cancelled instead, so its history stays.
 - The event feed carries each Event's answer counts and your own answer,
   lists upcoming, going or past Events (`show`), and keeps a cancelled Event
   in view, until it ends, for the people who answered it.

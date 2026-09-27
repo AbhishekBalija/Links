@@ -261,3 +261,40 @@ func TestMineListsOnlyTheCallersEventsNewestFirst(t *testing.T) {
 		t.Errorf("bad status filter = %d, want %d", response.Status, http.StatusBadRequest)
 	}
 }
+
+func TestProposerDeletesOnlyTheirOwnDrafts(t *testing.T) {
+	h := apitest.New(t)
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	colleague := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	cs := h.DepartmentID(t, "CS")
+	draft := createdEvent(t, createEvent(t, h, faculty.Token, eventBody(map[string]any{"department_id": cs, "audience": []map[string]any{{"department_id": cs}}})))
+	submitted := createdEvent(t, createEvent(t, h, faculty.Token, eventBody(map[string]any{"department_id": cs, "title": "Sent for review"})))
+	if status := eventStatus(t, submitEvent(t, h, faculty.Token, submitted.ID)); status != "submitted" {
+		t.Fatalf("submitted status = %q", status)
+	}
+
+	del := func(token, id string) int {
+		return h.Do(t, http.MethodDelete, "/api/v1/events/"+id, token, nil).Status
+	}
+	if got := del(colleague.Token, draft.ID); got != http.StatusNotFound {
+		t.Errorf("colleague deletes = %d, want %d", got, http.StatusNotFound)
+	}
+	if got := del(faculty.Token, submitted.ID); got != http.StatusConflict {
+		t.Errorf("deleting a submitted event = %d, want %d (cancel it instead)", got, http.StatusConflict)
+	}
+	if got := del(faculty.Token, draft.ID); got != http.StatusNoContent {
+		t.Fatalf("deleting own draft = %d, want %d", got, http.StatusNoContent)
+	}
+	if got := h.Do(t, http.MethodGet, "/api/v1/events/"+draft.ID, faculty.Token, nil).Status; got != http.StatusNotFound {
+		t.Errorf("deleted draft = %d, want %d", got, http.StatusNotFound)
+	}
+	if drafts := myEvents(t, h, faculty.Token, "draft"); len(drafts) != 0 {
+		t.Errorf("drafts after delete = %+v, want none", drafts)
+	}
+	var rules, audits int
+	h.DB().Raw(`SELECT count(*) FROM audience_rules WHERE target_type = 'event' AND target_id = ?`, draft.ID).Scan(&rules)
+	h.DB().Raw(`SELECT count(*) FROM audit_logs WHERE action = 'event_draft_deleted' AND resource_id = ?`, draft.ID).Scan(&audits)
+	if rules != 0 || audits != 1 {
+		t.Errorf("audience rules = %d, audit rows = %d, want 0 and 1", rules, audits)
+	}
+}
