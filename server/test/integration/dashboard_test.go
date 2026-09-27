@@ -3,6 +3,7 @@ package integration
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/AbhishekBalija/Links/server/test/apitest"
 )
@@ -21,7 +22,9 @@ type dashboard struct {
 			HasMore bool       `json:"has_more"`
 		} `json:"notices"`
 		Approvals *struct {
-			PendingCount int `json:"pending_count"`
+			PendingCount           int        `json:"pending_count"`
+			EventsPendingCount     int        `json:"events_pending_count"`
+			OldestEventSubmittedAt *time.Time `json:"oldest_event_submitted_at"`
 		} `json:"approvals"`
 		MyAnnouncements *struct {
 			Draft        int `json:"draft"`
@@ -91,5 +94,57 @@ func TestStaffDashboardShowsTheirWorkSections(t *testing.T) {
 	}
 	if approvals := getDashboard(t, h, principal.Token).Data.Approvals; approvals == nil || approvals.PendingCount != 2 {
 		t.Errorf("principal approvals = %+v, want 2 pending", approvals)
+	}
+}
+
+func TestDashboardCountsTheEventsWaitingForEachReviewer(t *testing.T) {
+	h := apitest.New(t)
+	cs, me := h.DepartmentID(t, "CS"), h.DepartmentID(t, "ME")
+	csFaculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	meFaculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "ME"}}})
+	csHOD := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	ecHOD := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "EC"}}})
+	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+
+	submit := func(token, department, title string) string {
+		t.Helper()
+		return createdEvent(t, createEvent(t, h, token, eventBody(map[string]any{"title": title, "department_id": department, "draft": false}))).ID
+	}
+	submit(csFaculty.Token, cs, "Waits for the CS HOD")
+	submit(meFaculty.Token, me, "Waits for the principal: ME has no HOD")
+	passed := submit(csFaculty.Token, cs, "Passed the CS HOD")
+	expectStatus(t, "hod approve", hodReview(t, h, csHOD.Token, passed, "approve", ""), http.StatusOK)
+	submit(csHOD.Token, cs, "The CS HOD's own event, straight to final")
+	createEvent(t, h, csFaculty.Token, eventBody(map[string]any{"title": "A draft waits for nobody", "department_id": cs}))
+
+	cases := []struct {
+		name  string
+		token string
+		want  int
+	}{
+		{"CS HOD", csHOD.Token, 1},
+		{"EC HOD", ecHOD.Token, 0},
+		{"principal", principal.Token, 3},
+		{"admin", admin.Token, 3},
+	}
+	for _, c := range cases {
+		approvals := getDashboard(t, h, c.token).Data.Approvals
+		if approvals == nil {
+			t.Errorf("%s: no approvals section", c.name)
+			continue
+		}
+		if approvals.EventsPendingCount != c.want {
+			t.Errorf("%s: events_pending_count = %d, want %d", c.name, approvals.EventsPendingCount, c.want)
+		}
+		if (approvals.OldestEventSubmittedAt != nil) != (c.want > 0) {
+			t.Errorf("%s: oldest_event_submitted_at = %v with %d waiting", c.name, approvals.OldestEventSubmittedAt, c.want)
+		}
+		if approvals.PendingCount != 0 {
+			t.Errorf("%s: announcements pending_count = %d, want 0: events are counted apart", c.name, approvals.PendingCount)
+		}
+	}
+	if approvals := getDashboard(t, h, csFaculty.Token).Data.Approvals; approvals != nil {
+		t.Errorf("faculty has an approvals section: %+v", approvals)
 	}
 }
