@@ -36,6 +36,14 @@ Cascade deletion could erase or detach student and authorization data after one
 admin request. Returning `409 CONFLICT` makes the dependency explicit and keeps
 cleanup or reassignment as a deliberate separate operation.
 
+### Why read Department codes from the database instead of a list in code?
+
+A list in code and the `departments` table can disagree, and they did: an admin
+could create a Department that nobody could sign up to, because the USN check
+and the sign-up form each had their own hardcoded list. With the table as the
+only list, the USN check just checks the shape, and the Department lookup
+decides whether the code is real.
+
 ## API Test Harness
 
 ### Why test the API against a real Postgres instead of mocking the repositories?

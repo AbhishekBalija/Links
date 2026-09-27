@@ -47,6 +47,13 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 - Refresh and logout, the only cookie-authenticated requests, check `Origin`
   or `Referer` against the allowed origins and the API's own host (ADR 0022).
 
+## Public Endpoints
+
+Besides health checks and the auth endpoints, only `GET /api/v1/public/departments`
+and `POST /api/csp-report` work without a token. The first returns Department
+codes and names, nothing else (ADR 0021); the second only logs a browser's
+CSP violation report (ADR 0022).
+
 ## CORS
 
 - Use explicit origin allow-list.

@@ -25,6 +25,12 @@ type DepartmentResponse struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
+// PublicDepartment is what the sign-up form needs: no IDs, no HOD.
+type PublicDepartment struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
 type DepartmentListResponse struct {
 	Departments []DepartmentResponse `json:"departments"`
 }

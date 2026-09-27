@@ -12,6 +12,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Department, and an audit log. Only an admin can grant or end the admin role,
   and the last admin can't be removed.
 
+### Changed
+- Department codes come from the database (#18): a Department an admin adds
+  works for access requests and appears in the sign-up form without a code
+  change. A new public endpoint lists Department codes and names. A USN whose
+  Department differs from the chosen one is now rejected.
+
 ### Security
 - Refresh and logout refuse requests from other sites (Origin or Referer
   check), every API response carries security headers, and the web app

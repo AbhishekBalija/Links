@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '../../shared/api/client'
 import type {
   LoginInput,
@@ -6,6 +7,7 @@ import type {
   RequestAccessResponse,
 	CurrentUser,
 	ActivateInput,
+	PublicDepartment,
 } from './types'
 
 export function loginUser(input: LoginInput) {
@@ -49,5 +51,15 @@ export function activateAccount(input: ActivateInput) {
 export function refreshUserToken() {
   return apiRequest<{ access_token: string; expires_in: number }>('/api/v1/auth/refresh', {
     method: 'POST',
+  })
+}
+
+// usePublicDepartments loads the Department list for the Access request form,
+// which is used before sign-in.
+export function usePublicDepartments() {
+  return useQuery({
+    queryKey: ['public-departments'],
+    staleTime: 5 * 60_000,
+    queryFn: ({ signal }) => apiRequest<PublicDepartment[]>('/api/v1/public/departments', { signal }),
   })
 }
