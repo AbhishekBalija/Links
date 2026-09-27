@@ -88,13 +88,24 @@ type OpportunityResponse struct {
 	ExternalURL     *string                   `json:"external_url"`
 	Eligibility     []EligibilityRuleResponse `json:"eligibility"`
 	Status          Status                    `json:"status"`
-	PostedBy        PosterRef                 `json:"posted_by"`
-	PublishedAt     *time.Time                `json:"published_at"`
-	ClosedAt        *time.Time                `json:"closed_at"`
-	CreatedAt       time.Time                 `json:"created_at"`
-	UpdatedAt       time.Time                 `json:"updated_at"`
+	// Open is true while it is published and apply_by is ahead.
+	Open        bool       `json:"open"`
+	PostedBy    PosterRef  `json:"posted_by"`
+	PublishedAt *time.Time `json:"published_at"`
+	ClosedAt    *time.Time `json:"closed_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type ListMeta struct {
 	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+// FeedQuery is the feed's query string, unchecked.
+type FeedQuery struct {
+	State      string
+	Type       string
+	Department string
+	Cursor     string
+	Limit      int
 }

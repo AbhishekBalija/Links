@@ -126,6 +126,42 @@ type Repository interface {
 	EligibilityRules(ctx context.Context, opportunityIDs []string) ([]EligibilityRuleView, error)
 	Managed(ctx context.Context, status *Status, after *Cursor, limit int) ([]View, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)
+	Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
+	VisibleTo(ctx context.Context, reader Reader, id string) (bool, error)
+	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
+	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
+}
+
+// Membership is one role a reader holds with the Department it belongs to
+// (nil when none), as for Announcements and Events.
+type Membership struct {
+	Role         string
+	DepartmentID *string
+}
+
+// Reader is who is looking at Opportunities. A rule matches only when one
+// Membership satisfies its role and Department together.
+type Reader struct {
+	Memberships []Membership
+	BatchYear   *int
+}
+
+// State picks open or closed Opportunities in the feed.
+type State string
+
+const (
+	// StateOpen is the default: published and apply_by still ahead, soonest
+	// deadline first.
+	StateOpen State = "open"
+	// StateClosed is closed early or past apply_by, latest deadline first.
+	StateClosed State = "closed"
+)
+
+// FeedFilter narrows the Opportunity feed.
+type FeedFilter struct {
+	State        State
+	Type         *Type
+	DepartmentID *string
 }
 
 // Repositories groups what must share one transaction.

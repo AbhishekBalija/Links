@@ -1,6 +1,7 @@
 package opportunities
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -23,10 +24,53 @@ func NewHandler(service *Service, policy *auth.Policy) *Handler {
 
 func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	opportunities := v1.Group("/opportunities")
+	opportunities.GET("", h.Feed)
 	opportunities.POST("", h.Create)
 	opportunities.GET("/manage", h.Managed)
 	opportunities.GET("/:id", h.Get)
 	opportunities.PATCH("/:id", h.Update)
+	opportunities.POST("/:id/publish", h.staffAction((*Service).Publish))
+	opportunities.POST("/:id/close", h.staffAction((*Service).Close))
+}
+
+// Feed lists the Opportunities the caller is eligible for.
+func (h *Handler) Feed(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewTargetedNotices)
+	if actor == nil {
+		return
+	}
+	limit, ok := parseLimit(c)
+	if !ok {
+		return
+	}
+	items, meta, err := h.service.Feed(c.Request.Context(), actor.UserID, FeedQuery{
+		State:      c.Query("state"),
+		Type:       c.Query("type"),
+		Department: c.Query("department"),
+		Cursor:     c.Query("cursor"),
+		Limit:      limit,
+	})
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, items, meta)
+}
+
+// staffAction serves a placement staff status change on one Opportunity.
+func (h *Handler) staffAction(action func(*Service, context.Context, string, string) (*OpportunityResponse, error)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		actor := h.authorize(c, auth.PermissionPostOpportunity)
+		if actor == nil {
+			return
+		}
+		opportunity, err := action(h.service, c.Request.Context(), actor.UserID, c.Param("id"))
+		if err != nil {
+			writeError(c, err)
+			return
+		}
+		response.Success(c, http.StatusOK, opportunity, nil)
+	}
 }
 
 func (h *Handler) Create(c *gin.Context) {

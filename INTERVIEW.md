@@ -200,6 +200,16 @@ Reusing `audience_rules` with `target_type = 'opportunity'` gives one rule
 set, indexed columns for the Department filter, and a foreign key that stops a
 Department in use from being deleted.
 
+### Why isn't "open" a status of an Opportunity?
+
+An Opportunity stops taking applications when its apply-by date passes, and
+nothing runs at that moment to change a status (there are no background jobs
+yet, ADR 0007). Storing `open` would need one, or it would lie after the
+deadline. So the only stored statuses are the ones a person sets (`draft`,
+`published`, `closed`), and "open" is computed in the query: published and
+`apply_by > now()`. The closed view is the reverse: closed early, or past the
+deadline.
+
 ### Why can any placement staff member edit any Opportunity?
 
 Events belong to their proposer, but the placement office is a small team that

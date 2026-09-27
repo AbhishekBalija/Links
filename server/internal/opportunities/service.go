@@ -119,6 +119,9 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateOp
 			return fmt.Errorf("load eligibility: %w", err)
 		}
 		changed, eligibilityInput := merge(*opportunity, eligibility, input)
+		if err := checkLiveEdit(*opportunity, changed, now); err != nil {
+			return err
+		}
 		checked, err := check(changed, eligibilityInput)
 		if err != nil {
 			return err
@@ -140,19 +143,6 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateOp
 	})
 	if err != nil {
 		return nil, err
-	}
-	return s.response(ctx, id)
-}
-
-// Get returns one Opportunity. Placement staff see every one; others see
-// none yet (publishing comes later), so a draft is simply not found.
-func (s *Service) Get(ctx context.Context, actorID, id string) (*OpportunityResponse, error) {
-	staff, err := s.isStaff(ctx, actorID)
-	if err != nil {
-		return nil, err
-	}
-	if !staff {
-		return nil, apperrors.NewNotFound("opportunity not found")
 	}
 	return s.response(ctx, id)
 }
@@ -424,6 +414,7 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]OpportunityR
 			DepartmentID: rule.DepartmentID, DepartmentCode: rule.DepartmentCode, BatchYear: rule.BatchYear, Role: rule.Role,
 		})
 	}
+	now := s.now()
 	responses := make([]OpportunityResponse, 0, len(views))
 	for _, view := range views {
 		response := OpportunityResponse{
@@ -439,6 +430,7 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]OpportunityR
 			ExternalURL:     view.ExternalURL,
 			Eligibility:     byOpportunity[view.ID],
 			Status:          view.Status,
+			Open:            view.Status == StatusPublished && view.ApplyBy.After(now),
 			PostedBy:        PosterRef{UserID: view.PostedBy, FullName: view.PosterName},
 			PublishedAt:     view.PublishedAt,
 			ClosedAt:        view.ClosedAt,
