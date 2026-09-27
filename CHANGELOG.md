@@ -14,6 +14,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Placement staff download an Opportunity's applicants as CSV, all or one
+  status only, with spreadsheet formulas neutralised and no phone numbers.
+  Every download is audited.
 - Placement staff see each Opportunity's applicants (name, email, USN,
   Department, Batch, never phone numbers), filtered by status, Department
   and Batch, and move Applications between applied, shortlisted, rejected and

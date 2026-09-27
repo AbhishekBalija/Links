@@ -85,7 +85,7 @@ Deliverables:
 - Applicant list (API built: filters by status, Department and Batch; audited)
 - Shortlisting (API built)
 - Status updates (API built: row-locked, audited)
-- CSV export
+- CSV export (API built: audited, formula-safe)
 
 ## Phase 5: Clubs, Alumni, and Polish
 

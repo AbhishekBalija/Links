@@ -660,8 +660,8 @@ newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
 
 ## Opportunities and Applications
 
-The placement workflow is ADR 0024. Built so far: drafts, publishing, the
-feed, Applications, and the applicant list with status updates.
+The placement workflow is ADR 0024: drafts, publishing, the feed,
+Applications, the applicant list with status updates, and the export.
 
 ```text
 GET   /api/v1/opportunities
@@ -675,9 +675,8 @@ POST  /api/v1/opportunities/:id/apply
 POST  /api/v1/opportunities/:id/withdraw
 GET   /api/v1/opportunities/:id/applications
 PATCH /api/v1/opportunity-applications/:id/status
+GET   /api/v1/opportunities/:id/export
 ```
-
-Planned in the same workflow: the applicant export.
 
 ### Opportunities
 
@@ -840,6 +839,21 @@ the change is `409` rather than an overwrite. A withdrawn Application is the
 Student's decision (`409`); `withdrawn`, an unknown status or the current one
 as the target is `400`; an unknown ID is `404`. Returns the Application as in
 the list, and is audited as `application_status_changed` with `from` and `to`.
+
+`GET /api/v1/opportunities/:id/export` (placement staff, `view_applicant_data`)
+downloads the applicants as `text/csv` (`Content-Disposition: attachment`,
+`Cache-Control: no-store`), in the order they applied, optionally one
+`status` only:
+
+```csv
+full_name,email,usn,department,batch_year,mode,status,applied_at,status_changed_at
+```
+
+Cells that could run as a spreadsheet formula (starting with `=`, `+`, `-`,
+`@`, a tab or a carriage return) get a leading `'`. No phone numbers. Every
+export is audited as `applicants_exported` with the row count and status, in
+the same transaction as reading the rows. `403` for anyone else, `404` for an
+unknown Opportunity, `400` for an unknown status.
 
 ## Departments
 

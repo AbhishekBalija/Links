@@ -35,6 +35,23 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	opportunities.POST("/:id/apply", h.applicantAction((*Service).Apply, http.StatusCreated))
 	opportunities.POST("/:id/withdraw", h.applicantAction((*Service).Withdraw, http.StatusOK))
 	opportunities.GET("/:id/applications", h.Applicants)
+	opportunities.GET("/:id/export", h.Export)
+}
+
+// Export sends an Opportunity's applicants as a CSV download.
+func (h *Handler) Export(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewApplicantData)
+	if actor == nil {
+		return
+	}
+	file, err := h.service.Export(c.Request.Context(), actor.UserID, c.Param("id"), c.Query("status"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="applicants.csv"`)
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", file)
 }
 
 // Applicants lists an Opportunity's Applications for placement staff.

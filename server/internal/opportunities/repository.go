@@ -232,9 +232,9 @@ const applicantColumns = `SELECT a.id, a.opportunity_id, a.student_id, a.mode, a
 	LEFT JOIN student_identities si ON si.user_id = a.student_id
 	LEFT JOIN departments d ON d.id = si.department_id`
 
-// Applicants lists one page of an Opportunity's Applications in the order
-// they were made.
-func (r *GormRepository) Applicants(ctx context.Context, opportunityID string, filter ApplicantFilter, after *Cursor, limit int) ([]ApplicantRow, error) {
+// applicantQuery selects an Opportunity's Applications matching the filter,
+// without ordering.
+func applicantQuery(opportunityID string, filter ApplicantFilter) (string, []any) {
 	query := applicantColumns + ` WHERE a.opportunity_id = ?`
 	args := []any{opportunityID}
 	if filter.Status != nil {
@@ -249,6 +249,13 @@ func (r *GormRepository) Applicants(ctx context.Context, opportunityID string, f
 		query += ` AND si.batch_year = ?`
 		args = append(args, *filter.BatchYear)
 	}
+	return query, args
+}
+
+// Applicants lists one page of an Opportunity's Applications in the order
+// they were made.
+func (r *GormRepository) Applicants(ctx context.Context, opportunityID string, filter ApplicantFilter, after *Cursor, limit int) ([]ApplicantRow, error) {
+	query, args := applicantQuery(opportunityID, filter)
 	if after != nil {
 		query += ` AND (a.applied_at, a.id) > (?, CAST(? AS uuid))`
 		args = append(args, after.At, after.ID)
@@ -257,6 +264,15 @@ func (r *GormRepository) Applicants(ctx context.Context, opportunityID string, f
 	args = append(args, limit)
 	var rows []ApplicantRow
 	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error
+	return rows, err
+}
+
+// AllApplicants returns every Application to the Opportunity matching the
+// filter, for the export.
+func (r *GormRepository) AllApplicants(ctx context.Context, opportunityID string, filter ApplicantFilter) ([]ApplicantRow, error) {
+	query, args := applicantQuery(opportunityID, filter)
+	var rows []ApplicantRow
+	err := r.db.WithContext(ctx).Raw(query+` ORDER BY a.applied_at, a.id`, args...).Scan(&rows).Error
 	return rows, err
 }
 

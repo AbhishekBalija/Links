@@ -136,6 +136,7 @@ type Repository interface {
 	ApplicationsOf(ctx context.Context, studentID string, opportunityIDs []string) ([]Application, error)
 	Applicants(ctx context.Context, opportunityID string, filter ApplicantFilter, after *Cursor, limit int) ([]ApplicantRow, error)
 	Applicant(ctx context.Context, applicationID string) (*ApplicantRow, error)
+	AllApplicants(ctx context.Context, opportunityID string, filter ApplicantFilter) ([]ApplicantRow, error)
 	FindApplicationByIDForUpdate(ctx context.Context, id string) (*Application, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
