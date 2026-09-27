@@ -11,8 +11,12 @@ type Props = {
   onChange: (audience: RuleInput[]) => void
   department: { id: string; code: string } | null
   departments: Department[]
-  category: Category
+  // The announcement category, for head-counts; events have none.
+  category?: Category
   error?: string
+  // Events proposed for a Department can't go to the whole college.
+  hideCollege?: boolean
+  label?: string
 }
 
 const CUSTOM = 'custom'
@@ -20,8 +24,8 @@ const CUSTOM = 'custom'
 // AudiencePicker answers "who sees it". Quick picks cover the usual cases in
 // one tap; "Choose groups" opens the full builder. The custom groups are kept
 // while a quick pick is chosen, so switching back doesn't lose them.
-export function AudiencePicker({ value, onChange, department, departments, category, error }: Props) {
-  const presets = presetsFor(department)
+export function AudiencePicker({ value, onChange, department, departments, category, error, hideCollege, label = 'Who sees it' }: Props) {
+  const presets = presetsFor(department).filter((p) => !(hideCollege && p.key === 'college'))
   const matched = matchPreset(value, presets)
   const [custom, setCustom] = useState<RuleInput[]>(() => (matched ? [{}] : value))
   const [mode, setMode] = useState(matched ?? CUSTOM)
@@ -44,7 +48,7 @@ export function AudiencePicker({ value, onChange, department, departments, categ
 
   return (
     <div className="flex flex-col gap-2.5">
-      <div role="radiogroup" aria-label="Who sees it" className="flex flex-col gap-0.5">
+      <div role="radiogroup" aria-label={label} className="flex flex-col gap-0.5">
         {presets.map((preset) => (
           <PresetOption key={preset.key} preset={preset} name={name} category={category} checked={mode === preset.key} onChoose={choose} />
         ))}
@@ -87,7 +91,7 @@ export function AudiencePicker({ value, onChange, department, departments, categ
 function PresetOption({ preset, name, category, checked, onChoose }: {
   preset: Preset
   name: string
-  category: Category
+  category: Category | undefined
   checked: boolean
   onChoose: (key: string) => void
 }) {
@@ -105,7 +109,7 @@ function PresetOption({ preset, name, category, checked, onChoose }: {
   )
 }
 
-function Summary({ value, category, codes }: { value: RuleInput[]; category: Category; codes: Map<string, string> }) {
+function Summary({ value, category, codes }: { value: RuleInput[]; category: Category | undefined; codes: Map<string, string> }) {
   const preview = usePreview(category, value)
   if (value.length === 0 && preview.data === undefined) return null
   return (

@@ -192,7 +192,7 @@ function ComposeForm({ item, department, departments }: {
           </Link>
           <Link to="/mine" className="hidden min-h-10 items-center gap-1.5 text-sm font-semibold lg:inline-flex">
             <ChevronLeft aria-hidden="true" className="size-4" />
-            My announcements
+            My posts
           </Link>
           <h1 className="font-serif text-[22px] font-medium lg:text-[38px] lg:leading-tight lg:tracking-[-0.6px]">{heading}</h1>
         </div>

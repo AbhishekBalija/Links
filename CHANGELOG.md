@@ -7,6 +7,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- Your own notices say "You" again, and signing in as someone else on the
+  same tab clears the previous person's cached data. The client read the
+  signed-in user's id from a field `/me` never sends.
 - The API failed to start on Vercel (every request returned 500): on each
   cold start it checked every migration in its own transaction, and with
   the database in another region those round trips passed the startup
@@ -14,6 +17,22 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Event proposals in the Approval queue, oldest first alongside
+  announcements. An HOD approves or sends back; at final approval the
+  principal sees who approved it first and confirms before publishing.
+  Sending back asks for changes or rejects, always with a note.
+- Organiser tools on a published event, for its proposer, its Department's
+  HOD, the principal and admins: who's coming (counts, the people who
+  answered, and a full list by answer), a CSV export, Edit details for the
+  place, time, seats and description (a limit can't drop below those
+  going), and Cancel event with a reason everyone invited sees.
+- Proposing events from the app: a proposal form (kind, title, when, where,
+  who's invited and a seat limit) that says who reviews it before you send
+  it, keeps drafts, and asks before you leave with changes. My announcements
+  becomes **My posts**: announcements and events together under Needs you,
+  Drafts, Waiting, Live and Ended, with one New button. Each proposal has its
+  own page with its history and the actions its status allows: edit and
+  resubmit, delete a draft, or cancel with a reason.
 - Placement staff download an Opportunity's applicants as CSV, all or one
   status only, with spreadsheet formulas neutralised and no phone numbers.
   Every download is audited.

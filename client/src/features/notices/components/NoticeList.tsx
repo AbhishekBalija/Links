@@ -14,7 +14,7 @@ const rowClass =
   'flex flex-col gap-1.5 rounded-[10px] border border-line bg-surface px-4 py-3.5 lg:rounded-lg lg:border-0 lg:bg-transparent lg:py-3 @3xl:grid @3xl:grid-cols-[112px_minmax(0,1fr)_220px_96px] @3xl:items-center @3xl:gap-5'
 
 export function NoticeList({ notices }: { notices: Notice[] }) {
-  const userId = useAuthStore((s) => s.user?.id)
+  const userId = useAuthStore((s) => s.user?.user_id)
   return (
     <ul className={listClass}>
       {notices.map((notice) => (

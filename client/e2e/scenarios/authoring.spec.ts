@@ -49,15 +49,22 @@ test.describe('Writing announcements', () => {
 
     const readerToken = await loginViaAPI(request, reader.email, reader.password)
     expect(await feedTitles(request, readerToken)).toContain('CS lab 3 closed on Monday')
+
+    // On the notice itself, the author sees it as their own.
+    const noticeId = page.url().split('/').pop()
+    await page.goto(`/notices/${noticeId}`)
+    await expect(page.getByRole('complementary')).toContainText('You')
+    await expect(page.getByRole('complementary')).not.toContainText('Asha Rao')
   })
 
   test('faculty submit, get it sent back, fix it and resubmit', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await loginViaUI(page, faculty.email, faculty.password)
-    await page.getByRole('link', { name: 'My announcements' }).click()
-    await expect(page.getByRole('heading', { name: "You haven't posted anything yet" })).toBeVisible()
+    await page.getByRole('link', { name: 'My posts' }).click()
+    await expect(page.getByRole('heading', { name: 'Nothing posted yet' })).toBeVisible()
 
-    await page.getByRole('link', { name: 'New announcement' }).click()
+    await page.getByRole('button', { name: 'New' }).click()
+    await page.getByRole('link', { name: /An announcement/ }).click()
     await page.getByLabel('Title').fill('Lab 2 timings change')
     await page.getByLabel('Notice').fill('Lab 2 opens at 9 am from Monday.')
     await expect(page.getByText(/Goes to the CS HOD for approval/)).toBeVisible()
@@ -77,10 +84,10 @@ test.describe('Writing announcements', () => {
     })
     expect(rejected.ok()).toBeTruthy()
 
+    // My posts opens on what needs the author.
     await page.goto('/mine')
-    const card = page.getByRole('region', { name: /Sent back to you/ })
-    await expect(card.getByText('Add the Thursday timings too.')).toBeVisible()
-    await card.getByRole('link', { name: 'Edit and resubmit' }).click()
+    await expect(page.getByRole('button', { name: /Needs you/, pressed: true })).toBeVisible()
+    await page.getByRole('link', { name: /Lab 2 timings change/ }).click()
 
     await expect(page.getByRole('note')).toContainText('Add the Thursday timings too.')
     await page.getByLabel('Notice').fill('Lab 2 opens at 9 am from Monday, and at 10 am on Thursdays.')
@@ -88,8 +95,8 @@ test.describe('Writing announcements', () => {
     await page.waitForURL(/\/mine\/[0-9a-f-]+$/)
     await expect(page.getByText('You can edit it once they decide.')).toBeVisible()
 
-    await page.goto('/mine')
-    await expect(page.getByRole('region', { name: /Sent back to you/ })).toHaveCount(0)
+    await page.goto('/mine?status=needs')
+    await expect(page.getByText('Nothing needs you right now.')).toBeVisible()
   })
 
   test('a missing title is caught, and the text already written stays', async ({ page }) => {
@@ -111,16 +118,17 @@ test.describe('Writing announcements', () => {
     await page.getByLabel('Title').fill('Seminar on embedded systems')
     await page.getByLabel('Notice').fill('Details to follow.')
 
-    await page.getByRole('link', { name: 'My announcements' }).first().click()
+    await page.getByRole('link', { name: 'My posts' }).first().click()
     const dialog = page.getByRole('dialog', { name: 'Keep this as a draft?' })
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'Keep editing' }).click()
     await expect(page.getByLabel('Title')).toHaveValue('Seminar on embedded systems')
 
-    await page.getByRole('link', { name: 'My announcements' }).first().click()
+    await page.getByRole('link', { name: 'My posts' }).first().click()
     await page.getByRole('dialog', { name: 'Keep this as a draft?' }).getByRole('button', { name: 'Save draft' }).click()
     // Saving carries on to where they were going, with the draft kept.
     await page.waitForURL(/\/mine$/)
+    await page.getByRole('button', { name: 'Drafts' }).click()
     await expect(page.getByRole('link', { name: /Seminar on embedded systems.*saved/ })).toBeVisible()
   })
 

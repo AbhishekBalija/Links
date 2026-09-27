@@ -5,6 +5,8 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 /** Safely parse JSON from a Response, throwing ApiRequestError on parse failure */
 async function safeJson<R>(res: Response): Promise<R> {
+  // 204 No Content (a delete) has no body: it succeeds with no data.
+  if (res.status === 204) return { data: undefined } as R
   try {
     return await res.json() as R
   } catch {
@@ -231,4 +233,27 @@ async function requestEnvelope<T, M = Record<string, unknown>>(
   }
 
   return body
+}
+
+// apiDownload fetches a file (a CSV export) with the signed-in user's token,
+// refreshing an expired session once. The server's file name is used when
+// the browser can read it; across origins it can't, so the caller names one.
+export async function apiDownload(path: string, fallbackName: string): Promise<{ blob: Blob; name: string }> {
+  const request = (token: string | null) =>
+    fetch(`${BASE_URL}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    })
+
+  let res = await request(accessToken)
+  if (res.status === 401 && accessToken !== null) {
+    res = await request(await attemptRefresh())
+  }
+  if (!res.ok) {
+    const body = await safeJson<ApiError>(res)
+    throw new ApiRequestError(res.status, body.error ?? { code: 'UNKNOWN', message: 'Unknown error' })
+  }
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName
+  return { blob: await res.blob(), name }
 }

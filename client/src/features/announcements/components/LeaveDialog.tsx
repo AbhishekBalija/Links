@@ -8,12 +8,20 @@ type Props = {
   onSaveDraft: () => void
   onKeepEditing: () => void
   onDiscard: () => void
+  // What is being written, for the dialog's wording.
+  what?: 'announcement' | 'event'
+}
+
+const words = {
+  announcement: { started: "You've started writing.", lost: 'Your changes to this announcement will be lost.' },
+  event: { started: "You've started proposing an event.", lost: 'Your changes to this event will be lost.' },
 }
 
 // LeaveDialog asks before unsaved writing is lost. The native <dialog> keeps
 // focus inside it and closes on Escape, which counts as "keep editing".
-export function LeaveDialog({ open, canSaveDraft, saving, onSaveDraft, onKeepEditing, onDiscard }: Props) {
+export function LeaveDialog({ open, canSaveDraft, saving, onSaveDraft, onKeepEditing, onDiscard, what = 'announcement' }: Props) {
   const ref = useModal(open)
+  const text = words[what]
 
   return (
     <dialog
@@ -33,8 +41,8 @@ export function LeaveDialog({ open, canSaveDraft, saving, onSaveDraft, onKeepEdi
           </h2>
           <p id="leave-p" className="text-[15px] leading-normal text-ink-2">
             {canSaveDraft
-              ? "You've started writing. Save it to finish later, or discard it."
-              : 'Your changes to this announcement will be lost.'}
+              ? `${text.started} Save it to finish later, or discard it.`
+              : text.lost}
           </p>
         </div>
         <div className="flex flex-col gap-2">
