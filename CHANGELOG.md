@@ -7,6 +7,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- Your own notices say "You" again, and signing in as someone else on the
+  same tab clears the previous person's cached data. The client read the
+  signed-in user's id from a field `/me` never sends.
 - The API failed to start on Vercel (every request returned 500): on each
   cold start it checked every migration in its own transaction, and with
   the database in another region those round trips passed the startup
@@ -21,6 +24,28 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Drafts, Waiting, Live and Ended, with one New button. Each proposal has its
   own page with its history and the actions its status allows: edit and
   resubmit, delete a draft, or cancel with a reason.
+- Students apply to an open internal Opportunity they are eligible for, once,
+  and withdraw while it is still only applied; for an external one they mark
+  that they applied on the company's site so it is tracked. Each Opportunity
+  shows the student their own application only, and an "applied" view lists
+  everything they applied to.
+- Placement staff publish Opportunities and close them early; members see
+  the open ones they are eligible for, soonest deadline first, and the closed
+  ones apart, filtered by type and Department. A published Opportunity keeps
+  its application mode and its deadline ahead.
+- Placement Opportunities (Phase 4, ADR 0024): the placement officer, the
+  principal and admins save jobs, internships and training posts as drafts,
+  with company, role, description, location, stipend or CTC, apply-by date,
+  an internal application or an external link, and Eligibility by
+  Department, Batch and role. Any of them can edit any draft, and they list
+  every Opportunity by status.
+- Members can make their profile private or public again
+  (`public_profile_enabled` on `PATCH /api/v1/me/profile`, #81). A private
+  member leaves People and their profile opens only for them; department
+  counts still include them. Each change is audited.
+- Home's approvals summary also counts the Event proposals waiting for the
+  reviewer (`events_pending_count` and `oldest_event_submitted_at`), apart from
+  Announcements, with the same scope as the event review queue.
 - Events screens: an Events tab listing what's coming up for you by week
   (Upcoming, Going and Past, and by type), each with your answer and the
   seats left; an event page with one Going / Interested / Can't go control

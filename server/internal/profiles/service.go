@@ -90,6 +90,7 @@ func (s *Service) UpdateMyProfile(ctx context.Context, userID string, input Upda
 
 		oldShowEmail := profile.ShowEmail
 		oldShowPhone := profile.ShowPhone
+		oldPublic := profile.PublicProfileEnabled
 		applyUpdates(profile, input)
 		profile.UpdatedAt = time.Now()
 
@@ -110,6 +111,21 @@ func (s *Service) UpdateMyProfile(ctx context.Context, userID string, input Upda
 			}
 			if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
 				return fmt.Errorf("audit privacy update: %w", err)
+			}
+		}
+		// Visibility decides who can see the member at all, so it gets its
+		// own entry.
+		if oldPublic != profile.PublicProfileEnabled {
+			auditLog := &auth.AuditLog{
+				ActorID:      &userID,
+				Action:       "profile_visibility_changed",
+				ResourceType: "profile",
+				ResourceID:   &userID,
+				Metadata:     map[string]bool{"public_profile_enabled": profile.PublicProfileEnabled},
+				CreatedAt:    time.Now(),
+			}
+			if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
+				return fmt.Errorf("audit visibility change: %w", err)
 			}
 		}
 
@@ -201,6 +217,9 @@ func applyUpdates(p *Profile, input UpdateProfileInput) {
 		} else {
 			p.AvatarURL = input.AvatarURL
 		}
+	}
+	if input.PublicProfileEnabled != nil {
+		p.PublicProfileEnabled = *input.PublicProfileEnabled
 	}
 	if input.ShowEmail != nil {
 		p.ShowEmail = *input.ShowEmail
