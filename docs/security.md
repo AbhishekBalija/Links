@@ -134,6 +134,13 @@ Events: drafts are visible only to their proposer, proposals under review
 also to their reviewers (with the review notes), and published Events to
 their Audience without the review notes. Anyone else gets `404`.
 
+A member chooses whether their profile is public (`public_profile_enabled`,
+on by default) through `PATCH /api/v1/me/profile`. A private profile is
+visible only to its owner: it isn't listed in the directory and
+`GET /api/v1/profiles/:username` returns `404` to anyone else. Every change is
+audited (`profile_visibility_changed`), as are changes to showing email or
+phone (`profile_privacy_updated`).
+
 The member directory (`GET /api/v1/directory`) applies the public profile's
 rules through the shared `profiles.Privacy` type: hidden profiles are not
 listed, and email and phone appear only when the member opted in. It lists only
@@ -171,6 +178,7 @@ Audit:
 - Role assignment (granted and ended)
 - Student CSV imports (one entry per import, one per created user)
 - Account suspension/restoration
+- Profile visibility and contact privacy changes
 - Event approval decisions
 - Announcement approvals
 - Placement status changes
