@@ -73,7 +73,8 @@ How the owner and agents have agreed to work, beyond the rules above. It applies
 
 **Unattended sessions (cloud, overnight)**
 - Don't merge, don't close issues, and don't start work that needs a design approval. Stop at the approval point and leave a comment on the issue saying what is ready for review.
-- If the session can't reach a database, say so in the PR. GitHub CI runs the API and e2e tests against Postgres, and a green CI is required.
+- Start Postgres first with `service postgresql start`. Postgres 16 is installed and `TEST_DATABASE_URL` is already set, but only the Postgres files are cached between sessions, not the running server, so every new session has to start it. If the `links` role or `links_test` database is missing from the cache, create them as the `postgres` user to match `TEST_DATABASE_URL` (CI's `links` role is a superuser, so give the local one the same).
+- If the session still can't reach a database, say so in the PR. GitHub CI runs the API and e2e tests against Postgres, and a green CI is required.
 - End with a comment on the issue: what was done, what's open, and any question for the owner.
 
 ## Done means

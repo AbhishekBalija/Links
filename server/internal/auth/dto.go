@@ -136,3 +136,33 @@ type VerifyUserResponse struct {
 type UpdateUserStatusResponse struct {
 	Message string `json:"message"`
 }
+
+type GrantRoleInput struct {
+	Role      string     `json:"role" binding:"required"`
+	ScopeType string     `json:"scope_type" binding:"required"`
+	ScopeID   string     `json:"scope_id"`
+	StartsAt  *time.Time `json:"starts_at"`
+	EndsAt    *time.Time `json:"ends_at"`
+	Note      string     `json:"note" binding:"max=500"`
+}
+
+type RoleDepartment struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// RoleAssignmentResponse is one Role assignment. State is active (in effect
+// now), scheduled (starts later) or ended.
+type RoleAssignmentResponse struct {
+	ID         string          `json:"id"`
+	Role       string          `json:"role"`
+	ScopeType  string          `json:"scope_type"`
+	ScopeID    *string         `json:"scope_id"`
+	Department *RoleDepartment `json:"department"`
+	AssignedBy *string         `json:"assigned_by"`
+	StartsAt   time.Time       `json:"starts_at"`
+	EndsAt     *time.Time      `json:"ends_at"`
+	State      string          `json:"state"`
+	CreatedAt  time.Time       `json:"created_at"`
+}
