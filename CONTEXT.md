@@ -44,7 +44,7 @@ _Avoid_: user role, user type
 Where a Role assignment applies: global, one Department, or one club.
 
 **Public profile**:
-A user's profile that others can view, with contact details hidden unless the user chooses to show them.
+A user's profile that others can view, with contact details hidden unless the user chooses to show them. Public by default; a member can make it private, visible only to them.
 
 **Directory**:
 The list of members any signed-in member can browse and filter by Department, role and Batch. It shows only active, verified members with a Public profile and a role in effect.
