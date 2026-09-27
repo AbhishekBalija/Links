@@ -150,6 +150,55 @@ type Repository interface {
 	Authored(ctx context.Context, proposerID string, filter MineFilter, after *Cursor, limit int) ([]View, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)
 	IsFaculty(ctx context.Context, userID string) (bool, error)
+	CreateReview(ctx context.Context, review *Review) error
+	Reviews(ctx context.Context, eventIDs []string) ([]ReviewView, error)
+	DepartmentHasHOD(ctx context.Context, departmentID string) (bool, error)
+	Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error)
+}
+
+// Stage is which review an Event is at.
+type Stage string
+
+const (
+	StageHOD   Stage = "hod"
+	StageFinal Stage = "final"
+)
+
+// Decision is a reviewer's answer.
+type Decision string
+
+const (
+	DecisionApprove        Decision = "approve"
+	DecisionRequestChanges Decision = "request_changes"
+	DecisionReject         Decision = "reject"
+)
+
+// Review is one decision at one stage, kept as the Event's history.
+type Review struct {
+	ID         string    `gorm:"column:id;primaryKey"`
+	EventID    string    `gorm:"column:event_id"`
+	Stage      Stage     `gorm:"column:stage"`
+	ReviewerID string    `gorm:"column:reviewer_id"`
+	Decision   Decision  `gorm:"column:decision"`
+	Note       *string   `gorm:"column:note"`
+	CreatedAt  time.Time `gorm:"column:created_at"`
+}
+
+func (Review) TableName() string { return "event_reviews" }
+
+// ReviewView is a Review with its reviewer's name.
+type ReviewView struct {
+	Review
+	ReviewerName string `gorm:"column:reviewer_name"`
+}
+
+// ReviewerScope is what a reviewer may act on: the HOD stage of their
+// Departments' Events, and with All (principal or admin) the HOD stage of
+// Departments without an HOD and every final approval.
+type ReviewerScope struct {
+	UserID         string
+	All            bool
+	HODDepartments []string
 }
 
 // Repositories groups what must share one transaction.

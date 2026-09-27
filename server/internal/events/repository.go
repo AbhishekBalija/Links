@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -196,4 +197,57 @@ func (r *GormRepository) IsFaculty(ctx context.Context, userID string) (bool, er
 		  AND r.starts_at <= now() AND (r.ends_at IS NULL OR r.ends_at > now())`, userID).
 		Scan(&count).Error
 	return count > 0, err
+}
+
+func (r *GormRepository) CreateReview(ctx context.Context, review *Review) error {
+	if review.ID == "" {
+		review.ID = uuid.NewString()
+	}
+	return r.db.WithContext(ctx).Create(review).Error
+}
+
+// Reviews returns the decisions on these Events, oldest first.
+func (r *GormRepository) Reviews(ctx context.Context, eventIDs []string) ([]ReviewView, error) {
+	if len(eventIDs) == 0 {
+		return nil, nil
+	}
+	var reviews []ReviewView
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT v.*, p.full_name AS reviewer_name
+		FROM event_reviews v JOIN profiles p ON p.user_id = v.reviewer_id
+		WHERE v.event_id IN ?
+		ORDER BY v.created_at, v.id`, eventIDs).
+		Scan(&reviews).Error
+	return reviews, err
+}
+
+// hasHOD is true when someone holds the HOD role for the Department now.
+const hasHOD = `EXISTS (SELECT 1 FROM role_assignments h
+	WHERE h.role = 'hod' AND h.scope_type = 'department' AND h.scope_id = %s
+	  AND h.starts_at <= now() AND (h.ends_at IS NULL OR h.ends_at > now()))`
+
+func (r *GormRepository) DepartmentHasHOD(ctx context.Context, departmentID string) (bool, error) {
+	var found bool
+	err := r.db.WithContext(ctx).Raw(`SELECT `+fmt.Sprintf(hasHOD, "?"), departmentID).Scan(&found).Error
+	return found, err
+}
+
+// Queue returns the Events waiting for this reviewer, oldest submission
+// first. Their own proposals are never included.
+func (r *GormRepository) Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error) {
+	query := `SELECT ` + viewColumns + ` ` + viewFrom + `
+		WHERE e.proposer_id <> ? AND (
+			(e.status = 'submitted' AND (e.department_id IN ? OR (? AND NOT ` + fmt.Sprintf(hasHOD, "e.department_id") + `)))
+			OR (e.status = 'hod_approved' AND ?)
+		)`
+	args := []any{scope.UserID, scope.HODDepartments, scope.All, scope.All}
+	if after != nil {
+		query += ` AND (e.submitted_at, e.id) > (?, CAST(? AS uuid))`
+		args = append(args, after.At, after.ID)
+	}
+	query += ` ORDER BY e.submitted_at, e.id LIMIT ?`
+	args = append(args, limit)
+	var views []View
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&views).Error
+	return views, err
 }

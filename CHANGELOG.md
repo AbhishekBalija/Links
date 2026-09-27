@@ -10,7 +10,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Event proposals (Phase 3): staff and student coordinators save Event drafts
   for their Department (the principal and admins for any or none, the
   placement officer training only), with type, place, times, capacity,
-  faculty mentor and Audience, edit them, and list their own.
+  faculty mentor and Audience, edit them, and list their own. Submitted
+  events go to their Department's HOD (or the principal or an admin when there
+  is none) and then to the principal or an admin for final approval; reviewers
+  approve, ask for changes or reject with a note, and see earlier notes. HODs'
+  own events and training events skip the HOD stage; the principal's and
+  admins' events publish straight away.
 
 ## [0.3.0] - 2026-09-27
 

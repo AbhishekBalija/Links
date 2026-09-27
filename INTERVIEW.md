@@ -139,6 +139,14 @@ that can exist, a CHECK constraint enforces it, and each workflow step is a
 move from one value to another. The history of who decided what lives in a
 separate `event_reviews` table, so the status doesn't have to remember it.
 
+### How does an event sent back for changes know which stage to return to?
+
+The status says so. `hod_changes_requested` means the HOD asked, so
+resubmitting goes back to `submitted` (the HOD's queue);
+`final_changes_requested` means the principal or an admin asked, so it goes to
+`hod_approved` (their queue) and the HOD isn't asked again. No extra column is
+needed, and a unit test pins the whole table of moves.
+
 ### How does a PATCH tell "leave this field alone" from "clear it"?
 
 In Go, a missing JSON field and `null` both leave a pointer nil. The event

@@ -25,7 +25,64 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	events := v1.Group("/events")
 	events.POST("", h.Create)
 	events.GET("/mine", h.Mine)
+	events.GET("/reviews", h.Queue)
 	events.PATCH("/:id", h.Update)
+	events.POST("/:id/submit-for-approval", h.Submit)
+	events.PATCH("/:id/hod-review", h.review(StageHOD, auth.PermissionReviewBranchEvent))
+	events.PATCH("/:id/final-approval", h.review(StageFinal, auth.PermissionFinalEventApproval))
+}
+
+func (h *Handler) Submit(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	event, err := h.service.Submit(c.Request.Context(), actor.UserID, c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, event, nil)
+}
+
+// review serves one review stage; which Events the caller may review is
+// decided in the service.
+func (h *Handler) review(stage Stage, permission auth.Permission) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		actor := h.authorize(c, permission)
+		if actor == nil {
+			return
+		}
+		var input ReviewInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+			return
+		}
+		event, err := h.service.Review(c.Request.Context(), actor.UserID, c.Param("id"), stage, input)
+		if err != nil {
+			writeError(c, err)
+			return
+		}
+		response.Success(c, http.StatusOK, event, nil)
+	}
+}
+
+// Queue lists what waits for the caller's review.
+func (h *Handler) Queue(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionReviewBranchEvent)
+	if actor == nil {
+		return
+	}
+	limit, ok := parseLimit(c)
+	if !ok {
+		return
+	}
+	items, meta, err := h.service.Queue(c.Request.Context(), actor.UserID, c.Query("cursor"), limit)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, items, meta)
 }
 
 func (h *Handler) Create(c *gin.Context) {
