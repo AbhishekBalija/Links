@@ -203,6 +203,29 @@ as a directory entry describes them: `roles` (in effect, most senior first),
 `department` (`{code, name}`) and, for students, `batch_year`. Anonymous
 visitors never get these fields.
 
+### `PATCH /api/v1/me/profile`
+
+Updates the caller's own profile. Every field is optional; a missing field is
+left as it is, and an empty string clears a text field.
+
+```json
+{
+  "headline": "...", "bio": "...", "avatar_url": "https://...",
+  "linkedin_url": "https://...", "github_url": "https://...", "portfolio_url": "https://...",
+  "public_profile_enabled": false, "show_email": true, "show_phone": false
+}
+```
+
+- `public_profile_enabled` (default `true`): off, the member leaves
+  `GET /api/v1/directory` and `GET /api/v1/profiles/:username` returns `404`
+  to everyone but them. Department overview counts still include them. A
+  change is audited as `profile_visibility_changed` with the new value, in the
+  same transaction.
+- `show_email` and `show_phone`: a change is audited as
+  `profile_privacy_updated`.
+- URLs must be `http` or `https`. Returns the updated profile as the owner
+  sees it.
+
 ## Dashboards, Search, and Reports
 
 ```text

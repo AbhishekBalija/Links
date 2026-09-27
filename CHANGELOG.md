@@ -14,6 +14,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Members can make their profile private or public again
+  (`public_profile_enabled` on `PATCH /api/v1/me/profile`, #81). A private
+  member leaves People and their profile opens only for them; department
+  counts still include them. Each change is audited.
 - Home's approvals summary also counts the Event proposals waiting for the
   reviewer (`events_pending_count` and `oldest_event_submitted_at`), apart from
   Announcements, with the same scope as the event review queue.
