@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -241,15 +242,21 @@ func (r *GormRepository) DepartmentHasHOD(ctx context.Context, departmentID stri
 	return found, err
 }
 
+// waitingFor is the review queue's condition and its arguments: what waits
+// for this reviewer at either stage, never their own proposals.
+func waitingFor(scope ReviewerScope) (string, []any) {
+	condition := `e.proposer_id <> ? AND (
+		(e.status = 'submitted' AND (e.department_id IN ? OR (? AND NOT ` + fmt.Sprintf(hasHOD, "e.department_id") + `)))
+		OR (e.status = 'hod_approved' AND ?)
+	)`
+	return condition, []any{scope.UserID, scope.HODDepartments, scope.All, scope.All}
+}
+
 // Queue returns the Events waiting for this reviewer, oldest submission
 // first. Their own proposals are never included.
 func (r *GormRepository) Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error) {
-	query := `SELECT ` + viewColumns + ` ` + viewFrom + `
-		WHERE e.proposer_id <> ? AND (
-			(e.status = 'submitted' AND (e.department_id IN ? OR (? AND NOT ` + fmt.Sprintf(hasHOD, "e.department_id") + `)))
-			OR (e.status = 'hod_approved' AND ?)
-		)`
-	args := []any{scope.UserID, scope.HODDepartments, scope.All, scope.All}
+	condition, args := waitingFor(scope)
+	query := `SELECT ` + viewColumns + ` ` + viewFrom + ` WHERE ` + condition
 	if after != nil {
 		query += ` AND (e.submitted_at, e.id) > (?, CAST(? AS uuid))`
 		args = append(args, after.At, after.ID)
@@ -259,6 +266,21 @@ func (r *GormRepository) Queue(ctx context.Context, scope ReviewerScope, after *
 	var views []View
 	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&views).Error
 	return views, err
+}
+
+// QueueSummary counts what waits for this reviewer and when the oldest was
+// submitted.
+func (r *GormRepository) QueueSummary(ctx context.Context, scope ReviewerScope) (int, *time.Time, error) {
+	var row struct {
+		Count  int        `gorm:"column:count"`
+		Oldest *time.Time `gorm:"column:oldest"`
+	}
+	condition, args := waitingFor(scope)
+	err := r.db.WithContext(ctx).Raw(
+		`SELECT count(*) AS count, min(e.submitted_at) AS oldest FROM events e WHERE `+condition,
+		args...,
+	).Scan(&row).Error
+	return row.Count, row.Oldest, err
 }
 
 // StudentPlacement returns the Department and Batch of the user's Student
