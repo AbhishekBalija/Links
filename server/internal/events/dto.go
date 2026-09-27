@@ -117,6 +117,31 @@ type ReviewResponse struct {
 	DecidedAt    time.Time `json:"decided_at"`
 }
 
+type RSVPInput struct {
+	Status string `json:"status" binding:"required"`
+}
+
+type RSVPCounts struct {
+	Going      int `json:"going"`
+	Interested int `json:"interested"`
+	NotGoing   int `json:"not_going"`
+}
+
+type RSVPPersonResponse struct {
+	UserID      string     `json:"user_id"`
+	FullName    string     `json:"full_name"`
+	Username    string     `json:"username"`
+	Status      RSVPStatus `json:"status"`
+	RespondedAt time.Time  `json:"responded_at"`
+}
+
+// RSVPSummary is an Event's answers. People is only for its organisers.
+type RSVPSummary struct {
+	Counts   RSVPCounts           `json:"counts"`
+	MyStatus *RSVPStatus          `json:"my_status"`
+	People   []RSVPPersonResponse `json:"people,omitempty"`
+}
+
 // ReviewInput is a reviewer's decision.
 type ReviewInput struct {
 	Decision string `json:"decision" binding:"required"`
