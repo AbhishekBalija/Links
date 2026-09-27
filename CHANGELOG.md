@@ -16,6 +16,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Added
 - Proposers can delete their own event drafts. Anything already submitted is
   cancelled instead, so its history stays.
+- The event feed carries each Event's answer counts and your own answer,
+  lists upcoming, going or past Events (`show`), and keeps a cancelled Event
+  in view, until it ends, for the people who answered it.
 - Event proposals (Phase 3): staff and student coordinators save Event drafts
   for their Department (the principal and admins for any or none, the
   placement officer training only), with type, place, times, capacity,

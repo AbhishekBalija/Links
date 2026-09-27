@@ -514,8 +514,19 @@ published Events whose Audience includes the reader, matched exactly as the
 Announcement feed matches, soonest first, cursor-paginated (`limit` up to 50,
 `meta.next_cursor`). Without `from` only Events not over yet are listed.
 Filters: `from` and `to` (RFC 3339, on `starts_at`), `department` (a code),
-`event_type`. A bad value is `400` with the field in `details`. Feed items
-carry no review notes.
+`event_type`, and `show`:
+
+- `upcoming` (the default): Events not over yet, soonest first. A cancelled
+  Event stays listed, with `status: "cancelled"`, for readers who answered
+  it, until it ends, so the people planning to come find out.
+- `going`: upcoming Events the reader answered `going` to.
+- `past`: Events that have ended, most recent first; `next_cursor` pages
+  backwards in time.
+
+A bad value is `400` with the field in `details`. Feed items carry no review
+notes. Each carries `rsvp: {counts: {going, interested, not_going},
+my_status}`, read for the whole page at once, so a list needs no call per
+Event.
 
 `GET /api/v1/events/:id` returns one Event to its proposer (any status); to
 the principal, admins and the HOD of its Department once it has left draft,

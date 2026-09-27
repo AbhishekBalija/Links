@@ -157,7 +157,8 @@ type Repository interface {
 	Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
-	Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
+	Feed(ctx context.Context, readerID string, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
+	RSVPSummaries(ctx context.Context, eventIDs []string, userID string) (map[string]map[RSVPStatus]int, map[string]RSVPStatus, error)
 	VisibleTo(ctx context.Context, reader Reader, id string) (bool, error)
 	FindRSVP(ctx context.Context, eventID, userID string) (*RSVP, error)
 	SaveRSVP(ctx context.Context, rsvp *RSVP) error
@@ -224,7 +225,20 @@ type Reader struct {
 
 // FeedFilter narrows the Event feed. Without From, only Events not yet over
 // are listed.
+// Show picks which Events the feed lists.
+type Show string
+
+const (
+	// ShowUpcoming is the default: Events not over yet, soonest first.
+	ShowUpcoming Show = "upcoming"
+	// ShowGoing is upcoming Events the reader answered going to.
+	ShowGoing Show = "going"
+	// ShowPast is Events that have ended, most recent first.
+	ShowPast Show = "past"
+)
+
 type FeedFilter struct {
+	Show         Show
 	From         *time.Time
 	To           *time.Time
 	DepartmentID *string

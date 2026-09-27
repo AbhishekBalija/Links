@@ -201,6 +201,7 @@ func (h *Handler) Feed(c *gin.Context) {
 		To:         c.Query("to"),
 		Department: c.Query("department"),
 		EventType:  c.Query("event_type"),
+		Show:       c.Query("show"),
 		Cursor:     c.Query("cursor"),
 		Limit:      limit,
 	})

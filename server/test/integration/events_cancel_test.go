@@ -102,8 +102,13 @@ func TestCancellingKeepsRSVPsAndStopsNewOnes(t *testing.T) {
 	expectStatus(t, "RSVP after cancel", rsvp(t, h, late.Token, id, "going"), http.StatusConflict)
 	expectStatus(t, "edit after cancel", h.Do(t, http.MethodPatch, "/api/v1/events/"+id, faculty.Token, map[string]any{"location": "Elsewhere"}), http.StatusConflict)
 
-	if got, _ := eventFeed(t, h, reader.Token, url.Values{}); len(got) != 0 {
-		t.Errorf("feed = %v, want the cancelled event gone", eventTitles(got))
+	// Someone who answered keeps seeing it, marked cancelled, so they find out;
+	// everyone else no longer sees it.
+	if got, _ := eventFeed(t, h, reader.Token, url.Values{}); len(got) != 1 || got[0].Status != "cancelled" {
+		t.Errorf("feed for the reader who answered = %+v, want the cancelled event", got)
+	}
+	if got, _ := eventFeed(t, h, late.Token, url.Values{}); len(got) != 0 {
+		t.Errorf("feed for someone who never answered = %v, want the cancelled event gone", eventTitles(got))
 	}
 	response := h.Do(t, http.MethodGet, "/api/v1/events/"+id, reader.Token, nil)
 	var detail struct {
