@@ -175,6 +175,7 @@ func (f *fakeUserRepo) LockDepartmentForUpdate(context.Context, string) (bool, e
 func (f *fakeUserRepo) LockAdminAssignmentsInEffect(context.Context) ([]RoleAssignment, error) {
 	return nil, nil
 }
+func (f *fakeUserRepo) USNExists(context.Context, string) (bool, error)            { return false, nil }
 func (f *fakeUserRepo) EndRoleAssignment(context.Context, string, time.Time) error { return nil }
 func (f *fakeUserRepo) ClearDepartmentHOD(context.Context, string, string) error   { return nil }
 

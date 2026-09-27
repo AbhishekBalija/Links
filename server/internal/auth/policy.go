@@ -21,6 +21,7 @@ const (
 	PermissionShortlistApplicants Permission = "shortlist_applicants"
 	PermissionManageUsersAndRoles Permission = "manage_users_and_roles"
 	PermissionManageDepartments   Permission = "manage_departments"
+	PermissionImportStudents      Permission = "import_students"
 )
 
 type Policy struct {
@@ -47,6 +48,9 @@ func NewPolicy() *Policy {
 			PermissionShortlistApplicants: {RolePlacementOfficer, RolePrincipal, RoleAdmin},
 			PermissionManageUsersAndRoles: {RolePrincipal, RoleAdmin},
 			PermissionManageDepartments:   {RoleAdmin},
+			// HODs import only their own Department's students; the service
+			// checks the Department (#17).
+			PermissionImportStudents: {RoleHOD, RolePrincipal, RoleAdmin},
 		},
 	}
 }

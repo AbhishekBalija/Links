@@ -11,6 +11,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   user's staff roles, with Department scopes, start and end dates, one HOD per
   Department, and an audit log. Only an admin can grant or end the admin role,
   and the last admin can't be removed.
+- Bulk student import (#17): admins, the principal and HODs (for their own
+  Department) upload a CSV of email, full name and USN. Each valid row
+  becomes a verified student with an activation email, and the response
+  reports every row's result.
 
 ### Changed
 - Department codes come from the database (#18): a Department an admin adds

@@ -125,6 +125,7 @@ Audit:
 
 - User verification
 - Role assignment (granted and ended)
+- Student CSV imports (one entry per import, one per created user)
 - Account suspension/restoration
 - Event approval decisions
 - Announcement approvals

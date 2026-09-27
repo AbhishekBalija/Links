@@ -23,6 +23,7 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin.GET("/review-queue", h.ReviewQueue)
 	admin.PATCH("/:id/verify", h.VerifyUser)
 	admin.PATCH("/:id/status", h.UpdateUserStatus)
+	admin.POST("/import", h.ImportStudents)
 	admin.GET("/:id/roles", h.ListRoles)
 	admin.POST("/:id/roles", h.GrantRole)
 	admin.DELETE("/:id/roles/:roleAssignmentId", h.EndRole)
@@ -165,4 +166,38 @@ func (h *AdminHandler) authorizeManager(c *gin.Context) bool {
 		return false
 	}
 	return true
+}
+
+func (h *AdminHandler) ImportStudents(c *gin.Context) {
+	actor := GetActor(c)
+	if actor == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return
+	}
+	if err := AuthorizeActor(c, h.policy, PermissionImportStudents); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return
+	}
+	upload, err := c.FormFile("file")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "upload the CSV as the multipart field \"file\"", map[string]string{"file": "required"})
+		return
+	}
+	if upload.Size > MaxImportBytes {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "the file is too large", map[string]string{"file": "at most 1 MB"})
+		return
+	}
+	file, err := upload.Open()
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "the file could not be read", nil)
+		return
+	}
+	defer file.Close()
+
+	resp, err := h.service.ImportStudents(c.Request.Context(), actor.UserID, file)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, nil)
 }

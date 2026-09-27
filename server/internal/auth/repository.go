@@ -143,6 +143,13 @@ func (r *GormUserRepository) CreateStudentIdentity(ctx context.Context, identity
 	return r.db.WithContext(ctx).Create(identity).Error
 }
 
+// USNExists matches the case-insensitive unique index on student_identities.
+func (r *GormUserRepository) USNExists(ctx context.Context, usn string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&StudentIdentity{}).Where("lower(usn) = lower(?)", usn).Count(&count).Error
+	return count > 0, err
+}
+
 func (r *GormUserRepository) GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error) {
 	var roles []RoleAssignment
 	// Only roles in effect now count: started, and not yet ended.
