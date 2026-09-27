@@ -14,6 +14,20 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Searching by name, username or headline tolerates typos and ranks the
   best matches first. Each Department has an overview with its HOD, staff,
   and student counts per Batch.
+- Role management (#22): the principal and admins can list, grant and end a
+  user's staff roles, with Department scopes, start and end dates, one HOD per
+  Department, and an audit log. Only an admin can grant or end the admin role,
+  and the last admin can't be removed.
+
+### Changed
+- Department codes come from the database (#18): a Department an admin adds
+  works for access requests and appears in the sign-up form without a code
+  change. A new public endpoint lists Department codes and names. A USN whose
+  Department differs from the chosen one is now rejected.
+
+### Security
+- Ending a role, suspending or rejecting a user signs them out everywhere by
+  revoking their refresh tokens (#22).
 
 ## [0.3.0] - 2026-09-27
 
