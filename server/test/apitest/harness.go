@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -138,6 +139,7 @@ type UserSeed struct {
 // User is a seeded user with an access token carrying their roles.
 type User struct {
 	ID    string
+	Email string
 	Token string
 }
 
@@ -147,8 +149,9 @@ func (h *Harness) SeedUser(t *testing.T, seed UserSeed) User {
 	t.Helper()
 	id := uuid.NewString()
 	suffix := randomHex(t, 4)
+	email := "user-" + suffix + "@apitest.local"
 	h.exec(t, `INSERT INTO users (id, email, password_hash, status, is_verified, created_at, updated_at)
-		VALUES (?, ?, 'not-a-real-hash', 'active', true, now(), now())`, id, "user-"+suffix+"@apitest.local")
+		VALUES (?, ?, 'not-a-real-hash', 'active', true, now(), now())`, id, email)
 	h.exec(t, `INSERT INTO profiles (user_id, username, full_name) VALUES (?, ?, ?)`,
 		id, "user_"+suffix, "Test User "+suffix)
 
@@ -177,7 +180,30 @@ func (h *Harness) SeedUser(t *testing.T, seed UserSeed) User {
 	if err != nil {
 		t.Fatalf("sign access token: %v", err)
 	}
-	return User{ID: id, Token: token}
+	return User{ID: id, Email: email, Token: token}
+}
+
+// SignIn gives a seeded user a real password, logs them in through the API and
+// returns their refresh token cookie, for tests about sessions.
+func (h *Harness) SignIn(t *testing.T, user User) *http.Cookie {
+	t.Helper()
+	const password = "Apitest-password-1"
+	hash, err := auth.NewArgon2PasswordHasher().Hash(password)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	h.exec(t, `UPDATE users SET password_hash = ? WHERE id = ?`, hash, user.ID)
+	response := h.Do(t, http.MethodPost, "/api/v1/auth/login", "", map[string]string{"email": user.Email, "password": password})
+	if response.Status != http.StatusOK {
+		t.Fatalf("login status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
+	}
+	for _, cookie := range response.Cookies() {
+		if cookie.Name == "refresh_token" {
+			return cookie
+		}
+	}
+	t.Fatal("login set no refresh_token cookie")
+	return nil
 }
 
 // TokenFor signs a fresh access token for an existing user with the given role
@@ -205,6 +231,12 @@ func (h *Harness) DepartmentID(t *testing.T, code string) string {
 type Response struct {
 	Status int
 	Body   string
+	Header http.Header
+}
+
+// Cookies returns the cookies the response set.
+func (r Response) Cookies() []*http.Cookie {
+	return (&http.Response{Header: r.Header}).Cookies()
 }
 
 // Decode parses the response body as JSON into target.
@@ -233,9 +265,15 @@ func (h *Harness) Do(t *testing.T, method, path, token string, body any) Respons
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
+	return h.Send(request)
+}
+
+// Send runs a request built by the test, for calls that need their own
+// headers or cookies.
+func (h *Harness) Send(request *http.Request) Response {
 	recorder := httptest.NewRecorder()
 	h.router.ServeHTTP(recorder, request)
-	return Response{Status: recorder.Code, Body: recorder.Body.String()}
+	return Response{Status: recorder.Code, Body: recorder.Body.String(), Header: recorder.Header()}
 }
 
 func (h *Harness) exec(t *testing.T, query string, args ...any) {

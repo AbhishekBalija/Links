@@ -1,17 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../../components/ui/button'
-import { requestAccess } from '../api'
+import { requestAccess, usePublicDepartments } from '../api'
+import { isUSNFormat } from '../usn'
 import { ApiRequestError } from '../../../shared/api/types'
-
-const DEPARTMENTS = [
-  { code: 'CS', name: 'Computer Science and Engineering' },
-  { code: 'AD', name: 'Artificial Intelligence and Data Science' },
-  { code: 'AI', name: 'Computer Science and Engineering (AI and ML)' },
-  { code: 'CV', name: 'Civil Engineering' },
-  { code: 'ME', name: 'Mechanical Engineering' },
-  { code: 'EC', name: 'Electronics and Communication Engineering' },
-]
 
 type FormData = {
   email: string
@@ -36,6 +28,7 @@ export default function AccessRequest() {
   const [errors, setErrors] = useState<FormErrors>({})
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [serverError, setServerError] = useState<string | null>(null)
+  const departments = usePublicDepartments()
 
   function validate(): FormErrors {
     const errs: FormErrors = {}
@@ -47,7 +40,7 @@ export default function AccessRequest() {
     else if (!/[A-Z]/.test(form.password)) errs.password = 'Password must contain an uppercase letter'
     else if (!/[a-z]/.test(form.password)) errs.password = 'Password must contain a lowercase letter'
     else if (!/[0-9]/.test(form.password)) errs.password = 'Password must contain a digit'
-    if (form.usn && !/^4MN\d{2}(CS|AD|AI|CV|ME|EC)\d{3}$/i.test(form.usn)) {
+    if (form.usn && !isUSNFormat(form.usn)) {
       errs.usn = 'USN format: 4MN<year><dept><roll> (e.g., 4MN22CS001)'
     }
     if (!form.department_code) errs.department_code = 'Select your department'
@@ -134,12 +127,18 @@ export default function AccessRequest() {
 
           <div>
             <label htmlFor="department_code" className="block text-sm font-medium text-foreground mb-1.5">Department</label>
-            <select id="department_code" value={form.department_code} onChange={(e) => update('department_code', e.target.value)} className={inputClass}>
-              <option value="">Select department</option>
-              {DEPARTMENTS.map((d) => (
+            <select id="department_code" value={form.department_code} onChange={(e) => update('department_code', e.target.value)} className={inputClass} disabled={!departments.data} aria-busy={departments.isPending}>
+              <option value="">{departments.isPending ? 'Loading departments…' : 'Select department'}</option>
+              {departments.data?.map((d) => (
                 <option key={d.code} value={d.code}>{d.name} ({d.code})</option>
               ))}
             </select>
+            {departments.isError && (
+              <p className="mt-1 text-xs text-destructive">
+                Couldn't load departments.{' '}
+                <button type="button" onClick={() => departments.refetch()} className="text-primary hover:underline">Try again</button>
+              </p>
+            )}
             {errors.department_code && <p className="mt-1 text-xs text-destructive">{errors.department_code}</p>}
           </div>
 
