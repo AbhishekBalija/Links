@@ -42,6 +42,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		}))
 	}
 	router.Use(
+		securityHeaders(cfg.AppEnv == "production"),
 		requestBodyLimit(cfg.RequestBodyLimit),
 		requestLogger(logger),
 		recovery(logger),
@@ -53,6 +54,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	api := router.Group("/api")
 	api.GET("/health", healthHandler)
 	api.GET("/ready", readinessHandler(database))
+	api.POST("/csp-report", cspReportHandler(logger))
 
 	userRepo := auth.NewGormUserRepository(database.GORM())
 	refreshRepo := auth.NewGormRefreshTokenRepository(database.GORM())
@@ -87,7 +89,10 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 
 	policy := auth.NewPolicy()
 	authHandler := auth.NewHandler(authService, policy, cfg.Cookie, tokenCfg)
-	authHandler.RegisterRoutes(api)
+	// The web app's own origin (FRONTEND_URL) may use the refresh cookie
+	// even when it isn't listed for CORS, as on a same-domain deployment.
+	cookieOrigins := append([]string{cfg.Mailer.FrontendURL}, cfg.CORS.AllowedOrigins...)
+	authHandler.RegisterRoutes(api, requireAllowedOrigin(cookieOrigins))
 
 	v1 := api.Group("/v1")
 	v1.Use(auth.RequireAuth(tokenCfg))

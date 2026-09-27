@@ -117,6 +117,22 @@ POST /api/v1/auth/activate
 POST /api/v1/auth/resend-activation
 ```
 
+`POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout` use the refresh
+cookie, so they also check where the request came from (ADR 0022). A request
+whose `Origin` (or, without one, `Referer`) isn't `FRONTEND_URL`, one of
+`CORS_ALLOWED_ORIGINS` or the API's own host gets `403 FORBIDDEN`
+("request origin not allowed"). Requests with neither header, from
+non-browser clients, pass.
+
+Every API response carries `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`
+and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`
+(plus `Strict-Transport-Security` in production).
+
+`POST /api/csp-report` takes a browser's Content-Security-Policy violation
+report (`{"csp-report": {...}}`) without a token, logs it and returns `204`.
+It exists for the web app's report-only policy.
+
 ## Current User and Profiles
 
 ```text

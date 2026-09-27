@@ -92,7 +92,7 @@ func Load() (Config, error) {
 		},
 		Cookie: CookieConfig{
 			Secure:   boolValue("COOKIE_SECURE", true),
-			SameSite: valueOrDefault("COOKIE_SAME_SITE", "lax"),
+			SameSite: strings.ToLower(valueOrDefault("COOKIE_SAME_SITE", "lax")),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: csvValue("CORS_ALLOWED_ORIGINS"),
@@ -173,8 +173,15 @@ func (c Config) Validate() error {
 	if c.Auth.RefreshTokenTTL <= 0 {
 		return fmt.Errorf("REFRESH_TOKEN_TTL must be greater than zero")
 	}
-	if c.Cookie.SameSite == "none" && !c.Cookie.Secure {
-		return fmt.Errorf("COOKIE_SECURE must be true when COOKIE_SAME_SITE is none")
+	// The refresh cookie must never go out on cross-site requests, and must
+	// only travel over HTTPS anywhere but a developer's machine.
+	switch c.Cookie.SameSite {
+	case "", "lax", "strict":
+	default:
+		return fmt.Errorf("COOKIE_SAME_SITE must be lax or strict")
+	}
+	if c.AppEnv != "local" && !c.Cookie.Secure {
+		return fmt.Errorf("COOKIE_SECURE must be true outside APP_ENV=local")
 	}
 
 	return nil

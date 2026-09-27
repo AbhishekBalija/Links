@@ -77,6 +77,15 @@ For web:
 - Clear refresh cookie on logout.
 - Protect state-changing endpoints from CSRF.
 
+What LINKS does (ADR 0022):
+
+- The cookie is `HttpOnly` and `SameSite=Lax` (or `Strict`). The API refuses
+  to start with `COOKIE_SAME_SITE=none`, or without `COOKIE_SECURE=true`
+  outside `APP_ENV=local`.
+- `/auth/refresh` and `/auth/logout`, the only endpoints that read the cookie,
+  check `Origin` (or `Referer`) against `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`
+  and the API's own host, and return `403` for anything else.
+
 Avoid long-lived tokens in local storage.
 
 ## Roles

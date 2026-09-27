@@ -13,6 +13,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   and the last admin can't be removed.
 
 ### Security
+- Refresh and logout refuse requests from other sites (Origin or Referer
+  check), every API response carries security headers, and the web app
+  sends a report-only Content-Security-Policy whose violations are logged
+  by the API (#19). The API refuses to start with an insecure cookie setup.
 - Ending a role, suspending or rejecting a user signs them out everywhere by
   revoking their refresh tokens (#22).
 

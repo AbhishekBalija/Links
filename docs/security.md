@@ -40,11 +40,23 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 ## Cookie and CSRF
 
 - Refresh cookies must be `HttpOnly`.
-- Use `Secure` in production.
-- Use `SameSite=Lax` or `SameSite=Strict`.
+- Use `Secure` in production. Config refuses `COOKIE_SECURE=false` outside `APP_ENV=local`.
+- Use `SameSite=Lax` or `SameSite=Strict`. Config refuses `none`.
 - Prefer `__Host-` prefix.
 - Clear cookies on logout.
-- Add CSRF protection for state-changing cookie-authenticated requests.
+- Refresh and logout, the only cookie-authenticated requests, check `Origin`
+  or `Referer` against the allowed origins and the API's own host (ADR 0022).
+
+## Security Headers
+
+- API: `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
+  `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, and
+  HSTS in production.
+- Web app (`vercel.json`): the same three headers plus a
+  `Content-Security-Policy-Report-Only` limited to the app's origin, Sentry's
+  ingest hosts, and `data:`/`blob:` where Vite and Sentry need them. Reports go
+  to `POST /api/csp-report` and appear in the API logs as "content security
+  policy violation". Enforce it after a week without violations.
 
 ## CORS
 
