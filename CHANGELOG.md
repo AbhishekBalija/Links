@@ -6,11 +6,22 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The API failed to start on Vercel (every request returned 500): on each
+  cold start it checked every migration in its own transaction, and with
+  the database in another region those round trips passed the startup
+  deadline. Startup now reads the applied migrations in one query and only
+  locks and applies the missing ones.
+
 ### Added
 - Event proposals (Phase 3): staff and student coordinators save Event drafts
   for their Department (the principal and admins for any or none, the
   placement officer training only), with type, place, times, capacity,
   faculty mentor and Audience, edit them, and list their own.
+- Member directory (#12): signed-in members can list active members
+  alphabetically, filtered by Department, role and Batch, with roles,
+  Department, Batch for students, and contact details only where the member
+  opted in. Hidden, suspended, pending and former members never appear.
 - Role management (#22): the principal and admins can list, grant and end a
   user's staff roles, with Department scopes, start and end dates, one HOD per
   Department, and an audit log. Only an admin can grant or end the admin role,

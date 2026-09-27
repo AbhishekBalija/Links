@@ -109,6 +109,11 @@ Private by default:
 - Placement application data
 - Shortlisting status except to authorized viewers
 
+The member directory (`GET /api/v1/directory`) applies the public profile's
+rules through the shared `profiles.Privacy` type: hidden profiles are not
+listed, and email and phone appear only when the member opted in. It lists only
+active, verified members with a role in effect, and never returns a USN.
+
 ## Applicant Data
 
 Allowed viewers:
