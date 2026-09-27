@@ -1,6 +1,6 @@
 import { ChevronLeft } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, Navigate, useBlocker, useNavigate, useParams } from 'react-router-dom'
+import { useRef, useState, type ReactNode } from 'react'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { ApiRequestError } from '../../../shared/api/types'
 import { EmptyState, ErrorState } from '../../../shared/ui/states'
@@ -12,16 +12,16 @@ import { buttonStyles } from '../../announcements/buttons'
 import { ActionBar } from '../../announcements/components/ActionBar'
 import { AudiencePicker } from '../../announcements/components/AudiencePicker'
 import { ComposeSkeleton } from '../../announcements/components/compose/ComposeSkeleton'
-import { Segmented } from '../../announcements/components/compose/Fields'
 import { errorRing, inputClass } from '../../announcements/components/compose/styles'
 import { LeaveDialog } from '../../announcements/components/LeaveDialog'
-import { DateTime, FieldError, Labelled } from '../components/FormFields'
+import { FieldError, Labelled, SeatLimit, WhenAndWhere } from '../components/FormFields'
 import type { Department } from '../../announcements/types'
 import { useDepartmentOverview } from '../../people/api'
 import { useCreateEvent, useEvent, useSubmitEvent, useUpdateEvent } from '../api'
-import { checkProposal, durationLabel, emptyProposal, fromEvent, toInput, type ProposalErrors, type ProposalForm } from '../proposal'
+import { checkProposal, emptyProposal, fromEvent, toInput } from '../proposal'
 import { routeFor } from '../route'
 import { latestReview, reviewerAt } from '../standing'
+import { serverErrors, useEventForm } from '../useEventForm'
 import { eventTypes, type CampusEvent, type EventStatus } from '../types'
 
 // Statuses the proposer can still edit; anything else opens its own page.
@@ -66,18 +66,6 @@ export default function Propose() {
   )
 }
 
-// Maps the server's field names onto the form's.
-const serverFields: Record<string, keyof ProposalErrors> = {
-  title: 'title',
-  description: 'description',
-  event_type: 'event_type',
-  location: 'location',
-  starts_at: 'starts',
-  ends_at: 'ends',
-  capacity: 'capacity',
-  audience: 'audience',
-}
-
 function ProposeForm({ item, department, departments }: {
   item: CampusEvent | undefined
   department: { id: string; code: string } | null
@@ -91,41 +79,16 @@ function ProposeForm({ item, department, departments }: {
   const trainingOnly = !privileged && roles.includes('placement_officer') && !roles.some((r) => ['hod', 'faculty', 'student_coordinator'].includes(r))
   const types = trainingOnly ? eventTypes.filter((t) => t.value === 'training') : eventTypes
 
-  const [initial] = useState<ProposalForm>(() =>
+  const { form, set, errors, setErrors, blocker, allowLeaving } = useEventForm(() =>
     item ? fromEvent(item) : emptyProposal(department ? presetsFor(department)[2].audience : [], trainingOnly ? 'training' : null),
   )
-  const [form, setForm] = useState(initial)
-  const [errors, setErrors] = useState<ProposalErrors>({})
   const [failure, setFailure] = useState('')
-  const leaving = useRef(false)
   const titleRef = useRef<HTMLInputElement>(null)
 
   const create = useCreateEvent()
   const update = useUpdateEvent()
   const submit = useSubmitEvent()
   const saving = create.isPending || update.isPending || submit.isPending
-
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial)
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname)
-
-  useEffect(() => {
-    if (!dirty) return
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
-
-  function set<K extends keyof ProposalForm>(key: K, value: ProposalForm[K]) {
-    setForm((f) => {
-      const next = { ...f, [key]: value }
-      // A new start date carries the end date along while they matched.
-      if (key === 'startDate' && (f.endDate === '' || f.endDate === f.startDate)) next.endDate = value as string
-      return next
-    })
-    const field: keyof ProposalErrors | undefined =
-      key === 'startDate' || key === 'startTime' ? 'starts' : key === 'endDate' || key === 'endTime' ? 'ends' : key === 'limitSeats' ? 'capacity' : (key as keyof ProposalErrors)
-    setErrors((e) => ({ ...e, [field]: undefined }))
-  }
 
   const resubmitting = item?.status === 'hod_changes_requested' || item?.status === 'final_changes_requested' ? item.status : undefined
   const route = routeFor({
@@ -159,11 +122,7 @@ function ProposeForm({ item, department, departments }: {
       return saved.id
     } catch (err) {
       if (err instanceof ApiRequestError && err.status === 400 && err.details) {
-        const mapped: ProposalErrors = {}
-        for (const [field, message] of Object.entries(err.details)) {
-          const key = serverFields[field]
-          if (key && typeof message === 'string') mapped[key] = sentence(message)
-        }
+        const mapped = serverErrors(err.details)
         setErrors(mapped)
         setFailure(Object.keys(mapped).length > 0 ? '' : 'This proposal needs a change the form cannot show. Check the details and try again.')
       } else if (err instanceof ApiRequestError && err.status === 409) {
@@ -180,14 +139,14 @@ function ProposeForm({ item, department, departments }: {
   async function handleSubmit() {
     const savedId = await save(false)
     if (!savedId) return
-    leaving.current = true
+    allowLeaving()
     navigate(`/mine/events/${savedId}`, { replace: true })
   }
 
   async function handleDraft() {
     const savedId = await save(true)
     if (!savedId) return
-    leaving.current = true
+    allowLeaving()
     if (blocker.state === 'blocked') blocker.proceed()
     else navigate('/mine?status=draft', { replace: true })
   }
@@ -195,7 +154,6 @@ function ProposeForm({ item, department, departments }: {
   const errorCount = Object.values(errors).filter(Boolean).length
   const review = latestReview(item ?? {})
   const heading = !item ? 'Propose an event' : item.status === 'draft' ? 'Edit draft' : 'Edit and resubmit'
-  const duration = durationLabel(form)
 
   return (
     <div className="group/page flex flex-col gap-5 pb-44 lg:pb-0">
@@ -267,49 +225,7 @@ function ProposeForm({ item, department, departments }: {
           </Labelled>
 
           <PhoneHeading>When and where</PhoneHeading>
-          <DateTime
-            label="Starts"
-            date={form.startDate}
-            time={form.startTime}
-            onDate={(v) => set('startDate', v)}
-            onTime={(v) => set('startTime', v)}
-            error={errors.starts}
-          />
-          <DateTime
-            label="Ends"
-            date={form.endDate}
-            time={form.endTime}
-            onDate={(v) => set('endDate', v)}
-            onTime={(v) => set('endTime', v)}
-            error={errors.ends}
-            after={duration && <span className="font-mono text-[13px] text-ink-3">{duration}</span>}
-          />
-
-          <Labelled label="Where" error={errors.location}>
-            {(props) => (
-              <input
-                {...props}
-                type="text"
-                maxLength={200}
-                value={form.location}
-                onChange={(e) => set('location', e.target.value)}
-                className={cn(inputClass, 'text-[15px]', errors.location && errorRing)}
-              />
-            )}
-          </Labelled>
-
-          <Labelled label="About the event" optional error={errors.description}>
-            {(props) => (
-              <textarea
-                {...props}
-                rows={5}
-                maxLength={5000}
-                value={form.description}
-                onChange={(e) => set('description', e.target.value)}
-                className={cn(inputClass, 'resize-y font-serif text-[17px] leading-relaxed text-prose lg:text-lg', errors.description && errorRing)}
-              />
-            )}
-          </Labelled>
+          <WhenAndWhere form={form} errors={errors} set={set} />
         </section>
 
         <aside className="flex flex-col gap-4">
@@ -335,40 +251,20 @@ function ProposeForm({ item, department, departments }: {
           </section>
 
           <section aria-labelledby="seats-h" className="flex flex-col gap-3 rounded-xl border border-line bg-surface py-4 pr-4 pl-5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex flex-col gap-0.5">
-                <span id="seats-h" className="text-sm font-semibold">
-                  Seats
+            <SeatLimit
+              form={form}
+              errors={errors}
+              set={set}
+              heading={
+                <span className="flex flex-col gap-0.5">
+                  <span id="seats-h" className="text-sm font-semibold">
+                    Seats
+                  </span>
+                  <span className="text-xs text-ink-2">Going stops at the limit</span>
                 </span>
-                <span className="text-xs text-ink-2">Going stops at the limit</span>
-              </span>
-              <Segmented
-                label="Seats"
-                options={[
-                  { value: 'none', label: 'No limit' },
-                  { value: 'limit', label: 'Limit' },
-                ]}
-                value={form.limitSeats ? 'limit' : 'none'}
-                onChange={(v) => set('limitSeats', v === 'limit')}
-              />
-            </div>
-            {form.limitSeats && (
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2.5">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    aria-label="Seat limit"
-                    aria-invalid={errors.capacity ? true : undefined}
-                    value={form.capacity}
-                    onChange={(e) => set('capacity', e.target.value)}
-                    className={cn('min-h-11 w-[110px] rounded-lg border border-input bg-paper px-3 font-mono text-[15px] outline-none focus-visible:border-rust', errors.capacity && errorRing)}
-                  />
-                  <span className="text-[13px] text-ink-2">people can say Going. Others can still say Interested.</span>
-                </div>
-                <FieldError message={errors.capacity} />
-              </div>
-            )}
+              }
+              hint={form.limitSeats && <span className="text-[13px] text-ink-2">people can say Going. Others can still say Interested.</span>}
+            />
           </section>
         </aside>
       </div>
@@ -403,17 +299,12 @@ function ProposeForm({ item, department, departments }: {
         onSaveDraft={handleDraft}
         onKeepEditing={() => blocker.reset?.()}
         onDiscard={() => {
-          leaving.current = true
+          allowLeaving()
           blocker.proceed?.()
         }}
       />
     </div>
   )
-}
-
-// The server's messages are lower-case fragments ("must be in the future").
-function sentence(message: string) {
-  return message.charAt(0).toUpperCase() + message.slice(1) + (message.endsWith('.') ? '' : '.')
 }
 
 // PhoneHeading groups the long form into steps on phones.

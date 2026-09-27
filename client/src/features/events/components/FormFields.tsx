@@ -1,6 +1,14 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { errorRing } from '../../announcements/components/compose/styles'
+import { Segmented } from '../../announcements/components/compose/Fields'
+import { errorRing, inputClass } from '../../announcements/components/compose/styles'
+import { durationLabel, type ProposalErrors, type ProposalForm } from '../proposal'
+
+type FieldsProps = {
+  form: ProposalForm
+  errors: ProposalErrors
+  set: <K extends keyof ProposalForm>(key: K, value: ProposalForm[K]) => void
+}
 
 // The event forms' labelled fields: shared by proposing and by editing a
 // published event's details.
@@ -66,5 +74,87 @@ export function DateTime({ label, date, time, onDate, onTime, error, after }: {
       </div>
       <FieldError id={`${id}-error`} message={error} />
     </fieldset>
+  )
+}
+
+// WhenAndWhere is the part of an event that can still change after it is
+// published: start, end, place and description.
+export function WhenAndWhere({ form, errors, set, between }: FieldsProps & { between?: ReactNode }) {
+  const duration = durationLabel(form)
+  return (
+    <>
+      <DateTime label="Starts" date={form.startDate} time={form.startTime} onDate={(v) => set('startDate', v)} onTime={(v) => set('startTime', v)} error={errors.starts} />
+      <DateTime
+        label="Ends"
+        date={form.endDate}
+        time={form.endTime}
+        onDate={(v) => set('endDate', v)}
+        onTime={(v) => set('endTime', v)}
+        error={errors.ends}
+        after={duration && <span className="font-mono text-[13px] text-ink-3">{duration}</span>}
+      />
+      <Labelled label="Where" error={errors.location}>
+        {(props) => (
+          <input
+            {...props}
+            type="text"
+            maxLength={200}
+            value={form.location}
+            onChange={(e) => set('location', e.target.value)}
+            className={cn(inputClass, 'text-[15px]', errors.location && errorRing)}
+          />
+        )}
+      </Labelled>
+      {between}
+      <Labelled label="About the event" optional error={errors.description}>
+        {(props) => (
+          <textarea
+            {...props}
+            rows={5}
+            maxLength={5000}
+            value={form.description}
+            onChange={(e) => set('description', e.target.value)}
+            className={cn(inputClass, 'resize-y font-serif text-[17px] leading-relaxed text-prose lg:text-lg', errors.description && errorRing)}
+          />
+        )}
+      </Labelled>
+    </>
+  )
+}
+
+// SeatLimit switches between no limit and a number of seats for Going.
+export function SeatLimit({ form, errors, set, heading, hint }: FieldsProps & { heading: ReactNode; hint: ReactNode }) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        {heading}
+        <Segmented
+          label="Seats"
+          options={[
+            { value: 'none', label: 'No limit' },
+            { value: 'limit', label: 'Limit' },
+          ]}
+          value={form.limitSeats ? 'limit' : 'none'}
+          onChange={(v) => set('limitSeats', v === 'limit')}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2.5">
+          {form.limitSeats && (
+            <input
+              type="text"
+              inputMode="numeric"
+              aria-label="Seat limit"
+              aria-invalid={errors.capacity ? true : undefined}
+              value={form.capacity}
+              onChange={(e) => set('capacity', e.target.value)}
+              className={cn('min-h-11 w-[110px] shrink-0 rounded-lg border border-input bg-paper px-3 font-mono text-[15px] outline-none focus-visible:border-rust', errors.capacity && errorRing)}
+            />
+          )}
+          {hint}
+        </div>
+        <FieldError message={errors.capacity} />
+      </div>
+    </>
   )
 }
