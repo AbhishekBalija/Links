@@ -35,6 +35,8 @@ type AudienceRuleInput struct {
 
 // CreateEventInput proposes an Event.
 type CreateEventInput struct {
+	// Draft saves without submitting for review.
+	Draft           bool                `json:"draft"`
 	Title           string              `json:"title"`
 	Description     string              `json:"description"`
 	EventType       string              `json:"event_type"`
@@ -101,6 +103,24 @@ type EventResponse struct {
 	CancelReason  *string                `json:"cancel_reason,omitempty"`
 	CreatedAt     time.Time              `json:"created_at"`
 	UpdatedAt     time.Time              `json:"updated_at"`
+	// Reviews is every decision so far, oldest first.
+	Reviews []ReviewResponse `json:"reviews"`
+	// Stage is set in a reviewer's queue: which review is waiting.
+	Stage Stage `json:"stage,omitempty"`
+}
+
+type ReviewResponse struct {
+	Stage        Stage     `json:"stage"`
+	Decision     Decision  `json:"decision"`
+	Note         *string   `json:"note,omitempty"`
+	ReviewerName string    `json:"reviewer_name"`
+	DecidedAt    time.Time `json:"decided_at"`
+}
+
+// ReviewInput is a reviewer's decision.
+type ReviewInput struct {
+	Decision string `json:"decision" binding:"required"`
+	Note     string `json:"note" binding:"max=2000"`
 }
 
 // ListMeta carries the cursor for the next page; empty when there are no more.

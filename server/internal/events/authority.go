@@ -42,3 +42,52 @@ func holdsDepartmentRole(grants []Grant) bool {
 	}
 	return false
 }
+
+// nextStatus is where submitting an Event takes it (ADR 0023):
+//   - the principal or an admin publishes straight away;
+//   - after final changes were requested it returns to final approval;
+//   - an HOD's own Department event and a placement officer's training event
+//     skip the HOD stage;
+//   - anything else waits for its Department's HOD.
+func nextStatus(grants []Grant, event Event) Status {
+	for _, grant := range grants {
+		if grant.Role == auth.RolePrincipal || grant.Role == auth.RoleAdmin {
+			return StatusPublished
+		}
+	}
+	if event.Status == StatusFinalChangesRequested {
+		return StatusHODApproved
+	}
+	for _, grant := range grants {
+		if grant.Role == auth.RoleHOD && event.DepartmentID != nil && grant.DepartmentID == *event.DepartmentID {
+			return StatusHODApproved
+		}
+		if grant.Role == auth.RolePlacementOfficer && event.EventType == TypeTraining {
+			return StatusHODApproved
+		}
+	}
+	return StatusSubmitted
+}
+
+// privileged is true for the principal and admins.
+func privileged(grants []Grant) bool {
+	for _, grant := range grants {
+		if grant.Role == auth.RolePrincipal || grant.Role == auth.RoleAdmin {
+			return true
+		}
+	}
+	return false
+}
+
+// hodOf is true when the grants include the HOD role for the Department.
+func hodOf(grants []Grant, departmentID *string) bool {
+	if departmentID == nil {
+		return false
+	}
+	for _, grant := range grants {
+		if grant.Role == auth.RoleHOD && grant.DepartmentID == *departmentID {
+			return true
+		}
+	}
+	return false
+}

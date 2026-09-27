@@ -33,3 +33,41 @@ func TestProposalProblem(t *testing.T) {
 		}
 	}
 }
+
+func TestNextStatus(t *testing.T) {
+	cs := "cs-id"
+	faculty := []Grant{{Role: auth.RoleFaculty, DepartmentID: cs}}
+	tests := []struct {
+		name   string
+		grants []Grant
+		event  Event
+		want   Status
+	}{
+		{"faculty draft", faculty, Event{Status: StatusDraft, DepartmentID: &cs}, StatusSubmitted},
+		{"faculty after HOD changes", faculty, Event{Status: StatusHODChangesRequested, DepartmentID: &cs}, StatusSubmitted},
+		{"faculty after final changes", faculty, Event{Status: StatusFinalChangesRequested, DepartmentID: &cs}, StatusHODApproved},
+		{"HOD's own department", []Grant{{Role: auth.RoleHOD, DepartmentID: cs}}, Event{Status: StatusDraft, DepartmentID: &cs}, StatusHODApproved},
+		{"officer training", []Grant{{Role: auth.RolePlacementOfficer}}, Event{Status: StatusDraft, EventType: TypeTraining}, StatusHODApproved},
+		{"principal", []Grant{{Role: auth.RolePrincipal}}, Event{Status: StatusDraft}, StatusPublished},
+		{"admin after final changes", []Grant{{Role: auth.RoleAdmin}}, Event{Status: StatusFinalChangesRequested}, StatusPublished},
+	}
+	for _, test := range tests {
+		if got := nextStatus(test.grants, test.event); got != test.want {
+			t.Errorf("%s: got %s, want %s", test.name, got, test.want)
+		}
+	}
+}
+
+func TestAfterDecision(t *testing.T) {
+	want := map[Stage]map[Decision]Status{
+		StageHOD:   {DecisionApprove: StatusHODApproved, DecisionRequestChanges: StatusHODChangesRequested, DecisionReject: StatusHODRejected},
+		StageFinal: {DecisionApprove: StatusPublished, DecisionRequestChanges: StatusFinalChangesRequested, DecisionReject: StatusFinalRejected},
+	}
+	for stage, decisions := range want {
+		for decision, status := range decisions {
+			if got := afterDecision(stage, decision); got != status {
+				t.Errorf("%s %s: got %s, want %s", stage, decision, got, status)
+			}
+		}
+	}
+}

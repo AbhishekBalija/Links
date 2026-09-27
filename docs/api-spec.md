@@ -431,10 +431,11 @@ GET   /api/v1/events/:id/export
 ```
 
 The workflow and its rules are in ADR 0023. Built so far: creating drafts,
-editing them, and the proposer's list.
+editing them, the proposer's list, submission and both review stages.
 
 `POST /api/v1/events` (roles with `propose_event`: student coordinator,
-faculty, HOD, placement officer, principal, admin) saves a draft:
+faculty, HOD, placement officer, principal, admin) submits a new Event for
+review, or saves it as a draft with `"draft": true`:
 
 ```json
 {
@@ -472,6 +473,40 @@ only the fields sent. `department_id`, `faculty_mentor_id` and `capacity` can
 be cleared with `null`. The same rules apply to the result. Allowed while the
 Event is `draft`, `hod_changes_requested` or `final_changes_requested`;
 otherwise `409`.
+
+`POST /api/v1/events/:id/submit-for-approval` (proposer only, `404` for
+others) submits a `draft` or an Event sent back for changes; anything else is
+`409`. `starts_at` must be in the future (`400`), and the proposer's roles are
+checked again. Where it goes:
+
+- principal or admin: `published` straight away;
+- after `final_changes_requested`: back to `hod_approved` (final approval);
+- the HOD of the Event's Department, or the placement officer with a
+  `training` Event: `hod_approved`, skipping the HOD stage;
+- anyone else: `submitted`, waiting for HOD review.
+
+`PATCH /api/v1/events/:id/hod-review` (roles with `review_branch_event`) and
+`PATCH /api/v1/events/:id/final-approval` (principal, admin) take
+`{"decision": "approve" | "request_changes" | "reject", "note": "..."}`. A note
+is required unless approving (`400`).
+
+- HOD review: by the HOD of the Event's Department, or by the principal or an
+  admin when that Department has no HOD. Approve moves it to `hod_approved`,
+  otherwise `hod_changes_requested` or `hod_rejected`.
+- Final approval: approve publishes it (`409` if it has already started),
+  otherwise `final_changes_requested` or `final_rejected`.
+- `403` for anyone who isn't this Event's reviewer at that stage, and for the
+  proposer reviewing their own Event. `409` when the Event isn't waiting for
+  that stage, including when another reviewer decided first.
+- Every decision is kept; Events carry `reviews` (stage, decision, note,
+  reviewer name, time), oldest first.
+
+`GET /api/v1/events/reviews` (roles with `review_branch_event`) lists what
+waits for the caller, oldest submission first, cursor-paginated: the HOD stage
+for the Departments they are HOD of (and, for the principal and admins, for
+Departments without an HOD), and every final approval for the principal and
+admins. Each item carries `stage` (`hod` or `final`) and the earlier
+`reviews`. The caller's own Events are never listed.
 
 `GET /api/v1/events/mine` (any signed-in user) lists the caller's Events,
 newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).

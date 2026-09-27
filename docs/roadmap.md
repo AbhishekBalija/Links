@@ -64,9 +64,9 @@ Goal: Support official event proposal, approval, and participation tracking.
 Deliverables:
 
 - Event drafts (API built)
-- Student coordinator proposal flow
-- HOD review
-- Principal/admin final approval
+- Student coordinator proposal flow (API built)
+- HOD review (API built)
+- Principal/admin final approval (API built)
 - RSVP/interest tracking
 - Participant export
 - Event cancellation flow

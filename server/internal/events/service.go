@@ -55,7 +55,8 @@ type content struct {
 	Audience        []AudienceRule
 }
 
-// Create saves a new Event as a draft for its proposer.
+// Create saves a new Event as a draft, or submits it for review straight away
+// unless Draft is set.
 func (s *Service) Create(ctx context.Context, actorID string, input CreateEventInput) (*EventResponse, error) {
 	details := map[string]string{}
 	if input.StartsAt == nil {
@@ -98,7 +99,13 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateEventI
 		if err := repositories.Events.Create(ctx, &event, proposed.Audience); err != nil {
 			return fmt.Errorf("create event: %w", err)
 		}
-		return audit(ctx, repositories, actorID, "event_created", event.ID, map[string]string{"status": string(event.Status)}, now)
+		if err := audit(ctx, repositories, actorID, "event_created", event.ID, map[string]string{"status": string(event.Status)}, now); err != nil {
+			return err
+		}
+		if input.Draft {
+			return nil
+		}
+		return s.submitLocked(ctx, repositories, actorID, &event, now)
 	})
 	if err != nil {
 		return nil, err
@@ -418,6 +425,16 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]EventRespons
 	if err != nil {
 		return nil, fmt.Errorf("load audiences: %w", err)
 	}
+	reviews, err := s.repository.Reviews(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("load reviews: %w", err)
+	}
+	reviewsByEvent := map[string][]ReviewResponse{}
+	for _, review := range reviews {
+		reviewsByEvent[review.EventID] = append(reviewsByEvent[review.EventID], ReviewResponse{
+			Stage: review.Stage, Decision: review.Decision, Note: review.Note, ReviewerName: review.ReviewerName, DecidedAt: review.CreatedAt,
+		})
+	}
 	byEvent := map[string][]AudienceRuleResponse{}
 	for _, rule := range rules {
 		byEvent[rule.TargetID] = append(byEvent[rule.TargetID], AudienceRuleResponse{
@@ -445,6 +462,10 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]EventRespons
 			CancelReason: view.CancelReason,
 			CreatedAt:    view.CreatedAt,
 			UpdatedAt:    view.UpdatedAt,
+			Reviews:      reviewsByEvent[view.ID],
+		}
+		if response.Reviews == nil {
+			response.Reviews = []ReviewResponse{}
 		}
 		if response.Audience == nil {
 			response.Audience = []AudienceRuleResponse{}
