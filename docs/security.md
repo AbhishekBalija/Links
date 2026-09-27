@@ -117,6 +117,10 @@ data, and neutralise spreadsheet formulas.
 Events: drafts are visible only to their proposer, proposals under review
 also to their reviewers (with the review notes), and published Events to
 their Audience without the review notes. Anyone else gets `404`.
+The member directory (`GET /api/v1/directory`) applies the public profile's
+rules through the shared `profiles.Privacy` type: hidden profiles are not
+listed, and email and phone appear only when the member opted in. It lists only
+active, verified members with a role in effect, and never returns a USN.
 
 ## Applicant Data
 

@@ -34,12 +34,11 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerI
 		return nil, apperrors.NewNotFound("profile not found")
 	}
 
-	if !profile.PublicProfileEnabled && (viewerID == nil || *viewerID != profile.UserID) {
+	if !profile.Privacy().VisibleTo(viewerID) {
 		return nil, apperrors.NewNotFound("profile not found")
 	}
 
-	isOwner := viewerID != nil && *viewerID == profile.UserID
-	resp := s.profileToResponse(ctx, profile, isOwner)
+	resp := s.profileToResponse(ctx, profile, viewerID)
 	return resp, nil
 }
 
@@ -89,7 +88,7 @@ func (s *Service) UpdateMyProfile(ctx context.Context, userID string, input Upda
 		return nil, err
 	}
 
-	return s.profileToResponse(ctx, profile, true), nil
+	return s.profileToResponse(ctx, profile, &userID), nil
 }
 
 func validateProfileURLs(input UpdateProfileInput) error {
@@ -116,7 +115,7 @@ func validateProfileURLs(input UpdateProfileInput) error {
 	return nil
 }
 
-func (s *Service) profileToResponse(ctx context.Context, p *Profile, includePrivate bool) *ProfileResponse {
+func (s *Service) profileToResponse(ctx context.Context, p *Profile, viewerID *string) *ProfileResponse {
 	resp := &ProfileResponse{
 		UserID:               p.UserID,
 		Username:             p.Username,
@@ -134,13 +133,14 @@ func (s *Service) profileToResponse(ctx context.Context, p *Profile, includePriv
 		UpdatedAt:            p.UpdatedAt.Format(time.RFC3339),
 	}
 
-	if includePrivate || p.ShowEmail {
+	privacy := p.Privacy()
+	if privacy.ShowsEmailTo(viewerID) {
 		email, err := s.userReader.FindEmailByUserID(ctx, p.UserID)
 		if err == nil && email != nil {
 			resp.Email = email
 		}
 	}
-	if includePrivate || p.ShowPhone {
+	if privacy.ShowsPhoneTo(viewerID) {
 		phone, err := s.userReader.FindPhoneByUserID(ctx, p.UserID)
 		if err == nil && phone != nil {
 			resp.Phone = phone
