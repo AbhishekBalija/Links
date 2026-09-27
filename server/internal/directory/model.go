@@ -63,4 +63,17 @@ type Repository interface {
 	Search(ctx context.Context, filter Filter, q string, limit int) ([]Member, error)
 	Grants(ctx context.Context, userIDs []string) ([]Grant, error)
 	DepartmentByCode(ctx context.Context, code string) (*Department, error)
+	Staff(ctx context.Context, departmentID string) ([]Member, error)
+	StudentsByBatch(ctx context.Context, departmentID string) ([]BatchCount, error)
+	FacultyCount(ctx context.Context, departmentID string) (int, error)
 }
+
+// BatchCount is how many active students one Batch of a Department has.
+type BatchCount struct {
+	BatchYear int `gorm:"column:batch_year" json:"batch_year"`
+	Count     int `gorm:"column:count" json:"count"`
+}
+
+// staffRoles are the Department-scoped roles that put someone on a
+// Department's staff list.
+var staffRoles = []auth.Role{auth.RoleHOD, auth.RolePlacementOfficer, auth.RoleFaculty}

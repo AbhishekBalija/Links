@@ -389,6 +389,35 @@ Update replaces the editable fields for the department identified by `:code`:
 }
 ```
 
+`GET /api/v1/departments/:code/overview` (any signed-in member; `401` without
+a token, `404` for an unknown code, the code is case-insensitive) is the
+Department's page:
+
+```json
+{
+  "data": {
+    "department": { "code": "CS", "name": "Computer Science and Engineering", "description": null },
+    "hod": { "username": "hema.h", "full_name": "Hema H", "roles": ["hod", "faculty"], "department": { "code": "CS", "name": "..." } },
+    "counts": {
+      "students": 3,
+      "faculty": 4,
+      "students_by_batch": [ { "batch_year": 2023, "count": 2 }, { "batch_year": 2024, "count": 1 } ]
+    },
+    "staff": [ /* directory entries */ ]
+  }
+}
+```
+
+- `hod` is the Department's HOD as a directory entry, or `null` when there is
+  none or the directory wouldn't list them (hidden profile, suspended).
+- `counts` include every active member with the role in effect, hidden
+  profiles too, since a number reveals no one: `students` (student role, Student
+  identity in this Department) by Batch, oldest first, and `faculty` (faculty
+  role scoped here, including an HOD who also teaches).
+- `staff` lists the members the directory would show who hold an HOD, placement
+  officer or faculty role scoped to this Department, most senior role first,
+  then by name. Entries have the same shape and privacy as the directory.
+
 Create the department before assigning its HOD. On update, `hodUserId` must
 identify a user with an existing HOD role scoped to that same department. Delete
 returns `409 CONFLICT` when student identities, scoped role assignments or

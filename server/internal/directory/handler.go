@@ -22,6 +22,20 @@ func NewHandler(service *Service, policy *auth.Policy) *Handler {
 
 func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	v1.GET("/directory", h.List)
+	v1.GET("/departments/:code/overview", h.Overview)
+}
+
+func (h *Handler) Overview(c *gin.Context) {
+	actor := h.authorize(c)
+	if actor == nil {
+		return
+	}
+	overview, err := h.service.Overview(c.Request.Context(), actor.UserID, c.Param("code"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, overview, nil)
 }
 
 func (h *Handler) List(c *gin.Context) {
