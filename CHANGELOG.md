@@ -17,6 +17,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Event proposals in the Approval queue, oldest first alongside
+  announcements. An HOD approves or sends back; at final approval the
+  principal sees who approved it first and confirms before publishing.
+  Sending back asks for changes or rejects, always with a note.
 - Organiser tools on a published event, for its proposer, its Department's
   HOD, the principal and admins: who's coming (counts, the people who
   answered, and a full list by answer), a CSV export, Edit details for the

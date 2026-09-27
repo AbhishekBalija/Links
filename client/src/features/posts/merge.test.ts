@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mergeNewestFirst } from './merge'
+import { mergeNewestFirst, mergeOldestFirst } from './merge'
 
 const item = (id: string, day: number) => ({ id, at: new Date(2026, 8, day).toISOString() })
 
@@ -29,5 +29,16 @@ describe('mergeNewestFirst', () => {
       { items: [item('e1', 25), item('e2', 22)], complete: false },
     ])
     expect(merged.items.map((i) => i.id)).toEqual(['e1', 'e2'])
+  })
+})
+
+describe('mergeOldestFirst', () => {
+  it('interleaves oldest-first lists and holds back what a list with more pages could still precede', () => {
+    const merged = mergeOldestFirst([
+      { items: [item('a1', 10), item('a2', 20)], complete: true },
+      { items: [item('e1', 12), item('e2', 15)], complete: false },
+    ])
+    expect(merged.items.map((i) => i.id)).toEqual(['a1', 'e1', 'e2'])
+    expect(merged.hasMore).toBe(true)
   })
 })
