@@ -174,7 +174,8 @@ function TabList({ tab, kind }: { tab: (typeof tabs)[number]; kind: Kind }) {
   const merged = mergeNewestFirst(sources)
 
   const pending = (kind !== 'event' && announcements.isPending) || (kind !== 'announcement' && (events.isPending || (tab.value === 'ended' && rejected.isPending)))
-  const failed = (kind !== 'event' && announcements.isError) || (kind !== 'announcement' && events.isError)
+  const usesRejected = tab.value === 'ended' && kind !== 'announcement'
+  const failed = (kind !== 'event' && announcements.isError) || (kind !== 'announcement' && events.isError) || (usesRejected && rejected.isError)
   const loadingMore = announcements.isFetchingNextPage || events.isFetchingNextPage || rejected.isFetchingNextPage
 
   function showMore() {
@@ -191,6 +192,7 @@ function TabList({ tab, kind }: { tab: (typeof tabs)[number]; kind: Kind }) {
         onRetry={() => {
           announcements.refetch()
           events.refetch()
+          if (usesRejected) rejected.refetch()
         }}
       />
     )
@@ -226,6 +228,7 @@ function TabList({ tab, kind }: { tab: (typeof tabs)[number]; kind: Kind }) {
           onRetry={() => {
             announcements.refetch()
             events.refetch()
+            if (usesRejected) rejected.refetch()
           }}
         />
       )}

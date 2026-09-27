@@ -138,3 +138,25 @@ test.describe('Proposing events', () => {
     await expect(page.getByRole('link', { name: /Circuits quiz/ })).toContainText('Cancelled')
   })
 })
+
+test.describe('My posts', () => {
+  test('Ended says so when rejected proposals fail to load, instead of leaving them out', async ({ page, request }) => {
+    const faculty = await seedMember(request, { role: 'faculty', fullName: 'Ravi Faculty', department: 'EC' })
+    const token = await loginViaAPI(request, faculty.email, faculty.password)
+    const starts = new Date(Date.now() + 6 * 24 * 3600 * 1000)
+    await propose(request, token, {
+      title: 'A draft so My posts is not empty',
+      event_type: 'other',
+      department_id: await departmentId('EC'),
+      location: 'EC Block',
+      starts_at: starts.toISOString(),
+      ends_at: new Date(starts.getTime() + 3600 * 1000).toISOString(),
+      audience: [],
+      draft: true,
+    })
+    await loginViaUI(page, faculty.email, faculty.password)
+    await page.route('**/api/v1/events/mine?*status=attention*', (route) => route.fulfill({ status: 500, body: '{"error":{"code":"INTERNAL","message":"x"}}' }))
+    await page.goto('/mine?status=ended')
+    await expect(page.getByText('Your posts could not be loaded.')).toBeVisible()
+  })
+})
