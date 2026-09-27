@@ -27,7 +27,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   one; review notes stay with the proposer and reviewers. Members answer
   going, interested or not going; going stops at the event's capacity, and
   organisers see who answered and can export them as CSV (each export is
-  audited).
+  audited). After publishing, organisers can change the description, place,
+  times and capacity (each change audited), or cancel with a reason; answers
+  are kept.
 - Member directory (#12): signed-in members can list active members
   alphabetically, filtered by Department, role and Batch, with roles,
   Department, Batch for students, and contact details only where the member

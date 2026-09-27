@@ -115,13 +115,16 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateEventI
 
 // Update edits an Event the caller proposed that is still a draft or was
 // sent back for changes. Someone else's Event is not found, so drafts stay
-// private.
+// private. A published Event takes logistics edits from its organisers.
 func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateEventInput) (*EventResponse, error) {
 	now := s.now()
 	err := s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
 		event, err := repositories.Events.FindForUpdate(ctx, id)
 		if err != nil {
 			return fmt.Errorf("find event: %w", err)
+		}
+		if event != nil && event.Status == StatusPublished {
+			return s.editLogistics(ctx, repositories, actorID, event, input, now)
 		}
 		if event == nil || event.ProposerID != actorID {
 			return apperrors.NewNotFound("event not found")
