@@ -5,6 +5,8 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 /** Safely parse JSON from a Response, throwing ApiRequestError on parse failure */
 async function safeJson<R>(res: Response): Promise<R> {
+  // 204 No Content (a delete) has no body: it succeeds with no data.
+  if (res.status === 204) return { data: undefined } as R
   try {
     return await res.json() as R
   } catch {

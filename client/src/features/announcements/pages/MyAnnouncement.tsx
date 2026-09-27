@@ -24,7 +24,7 @@ export default function MyAnnouncement() {
     <div className="group/page flex flex-col gap-4 pb-40 lg:gap-5 lg:pb-0">
       <Link to="/mine" className="-ml-2 inline-flex min-h-11 items-center gap-1 self-start rounded-lg px-2 text-sm font-semibold">
         <ChevronLeft aria-hidden="true" className="size-5 lg:size-4" />
-        My announcements
+        My posts
       </Link>
       {item.isPending ? (
         <ViewSkeleton />

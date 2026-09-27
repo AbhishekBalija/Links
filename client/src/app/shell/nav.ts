@@ -12,7 +12,8 @@ export type NavItem = {
   also?: string[]
 }
 
-// Roles that can post Announcements (auth policy: post_announcement).
+// Roles that can post Announcements (auth policy: post_announcement), which
+// are also the roles that propose events (propose_event).
 export const posterRoles = ['student_coordinator', 'faculty', 'hod', 'placement_officer', 'principal', 'admin']
 
 // Roles that approve Announcements (auth policy: approve_announcement).
@@ -24,7 +25,7 @@ const items: NavItem[] = [
   { to: '/events', label: 'Events', icon: CalendarDays },
   { to: '/people', label: 'People', icon: Users, also: ['/departments'] },
   { to: '/approvals', label: 'Approval queue', short: 'Approvals', icon: ListChecks, roles: approverRoles },
-  { to: '/mine', label: 'My announcements', short: 'Mine', icon: PenLine, roles: posterRoles },
+  { to: '/mine', label: 'My posts', short: 'Mine', icon: PenLine, roles: posterRoles },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]
 

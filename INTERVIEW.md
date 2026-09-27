@@ -296,6 +296,19 @@ other. This is dependency inversion: the package that uses a capability owns
 its interface, and the wiring code connects them. It also keeps one copy of
 the rule for "which Department does this member belong to".
 
+## Frontend
+
+### My posts shows announcements and events from two paged lists. How do you merge them without putting a post in the wrong place?
+
+Both lists come newest first, a page at a time, so this is a k-way merge of
+streams you can't see the end of. After loading a page from each, you can't
+just sort everything loaded: if the events list has more pages, its next page
+could hold an event newer than the oldest announcement you already have. So
+the page only shows items at or after a cutoff: the newest "last loaded item"
+among the lists that still have more pages. Everything older waits until
+"Show older" loads further. `mergeNewestFirst` in `features/posts/merge.ts`
+does this, and its unit tests check the held-back case.
+
 ## Web Security
 
 ### How does LINKS stop CSRF when the refresh token is a cookie?

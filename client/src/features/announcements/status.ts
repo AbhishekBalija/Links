@@ -52,7 +52,7 @@ export function standing(item: Authored, now = new Date()): Standing {
   }
 }
 
-// Where a row in My announcements leads.
+// Where an announcement row in My posts leads.
 export function hrefFor(item: Authored, now = new Date()) {
   return standing(item, now).opensInComposer ? `/mine/${item.id}/edit` : `/mine/${item.id}`
 }

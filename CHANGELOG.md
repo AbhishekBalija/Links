@@ -17,6 +17,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Proposing events from the app: a proposal form (kind, title, when, where,
+  who's invited and a seat limit) that says who reviews it before you send
+  it, keeps drafts, and asks before you leave with changes. My announcements
+  becomes **My posts**: announcements and events together under Needs you,
+  Drafts, Waiting, Live and Ended, with one New button. Each proposal has its
+  own page with its history and the actions its status allows: edit and
+  resubmit, delete a draft, or cancel with a reason.
 - Students apply to an open internal Opportunity they are eligible for, once,
   and withdraw while it is still only applied; for an external one they mark
   that they applied on the company's site so it is tracked. Each Opportunity
