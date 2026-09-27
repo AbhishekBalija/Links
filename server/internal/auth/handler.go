@@ -23,12 +23,14 @@ func NewHandler(service AuthService, policy *Policy, cookieCfg config.CookieConf
 	return &Handler{service: service, policy: policy, cookieCfg: cookieCfg, tokenCfg: tokenCfg}
 }
 
-func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+// RegisterRoutes adds the auth routes. cookieGuard runs before the routes
+// that act on the refresh cookie, to refuse cross-site requests.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, cookieGuard gin.HandlerFunc) {
 	v1 := rg.Group("/v1/auth")
 	v1.POST("/request-access", h.RequestAccess)
 	v1.POST("/login", h.Login)
-	v1.POST("/refresh", h.Refresh)
-	v1.POST("/logout", h.Logout)
+	v1.POST("/refresh", cookieGuard, h.Refresh)
+	v1.POST("/logout", cookieGuard, h.Logout)
 	v1.POST("/activate", h.Activate)
 	v1.POST("/resend-activation", h.ResendActivation)
 }
@@ -130,11 +132,10 @@ func (h *Handler) ResendActivation(c *gin.Context) {
 }
 
 func (h *Handler) setRefreshCookie(c *gin.Context, token string) {
+	// Config only allows lax or strict (see config.Validate).
 	sameSite := http.SameSiteLaxMode
 	if h.cookieCfg.SameSite == "strict" {
 		sameSite = http.SameSiteStrictMode
-	} else if h.cookieCfg.SameSite == "none" {
-		sameSite = http.SameSiteNoneMode
 	}
 
 	c.SetSameSite(sameSite)

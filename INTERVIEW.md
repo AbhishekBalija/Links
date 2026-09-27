@@ -249,6 +249,24 @@ in Batch 2023 shows no one. Leaving hidden members out of the counts would make
 the numbers wrong for no privacy gain. The lists (HOD, staff) name people, so
 they go through the same rules as the directory.
 
+## Web Security
+
+### How does LINKS stop CSRF when the refresh token is a cookie?
+
+Only two endpoints read the cookie, refresh and logout. Both check the
+`Origin` header (or `Referer` when there's no Origin) and refuse anything that
+isn't the web app's own origin. A forged form on another site can make the
+browser send the cookie, but it can't fake the Origin. `SameSite=Lax` already
+stops most of these, so the Origin check is a second lock, not the only one.
+Every other write needs the bearer access token, which another site can't read.
+
+### Why ship the Content-Security-Policy as report-only first?
+
+A CSP that's too strict breaks pages silently for real users: an avatar from
+another host, a Sentry region you didn't list. Report-only lets browsers tell
+you what they would have blocked while nothing breaks. After a week with no
+reports from real use, the same policy is switched to enforcing.
+
 ## Testing
 
 ### Why have three kinds of tests instead of just end-to-end ones?
