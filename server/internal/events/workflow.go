@@ -186,15 +186,9 @@ func (s *Service) Queue(ctx context.Context, actorID, cursor string, limit int) 
 	if err != nil {
 		return nil, nil, err
 	}
-	grants, err := s.grants(ctx, actorID)
+	scope, err := s.reviewerScope(ctx, actorID)
 	if err != nil {
 		return nil, nil, err
-	}
-	scope := ReviewerScope{UserID: actorID, All: privileged(grants), HODDepartments: []string{}}
-	for _, grant := range grants {
-		if grant.Role == auth.RoleHOD && grant.DepartmentID != "" {
-			scope.HODDepartments = append(scope.HODDepartments, grant.DepartmentID)
-		}
 	}
 	views, err := s.repository.Queue(ctx, scope, after, limit+1)
 	if err != nil {
@@ -217,4 +211,43 @@ func (s *Service) Queue(ctx context.Context, actorID, cursor string, limit int) 
 		}
 	}
 	return responses, meta, nil
+}
+
+// ReviewSummary is what waits for a reviewer.
+type ReviewSummary struct {
+	PendingCount      int
+	OldestSubmittedAt *time.Time
+}
+
+// ReviewSummary counts what waits for the caller in the review queue, or
+// returns nil if they review no Events.
+func (s *Service) ReviewSummary(ctx context.Context, actorID string) (*ReviewSummary, error) {
+	scope, err := s.reviewerScope(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !scope.All && len(scope.HODDepartments) == 0 {
+		return nil, nil
+	}
+	count, oldest, err := s.repository.QueueSummary(ctx, scope)
+	if err != nil {
+		return nil, fmt.Errorf("summarize review queue: %w", err)
+	}
+	return &ReviewSummary{PendingCount: count, OldestSubmittedAt: oldest}, nil
+}
+
+// reviewerScope is what the caller reviews: the HOD stage of their
+// Departments and, as principal or admin, everything else.
+func (s *Service) reviewerScope(ctx context.Context, actorID string) (ReviewerScope, error) {
+	grants, err := s.grants(ctx, actorID)
+	if err != nil {
+		return ReviewerScope{}, err
+	}
+	scope := ReviewerScope{UserID: actorID, All: privileged(grants), HODDepartments: []string{}}
+	for _, grant := range grants {
+		if grant.Role == auth.RoleHOD && grant.DepartmentID != "" {
+			scope.HODDepartments = append(scope.HODDepartments, grant.DepartmentID)
+		}
+	}
+	return scope, nil
 }

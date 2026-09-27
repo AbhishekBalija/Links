@@ -7,9 +7,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/announcements"
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	"github.com/AbhishekBalija/Links/server/internal/events"
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +24,11 @@ type Announcements interface {
 	ApprovalSummary(ctx context.Context, actorID string) (*announcements.ApprovalSummary, error)
 	AuthorSummary(ctx context.Context, actorID string) (*announcements.AuthorSummary, error)
 	Grants(ctx context.Context, userID string) ([]announcements.Grant, error)
+}
+
+// Events is what the dashboard needs from the events module.
+type Events interface {
+	ReviewSummary(ctx context.Context, actorID string) (*events.ReviewSummary, error)
 }
 
 // Department is the user's Department as shown on Home.
@@ -42,12 +49,21 @@ type NoticesSection struct {
 	HasMore bool                                 `json:"has_more"`
 }
 
+// ApprovalsSection is what waits for a reviewer: Announcements (and edits)
+// and Event proposals, counted apart.
+type ApprovalsSection struct {
+	PendingCount           int        `json:"pending_count"`
+	OldestSubmittedAt      *time.Time `json:"oldest_submitted_at"`
+	EventsPendingCount     int        `json:"events_pending_count"`
+	OldestEventSubmittedAt *time.Time `json:"oldest_event_submitted_at"`
+}
+
 // Response is the Home summary. Sections a user doesn't need are left out.
 type Response struct {
-	User            UserSection                    `json:"user"`
-	Notices         NoticesSection                 `json:"notices"`
-	Approvals       *announcements.ApprovalSummary `json:"approvals,omitempty"`
-	MyAnnouncements *announcements.AuthorSummary   `json:"my_announcements,omitempty"`
+	User            UserSection                  `json:"user"`
+	Notices         NoticesSection               `json:"notices"`
+	Approvals       *ApprovalsSection            `json:"approvals,omitempty"`
+	MyAnnouncements *announcements.AuthorSummary `json:"my_announcements,omitempty"`
 }
 
 // Repository reads the profile details Home shows.
@@ -59,10 +75,11 @@ type Repository interface {
 type Service struct {
 	repository    Repository
 	announcements Announcements
+	events        Events
 }
 
-func NewService(repository Repository, announcements Announcements) *Service {
-	return &Service{repository: repository, announcements: announcements}
+func NewService(repository Repository, announcements Announcements, events Events) *Service {
+	return &Service{repository: repository, announcements: announcements, events: events}
 }
 
 func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
@@ -78,7 +95,7 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	approvals, err := s.announcements.ApprovalSummary(ctx, userID)
+	approvals, err := s.approvals(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +109,32 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 		Approvals:       approvals,
 		MyAnnouncements: mine,
 	}, nil
+}
+
+// approvals combines both review queues, or returns nil for a user who
+// reviews neither.
+func (s *Service) approvals(ctx context.Context, userID string) (*ApprovalsSection, error) {
+	notices, err := s.announcements.ApprovalSummary(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	proposals, err := s.events.ReviewSummary(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if notices == nil && proposals == nil {
+		return nil, nil
+	}
+	section := &ApprovalsSection{}
+	if notices != nil {
+		section.PendingCount = notices.PendingCount
+		section.OldestSubmittedAt = notices.OldestSubmittedAt
+	}
+	if proposals != nil {
+		section.EventsPendingCount = proposals.PendingCount
+		section.OldestEventSubmittedAt = proposals.OldestSubmittedAt
+	}
+	return section, nil
 }
 
 // user loads the name, current roles and Department: the Student identity's

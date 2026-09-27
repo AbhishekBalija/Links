@@ -14,6 +14,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Home's approvals summary also counts the Event proposals waiting for the
+  reviewer (`events_pending_count` and `oldest_event_submitted_at`), apart from
+  Announcements, with the same scope as the event review queue.
 - Events screens: an Events tab listing what's coming up for you by week
   (Upcoming, Going and Past, and by type), each with your answer and the
   seats left; an event page with one Going / Interested / Can't go control
