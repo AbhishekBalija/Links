@@ -150,6 +150,10 @@ details, so a search can't be used to find who owns an email or USN. The Departm
 overview counts hidden members (a number reveals no one) but only lists staff
 the directory would show.
 
+Opportunities (ADR 0024): drafts are visible only to placement staff (the
+placement officer, the principal and admins), who are checked against their
+roles in the database. Creating and editing are audited.
+
 ## Applicant Data
 
 Allowed viewers:

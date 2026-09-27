@@ -14,6 +14,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Placement Opportunities (Phase 4, ADR 0024): the placement officer, the
+  principal and admins save jobs, internships and training posts as drafts,
+  with company, role, description, location, stipend or CTC, apply-by date,
+  an internal application or an external link, and Eligibility by
+  Department, Batch and role. Any of them can edit any draft, and they list
+  every Opportunity by status.
 - Members can make their profile private or public again
   (`public_profile_enabled` on `PATCH /api/v1/me/profile`, #81). A private
   member leaves People and their profile opens only for them; department
