@@ -107,6 +107,8 @@ type EventResponse struct {
 	Reviews []ReviewResponse `json:"reviews"`
 	// Stage is set in a reviewer's queue: which review is waiting.
 	Stage Stage `json:"stage,omitempty"`
+	// RSVP is set on feed items: the answer counts and the reader's answer.
+	RSVP *RSVPSummary `json:"rsvp,omitempty"`
 }
 
 type ReviewResponse struct {

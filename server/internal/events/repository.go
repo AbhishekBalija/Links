@@ -305,6 +305,39 @@ func (r *GormRepository) RSVPCounts(ctx context.Context, eventID string) (map[RS
 	return counts, err
 }
 
+// RSVPSummaries counts the answers to several Events and reads the user's own
+// answer to each, in two queries instead of two per Event.
+func (r *GormRepository) RSVPSummaries(ctx context.Context, eventIDs []string, userID string) (map[string]map[RSVPStatus]int, map[string]RSVPStatus, error) {
+	counts := map[string]map[RSVPStatus]int{}
+	mine := map[string]RSVPStatus{}
+	if len(eventIDs) == 0 {
+		return counts, mine, nil
+	}
+	var rows []struct {
+		EventID string     `gorm:"column:event_id"`
+		Status  RSVPStatus `gorm:"column:status"`
+		Count   int        `gorm:"column:count"`
+	}
+	err := r.db.WithContext(ctx).Raw(`SELECT event_id, status, count(*) AS count FROM event_rsvps WHERE event_id IN ? GROUP BY event_id, status`, eventIDs).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, row := range rows {
+		if counts[row.EventID] == nil {
+			counts[row.EventID] = map[RSVPStatus]int{}
+		}
+		counts[row.EventID][row.Status] = row.Count
+	}
+	var answers []RSVP
+	err = r.db.WithContext(ctx).Raw(`SELECT event_id, status FROM event_rsvps WHERE event_id IN ? AND user_id = ?`, eventIDs, userID).
+		Scan(&answers).Error
+	for _, answer := range answers {
+		mine[answer.EventID] = answer.Status
+	}
+	return counts, mine, err
+}
+
 // RSVPPeople lists who answered, earliest answer first.
 func (r *GormRepository) RSVPPeople(ctx context.Context, eventID string, after *Cursor, limit int) ([]RSVPPerson, error) {
 	query := `SELECT v.user_id, p.full_name, p.username, v.status, v.updated_at

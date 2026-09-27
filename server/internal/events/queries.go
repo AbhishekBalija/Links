@@ -36,14 +36,32 @@ func audienceMatch(reader Reader) (string, []any) {
 
 // Feed returns one page of published Events in the reader's Audience,
 // soonest first.
-func (r *GormRepository) Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error) {
+//
+// A cancelled Event stays listed, until it ends, for readers who answered
+// it, so the people planning to come find out. The going view keeps only
+// Events the reader answered going to; the past view lists ended Events,
+// most recent first.
+func (r *GormRepository) Feed(ctx context.Context, readerID string, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error) {
 	condition, args := audienceMatch(reader)
-	query := `SELECT ` + viewColumns + ` ` + viewFrom + ` WHERE e.status = 'published' AND ` + condition
+	query := `SELECT ` + viewColumns + ` ` + viewFrom + ` WHERE ` + condition
+	past := filter.Show == ShowPast
+	if past {
+		query += ` AND e.status = 'published' AND e.ends_at <= now()`
+	} else {
+		query += ` AND (e.status = 'published' OR (e.status = 'cancelled'
+			AND EXISTS (SELECT 1 FROM event_rsvps v WHERE v.event_id = e.id AND v.user_id = ?)))`
+		args = append(args, readerID)
+		if filter.From == nil {
+			query += ` AND e.ends_at > now()`
+		}
+	}
+	if filter.Show == ShowGoing {
+		query += ` AND EXISTS (SELECT 1 FROM event_rsvps v WHERE v.event_id = e.id AND v.user_id = ? AND v.status = 'going')`
+		args = append(args, readerID)
+	}
 	if filter.From != nil {
 		query += ` AND e.starts_at >= ?`
 		args = append(args, *filter.From)
-	} else {
-		query += ` AND e.ends_at > now()`
 	}
 	if filter.To != nil {
 		query += ` AND e.starts_at <= ?`
@@ -57,11 +75,15 @@ func (r *GormRepository) Feed(ctx context.Context, reader Reader, filter FeedFil
 		query += ` AND e.event_type = ?`
 		args = append(args, string(*filter.EventType))
 	}
+	order, compare := `e.starts_at, e.id`, `>`
+	if past {
+		order, compare = `e.starts_at DESC, e.id DESC`, `<`
+	}
 	if after != nil {
-		query += ` AND (e.starts_at, e.id) > (?, CAST(? AS uuid))`
+		query += ` AND (e.starts_at, e.id) ` + compare + ` (?, CAST(? AS uuid))`
 		args = append(args, after.At, after.ID)
 	}
-	query += ` ORDER BY e.starts_at, e.id LIMIT ?`
+	query += ` ORDER BY ` + order + ` LIMIT ?`
 	args = append(args, limit)
 	var views []View
 	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&views).Error
