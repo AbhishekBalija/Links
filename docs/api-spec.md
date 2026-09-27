@@ -499,10 +499,113 @@ Update replaces the editable fields for the department identified by `:code`:
 }
 ```
 
+`GET /api/v1/departments/:code/overview` (any signed-in member; `401` without
+a token, `404` for an unknown code, the code is case-insensitive) is the
+Department's page:
+
+```json
+{
+  "data": {
+    "department": { "code": "CS", "name": "Computer Science and Engineering", "description": null },
+    "hod": { "username": "hema.h", "full_name": "Hema H", "roles": ["hod", "faculty"], "department": { "code": "CS", "name": "..." } },
+    "counts": {
+      "students": 3,
+      "faculty": 4,
+      "students_by_batch": [ { "batch_year": 2023, "count": 2 }, { "batch_year": 2024, "count": 1 } ]
+    },
+    "staff": [ /* directory entries */ ]
+  }
+}
+```
+
+- `hod` is the Department's HOD as a directory entry, or `null` when there is
+  none or the directory wouldn't list them (hidden profile, suspended).
+- `counts` include every active member with the role in effect, hidden
+  profiles too, since a number reveals no one: `students` (student role, Student
+  identity in this Department) by Batch, oldest first, and `faculty` (faculty
+  role scoped here, including an HOD who also teaches).
+- `staff` lists the members the directory would show who hold an HOD, placement
+  officer or faculty role scoped to this Department, most senior role first,
+  then by name. Entries have the same shape and privacy as the directory.
+
 Create the department before assigning its HOD. On update, `hodUserId` must
 identify a user with an existing HOD role scoped to that same department. Delete
 returns `409 CONFLICT` when student identities, scoped role assignments or
 announcement audience rules still reference the department.
+
+## Directory
+
+```text
+GET /api/v1/directory
+```
+
+Any signed-in member (`view_public_profiles`); `401` without a token. Lists
+members alphabetically by `full_name` (case-insensitive), then by user ID,
+cursor-paginated: `limit` 1 to 50 (default 20), `cursor` from
+`meta.next_cursor`.
+
+Who appears: active, verified accounts with a public profile and at least one
+role in effect now. Suspended, pending and rejected accounts, hidden profiles
+(even the viewer's own) and people whose roles have all ended never appear.
+
+Filters, combined with AND:
+
+- `department`: a Department code (`CS`). Matches a member whose Student
+  identity is in it or who holds a Department-scoped role in effect there.
+- `role`: a LINKS role (`faculty`), in effect now.
+- `batch`: the Student identity's Batch (`2023`), 2000 to 2100.
+
+An unknown Department, a role that isn't a LINKS role, a batch out of range,
+or a bad `limit` or `cursor` is `400 VALIDATION_ERROR` with the field in
+`details`.
+
+Search: `q` matches `full_name`, `username` and `headline`, case-insensitively
+and with typos (`ash`, `ASHA`, `ahsa` and `asha rau` all find "Asha Rao"). It
+combines with the filters. With `q` the best matches come first (ties by
+name), up to 50 in one response with no `next_cursor`; `limit` is ignored and
+sending `cursor` with `q` is `400`. A `q` shorter than 2 characters is ignored
+(the normal list comes back); longer than 100 is `400`. The USN is never
+searched.
+
+A result matches when the text contains `q`, when a word is close enough by
+trigram similarity (`pg_trgm` `word_similarity` of at least 0.3), or, for a
+one-word `q`, when a name word has the same letters (a swapped-letter typo).
+
+```json
+{
+  "data": [
+    {
+      "username": "asha.rao",
+      "full_name": "Asha Rao",
+      "headline": "Networks and systems",
+      "avatar_url": null,
+      "roles": ["hod", "faculty"],
+      "department": { "code": "CS", "name": "Computer Science and Engineering" },
+      "email": "asha.rao@gmail.com"
+    },
+    {
+      "username": "bala.k",
+      "full_name": "Bala Krishna",
+      "headline": null,
+      "avatar_url": null,
+      "roles": ["student_coordinator", "student"],
+      "department": { "code": "CS", "name": "Computer Science and Engineering" },
+      "batch_year": 2023
+    }
+  ],
+  "meta": { "next_cursor": "..." }
+}
+```
+
+- `roles` are the roles in effect, once each, most senior first: admin,
+  principal, hod, placement_officer, faculty, student_coordinator,
+  club_organizer, student, alumni.
+- `department` is the most senior Department-scoped role's Department,
+  otherwise the Student identity's, otherwise `null`.
+- `batch_year` is present only for students.
+- `email` and `phone` are present only when the member chose to show them,
+  by the same rule as `GET /api/v1/profiles/:username`.
+- The USN is never returned.
 
 ## Clubs
 

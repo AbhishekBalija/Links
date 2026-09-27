@@ -137,6 +137,24 @@ queue, an approver could approve it and bring the notice back without anyone
 deciding to republish it. Closing the edit, in the same transaction as the
 withdrawal, keeps the queue showing only things that can still go live.
 
+## Member Directory
+
+### Why share the profile privacy rules through a type instead of repeating them in the directory's SQL?
+
+Two copies of "who may see this email" drift apart: someone fixes one and
+forgets the other, and the directory starts leaking what the profile page
+hides. The `profiles.Privacy` type holds the rules once, and both the profile
+endpoint and the directory call it. The directory's SQL only does the part
+that must happen in the database to paginate correctly (leave out hidden,
+suspended or role-less members).
+
+### Why paginate the directory by name with a (name, id) cursor?
+
+People look for someone by name, so alphabetical order is what they expect.
+Names aren't unique, so the cursor carries the user ID too, and the query asks
+for rows after `(lower(full_name), id)`. Every member appears exactly once
+across pages even when two share a name, and new sign-ups don't shift pages
+the way an offset would.
 ## Role Management
 
 ### Why end a role by setting `ends_at` instead of deleting the row?
@@ -153,6 +171,23 @@ a role revokes the user's refresh tokens in the same transaction, so their next
 refresh fails and they sign in again with fresh roles. The window in between
 is short, and the checks that matter most (who may publish or approve) read
 roles from the database, not the token.
+
+### How does the directory search tolerate typos?
+
+Postgres's `pg_trgm` splits text into three-letter pieces and scores how many
+pieces a search shares with a name, so "asha rau" still finds "Asha Rao". GIN
+trigram indexes keep the `LIKE '%ash%'` part fast. Trigrams are weak on short
+words with swapped letters: "ahsa" shares almost no three-letter pieces with
+"asha", and scores the same as any name starting with "a". So a one-word search
+is also compared letter by letter: a name word with exactly the same letters,
+in any order, counts as a match. Results are ranked by score, then by name.
+
+### Why does the Department overview count hidden profiles but not list them?
+
+Hiding a profile means "don't show me to people", and a count of 120 students
+in Batch 2023 shows no one. Leaving hidden members out of the counts would make
+the numbers wrong for no privacy gain. The lists (HOD, staff) name people, so
+they go through the same rules as the directory.
 
 ## Web Security
 

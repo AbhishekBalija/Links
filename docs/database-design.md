@@ -128,6 +128,11 @@ profiles (
 
 `username` is an immutable, lowercase public handle used by `GET /api/v1/profiles/:username`.
 
+Directory search (migration 016) adds the `pg_trgm` extension in `public`,
+GIN trigram indexes on `lower(full_name)`, `lower(username)` and
+`lower(headline)`, and an immutable `directory_letters(text)` function that
+sorts a word's letters, used to match a search word with swapped letters.
+
 ### departments
 
 ```sql
@@ -547,6 +552,9 @@ create index idx_audit_logs_resource on audit_logs (resource_type, resource_id, 
 create index idx_notifications_user_created on notifications (user_id, created_at desc);
 create index idx_notifications_user_unread on notifications (user_id, read_at) where read_at is null;
 create unique index idx_profiles_username on profiles (lower(username));
+create index idx_profiles_full_name_trgm on profiles using gin (lower(full_name) gin_trgm_ops);
+create index idx_profiles_username_trgm on profiles using gin (lower(username) gin_trgm_ops);
+create index idx_profiles_headline_trgm on profiles using gin (lower(headline) gin_trgm_ops);
 create index idx_notification_outbox_status_next on notification_outbox (status, next_attempt_at);
 create unique index idx_clubs_slug on clubs (lower(slug));
 create index idx_clubs_department on clubs (department_id);

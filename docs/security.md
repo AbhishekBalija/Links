@@ -125,6 +125,15 @@ Private by default:
 - Placement application data
 - Shortlisting status except to authorized viewers
 
+The member directory (`GET /api/v1/directory`) applies the public profile's
+rules through the shared `profiles.Privacy` type: hidden profiles are not
+listed, and email and phone appear only when the member opted in. It lists only
+active, verified members with a role in effect, and never returns a USN. Its
+search matches names, usernames and headlines only, never the USN or contact
+details, so a search can't be used to find who owns an email or USN. The Department
+overview counts hidden members (a number reveals no one) but only lists staff
+the directory would show.
+
 ## Applicant Data
 
 Allowed viewers:
