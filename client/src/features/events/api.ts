@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiPage, apiRequest } from '../../shared/api/client'
-import type { Answer, AnswerSummary, CampusEvent, EventInput, EventType, FeedMeta, MineEventFilter, Show } from './types'
+import { apiDownload, apiPage, apiRequest } from '../../shared/api/client'
+import type { Answer, AnswerPerson, AnswerSummary, CampusEvent, EventInput, EventType, FeedMeta, MineEventFilter, Show } from './types'
 
 const PAGE_SIZE = 20
 
@@ -120,5 +120,38 @@ export function useCancelEvent() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       apiRequest<CampusEvent>(`/api/v1/events/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
     onSuccess: invalidate,
+  })
+}
+
+// useAnswerList pages through everyone who answered, earliest first, for the
+// event's organisers.
+export function useAnswerList(id: string) {
+  return useInfiniteQuery({
+    queryKey: ['events', 'answers', id, 'people'],
+    initialPageParam: '',
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limit: '50' })
+      if (pageParam) params.set('cursor', pageParam)
+      return apiPage<AnswerSummary, FeedMeta>(`/api/v1/events/${encodeURIComponent(id)}/rsvps?${params}`, { signal })
+    },
+    getNextPageParam: (lastPage) => lastPage.meta?.next_cursor || undefined,
+    select: (data) => ({ counts: data.pages[0]?.data.counts, people: data.pages.flatMap((p): AnswerPerson[] => p.data.people ?? []) }),
+  })
+}
+
+// useExportAnswers downloads the answers as a CSV. Each export is audited on
+// the server.
+export function useExportAnswers(id: string, title: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'event'
+      const file = await apiDownload(`/api/v1/events/${encodeURIComponent(id)}/export`, `${slug}-answers.csv`)
+      const url = URL.createObjectURL(file.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.name
+      link.click()
+      URL.revokeObjectURL(url)
+    },
   })
 }

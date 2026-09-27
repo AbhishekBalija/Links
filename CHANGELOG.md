@@ -17,6 +17,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Organiser tools on a published event, for its proposer, its Department's
+  HOD, the principal and admins: who's coming (counts, the people who
+  answered, and a full list by answer), a CSV export, Edit details for the
+  place, time, seats and description (a limit can't drop below those
+  going), and Cancel event with a reason everyone invited sees.
 - Proposing events from the app: a proposal form (kind, title, when, where,
   who's invited and a seat limit) that says who reviews it before you send
   it, keeps drafts, and asks before you leave with changes. My announcements

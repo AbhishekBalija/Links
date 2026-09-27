@@ -5,10 +5,14 @@ import { ApiRequestError } from '../../../shared/api/types'
 import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
 import { audienceLabel } from '../../notices/format'
 import { useAnswer, useAnswers, useEvent } from '../api'
+import { useAuthStore } from '../../auth/store'
+import { useDashboard } from '../../home/api'
 import { AnswerControl } from '../components/AnswerControl'
+import { OrganiserView } from '../components/OrganiserView'
 import { DateTile } from '../components/DateTile'
 import { Tag } from '../components/Tags'
 import { answersClosed, isFull, startTime, whenLine } from '../format'
+import { isOrganiser } from '../organiser'
 import { typeLabel, type AnswerSummary, type CampusEvent } from '../types'
 
 // EventDetail is one Event: what, when and where, then the answer bar, the
@@ -39,7 +43,7 @@ export default function EventDetail() {
           <ErrorState message="This event could not be loaded." onRetry={() => event.refetch()} />
         )
       ) : (
-        <EventView event={event.data} />
+        <EventPage event={event.data} />
       )}
     </div>
   )
@@ -53,6 +57,21 @@ function BackLink() {
       Events
     </Link>
   )
+}
+
+// EventPage shows organisers their tools, and everyone else the event with
+// its answer bar.
+function EventPage({ event }: { event: CampusEvent }) {
+  const user = useAuthStore((s) => s.user)
+  // Only an HOD needs their Department to tell if the event is theirs.
+  const isHOD = Boolean(user?.roles.includes('hod'))
+  const dashboard = useDashboard(isHOD)
+  if (isHOD && dashboard.isPending) return <DetailSkeleton />
+  const live = event.status === 'published' || event.status === 'cancelled'
+  if (user && live && isOrganiser(event, user, dashboard.data?.user.department ?? null)) {
+    return <OrganiserView event={event} />
+  }
+  return <EventView event={event} />
 }
 
 function EventView({ event }: { event: CampusEvent }) {
