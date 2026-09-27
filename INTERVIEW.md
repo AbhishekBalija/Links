@@ -36,6 +36,14 @@ Cascade deletion could erase or detach student and authorization data after one
 admin request. Returning `409 CONFLICT` makes the dependency explicit and keeps
 cleanup or reassignment as a deliberate separate operation.
 
+### Why read Department codes from the database instead of a list in code?
+
+A list in code and the `departments` table can disagree, and they did: an admin
+could create a Department that nobody could sign up to, because the USN check
+and the sign-up form each had their own hardcoded list. With the table as the
+only list, the USN check just checks the shape, and the Department lookup
+decides whether the code is real.
+
 ## API Test Harness
 
 ### Why test the API against a real Postgres instead of mocking the repositories?
@@ -170,6 +178,22 @@ update uses a small `Optional[T]` type whose `UnmarshalJSON` runs whenever the
 key is present, even for `null`, so it records "was sent" separately from the
 value. Leaving `capacity` out keeps it; sending `"capacity": null` removes the
 limit.
+## Role Management
+
+### Why end a role by setting `ends_at` instead of deleting the row?
+
+The row is the history of who held which role and who granted it, which an
+audit needs ("who was CS HOD when this event was approved?"). Every query that
+checks roles already asks for roles in effect now (`starts_at <= now()` and
+`ends_at` null or later), so an ended row simply stops counting.
+
+### If roles are in the JWT, how does removing a role take effect?
+
+The access token keeps its roles until it expires, at most 15 minutes. Ending
+a role revokes the user's refresh tokens in the same transaction, so their next
+refresh fails and they sign in again with fresh roles. The window in between
+is short, and the checks that matter most (who may publish or approve) read
+roles from the database, not the token.
 
 ## Testing
 

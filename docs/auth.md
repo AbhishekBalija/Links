@@ -104,6 +104,22 @@ scope_type: department
 scope_id: EC
 ```
 
+## When Role Changes Take Effect
+
+Access tokens carry the user's roles and live 15 minutes, so a role change
+reaches the middleware permission checks (`AuthorizeActor`) only when the user
+gets a new access token:
+
+- Ending a Role assignment, suspending or rejecting a user revokes all their
+  refresh tokens in the same transaction. Their next refresh fails and they
+  must sign in again, which reads their roles fresh.
+- Until then, an access token issued before the change keeps working for up
+  to 15 minutes with the old roles.
+- Checks that matter most already re-read roles from the database instead of
+  the token: Announcement publishing authority and approval (ADR 0017), and
+  granting or ending the admin role. A newly granted role shows up at the
+  user's next sign-in or refresh.
+
 ## Authorization Rules
 
 Authorization must happen in service/policy layer, not just middleware.
@@ -131,4 +147,8 @@ Examples:
 | View applicant data | Own only | No | No | Department summary | Yes | Yes | Yes |
 | Shortlist applicants | No | No | No | View only | Yes | Yes | Yes |
 | Manage users and roles | No | No | No | Limited | No | Limited | Yes |
+
+"Manage users and roles" for the principal means everything but the `admin`
+role, which only an admin grants or ends. HOD access is still limited to
+Access approval of their Department's students.
 
