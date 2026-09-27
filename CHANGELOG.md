@@ -6,6 +6,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Role management (#22): the principal and admins can list, grant and end a
+  user's staff roles, with Department scopes, start and end dates, one HOD per
+  Department, and an audit log. Only an admin can grant or end the admin role,
+  and the last admin can't be removed.
+
+### Security
+- Ending a role, suspending or rejecting a user signs them out everywhere by
+  revoking their refresh tokens (#22).
+
 ## [0.3.0] - 2026-09-27
 
 LINKS gets its look and its screens: everyone can read notices, staff can

@@ -158,6 +158,12 @@ role_assignments (
 )
 ```
 
+Ending a Role assignment sets `ends_at` and keeps the row, so the table is also
+the history of who held which role. A role is in effect when
+`starts_at <= now()` and `ends_at` is null or later. Role management refuses
+a second assignment of the same role and Scope with an overlapping time range,
+and a second HOD for a Department at the same time.
+
 ### announcements
 
 ```sql

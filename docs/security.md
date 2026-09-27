@@ -33,7 +33,7 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 - Bcrypt is acceptable initially.
 - Store refresh tokens hashed.
 - Rotate refresh tokens.
-- Revoke tokens on suspension/password reset.
+- Revoke tokens on suspension, rejection, password reset and when a Role assignment ends.
 - Pin JWT signing algorithm.
 - Use issuer and audience claims.
 
@@ -118,7 +118,7 @@ Allowed viewers:
 Audit:
 
 - User verification
-- Role assignment
+- Role assignment (granted and ended)
 - Account suspension/restoration
 - Event approval decisions
 - Announcement approvals

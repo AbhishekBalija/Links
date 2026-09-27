@@ -129,6 +129,23 @@ queue, an approver could approve it and bring the notice back without anyone
 deciding to republish it. Closing the edit, in the same transaction as the
 withdrawal, keeps the queue showing only things that can still go live.
 
+## Role Management
+
+### Why end a role by setting `ends_at` instead of deleting the row?
+
+The row is the history of who held which role and who granted it, which an
+audit needs ("who was CS HOD when this event was approved?"). Every query that
+checks roles already asks for roles in effect now (`starts_at <= now()` and
+`ends_at` null or later), so an ended row simply stops counting.
+
+### If roles are in the JWT, how does removing a role take effect?
+
+The access token keeps its roles until it expires, at most 15 minutes. Ending
+a role revokes the user's refresh tokens in the same transaction, so their next
+refresh fails and they sign in again with fresh roles. The window in between
+is short, and the checks that matter most (who may publish or approve) read
+roles from the database, not the token.
+
 ## Testing
 
 ### Why have three kinds of tests instead of just end-to-end ones?
