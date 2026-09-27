@@ -47,17 +47,6 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 - Refresh and logout, the only cookie-authenticated requests, check `Origin`
   or `Referer` against the allowed origins and the API's own host (ADR 0022).
 
-## Security Headers
-
-- API: `nosniff`, `strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
-  `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, and
-  HSTS in production.
-- Web app (`vercel.json`): the same three headers plus a
-  `Content-Security-Policy-Report-Only` limited to the app's origin, Sentry's
-  ingest hosts, and `data:`/`blob:` where Vite and Sentry need them. Reports go
-  to `POST /api/csp-report` and appear in the API logs as "content security
-  policy violation". Enforce it after a week without violations.
-
 ## CORS
 
 - Use explicit origin allow-list.
@@ -78,6 +67,20 @@ Strict-Transport-Security
 ```
 
 Enable HSTS only on HTTPS environments.
+
+What is set (ADR 0022):
+
+- API responses: `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
+  `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, and
+  HSTS when `APP_ENV=production`.
+- Web app (`vercel.json`): the same three headers, a `Permissions-Policy` that
+  turns off camera, microphone, geolocation and payment, and a
+  `Content-Security-Policy-Report-Only` limited to the app's origin, Sentry's
+  ingest hosts, and `data:`/`blob:` where Vite and Sentry need them. Reports go
+  to `POST /api/csp-report` and appear in the API logs as "content security
+  policy violation". Enforce it after a week without violations. Vercel serves
+  its domains over HTTPS with its own HSTS.
 
 ## Input Validation
 
