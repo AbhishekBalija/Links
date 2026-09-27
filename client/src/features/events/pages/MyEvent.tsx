@@ -1,17 +1,16 @@
 import { ChevronLeft } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { ApiRequestError } from '../../../shared/api/types'
 import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
 import { buttonStyles } from '../../announcements/buttons'
 import { ActionBar } from '../../announcements/components/ActionBar'
-import { audienceLabel } from '../../notices/format'
 import { useDeleteDraft, useEvent } from '../api'
 import { CancelDialog } from '../components/CancelDialog'
 import { DateTile } from '../components/DateTile'
+import { EventFacts } from '../components/EventFacts'
 import { PostTag, StandingTag } from '../components/PostTags'
-import { whenLine } from '../format'
 import { proposalHistory } from '../history'
 import { dayAndDate, dayMonth, latestReview, proposalStanding, reviewerAt } from '../standing'
 import { typeLabel, type CampusEvent } from '../types'
@@ -45,16 +44,7 @@ export default function MyEvent() {
 
 function View({ event }: { event: CampusEvent }) {
   const standing = proposalStanding(event)
-  const when = whenLine(event.starts_at, event.ends_at)
   const history = proposalHistory(event)
-  const audience = audienceLabel(
-    (event.audience ?? []).map((rule) => ({
-      department_id: rule.department_id ?? null,
-      department_code: rule.department_code ?? null,
-      batch_year: rule.batch_year ?? null,
-      role: rule.role ?? null,
-    })),
-  )
 
   return (
     <div className="grid max-w-[1140px] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
@@ -69,24 +59,7 @@ function View({ event }: { event: CampusEvent }) {
             <DateTile iso={event.starts_at} size="lg" />
             <h1 className="font-serif text-[26px] leading-[1.15] font-medium tracking-[-0.4px] lg:text-[34px] lg:leading-[1.12] lg:tracking-[-0.5px]">{event.title}</h1>
           </div>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border border-line bg-surface px-4 py-3.5 text-sm lg:gap-x-[18px] lg:gap-y-2.5 lg:border-0 lg:bg-transparent lg:p-0 lg:text-[15px]">
-            <Fact label="When">
-              {when.date && <b className="font-semibold">{when.date} </b>}
-              <span className="font-mono text-[13px] lg:text-sm">{when.time}</span>
-            </Fact>
-            <Fact label="Where">{event.location}</Fact>
-            <Fact label="For">{audience}</Fact>
-            <Fact label="Seats">{event.capacity === null ? 'No limit' : `${event.capacity} can say Going`}</Fact>
-          </dl>
-          {event.description && (
-            <div className="flex max-w-[640px] flex-col gap-3 font-serif text-[17px] leading-[1.55] text-prose lg:text-lg">
-              {event.description.split(/\n\s*\n/).map((paragraph, i) => (
-                <p key={i} className="whitespace-pre-line">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          )}
+          <EventFacts event={event} />
         </article>
         <Bar event={event} />
       </div>
@@ -113,15 +86,6 @@ function View({ event }: { event: CampusEvent }) {
         </ol>
       </aside>
     </div>
-  )
-}
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <>
-      <dt className="text-ink-3">{label}</dt>
-      <dd>{children}</dd>
-    </>
   )
 }
 
