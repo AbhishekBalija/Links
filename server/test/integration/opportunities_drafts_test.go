@@ -22,6 +22,9 @@ type opportunityItem struct {
 	ApplicationMode string  `json:"application_mode"`
 	ExternalURL     *string `json:"external_url"`
 	Status          string  `json:"status"`
+	Open            bool    `json:"open"`
+	PublishedAt     *string `json:"published_at"`
+	ClosedAt        *string `json:"closed_at"`
 	Eligibility     []struct {
 		DepartmentID   *string `json:"department_id"`
 		DepartmentCode *string `json:"department_code"`

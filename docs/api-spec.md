@@ -693,18 +693,21 @@ newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
 
 ## Opportunities and Applications
 
-The placement workflow is ADR 0024. Built so far: drafts.
+The placement workflow is ADR 0024. Built so far: drafts, publishing and the
+feed.
 
 ```text
+GET   /api/v1/opportunities
 POST  /api/v1/opportunities
 GET   /api/v1/opportunities/manage
 GET   /api/v1/opportunities/:id
 PATCH /api/v1/opportunities/:id
+POST  /api/v1/opportunities/:id/publish
+POST  /api/v1/opportunities/:id/close
 ```
 
-Planned in the same workflow: publishing and the Student feed, Applications
-(internal and "I applied" for external), the applicant list with status
-updates, and the applicant export.
+Planned in the same workflow: Applications (internal and "I applied" for
+external), the applicant list with status updates, and the applicant export.
 
 ### Opportunities
 
@@ -746,14 +749,37 @@ Anyone else gets `403` on these routes.
 `PATCH /api/v1/opportunities/:id` changes only the fields sent; `location`,
 `compensation` and `external_url` can be cleared with `null`, and
 `eligibility` replaces the whole list. The result is checked as on create
-(`400`); an unknown ID is `404`.
+(`400`); an unknown ID is `404`. A published Opportunity keeps its
+`application_mode` (`409` otherwise) and a changed `apply_by` must be in the
+future (`400`); a closed one can't be edited (`409`).
+
+`POST /api/v1/opportunities/:id/publish` opens a draft to its Eligibility
+(`200`). Its `apply_by` must be in the future (`400`); anything but a draft is
+`409`. `POST /api/v1/opportunities/:id/close` closes a published Opportunity
+early (`200`); anything else is `409`. Closing is final. Both are placement
+staff only and audited (`opportunity_published`, `opportunity_closed`).
+
+`GET /api/v1/opportunities` (any signed-in member) lists published and closed
+Opportunities the caller is eligible for, matched like an Announcement's
+Audience:
+
+- `state`: `open` (default: published and `apply_by` ahead, soonest deadline
+  first) or `closed` (closed early or past `apply_by`, latest deadline first).
+- `type`: `job`, `internship` or `training`.
+- `department`: a Department code (any case); lists Opportunities whose
+  Eligibility names that Department.
+- `cursor` and `limit` (1 to 50, default 20); the next page is
+  `meta.next_cursor`.
+
+An unknown `state`, `type` or `department`, or a bad cursor, is `400`.
 
 `GET /api/v1/opportunities/manage` lists every Opportunity for placement
 staff, newest first: `status` (`draft`, `published`, `closed`), `cursor` and
 `limit` (1 to 50, default 20); the next page is `meta.next_cursor`.
 
-`GET /api/v1/opportunities/:id` returns one Opportunity. For now only
-placement staff can open one; anyone else gets `404`.
+`GET /api/v1/opportunities/:id` returns one Opportunity: any of them to
+placement staff, a published or closed one to a member in its Eligibility,
+and `404` to anyone else, so drafts stay private.
 
 Each Opportunity:
 
@@ -766,13 +792,15 @@ Each Opportunity:
   "apply_by": "...",
   "application_mode": "internal", "external_url": null,
   "eligibility": [{ "department_id": "<uuid>", "department_code": "CS", "batch_year": 2023, "role": "student" }],
-  "status": "draft",
+  "status": "published",
+  "open": true,
   "posted_by": { "user_id": "uuid", "full_name": "..." },
   "published_at": null, "closed_at": null,
   "created_at": "...", "updated_at": "..."
 }
 ```
 
+`open` is `true` while the Opportunity is published and `apply_by` is ahead.
 Creating and editing are audited (`opportunity_created`,
 `opportunity_updated`) in the same transaction.
 

@@ -14,6 +14,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Placement staff publish Opportunities and close them early; members see
+  the open ones they are eligible for, soonest deadline first, and the closed
+  ones apart, filtered by type and Department. A published Opportunity keeps
+  its application mode and its deadline ahead.
 - Placement Opportunities (Phase 4, ADR 0024): the placement officer, the
   principal and admins save jobs, internships and training posts as drafts,
   with company, role, description, location, stipend or CTC, apply-by date,
