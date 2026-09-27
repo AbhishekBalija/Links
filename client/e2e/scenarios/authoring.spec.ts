@@ -49,6 +49,12 @@ test.describe('Writing announcements', () => {
 
     const readerToken = await loginViaAPI(request, reader.email, reader.password)
     expect(await feedTitles(request, readerToken)).toContain('CS lab 3 closed on Monday')
+
+    // On the notice itself, the author sees it as their own.
+    const noticeId = page.url().split('/').pop()
+    await page.goto(`/notices/${noticeId}`)
+    await expect(page.getByRole('complementary')).toContainText('You')
+    await expect(page.getByRole('complementary')).not.toContainText('Asha Rao')
   })
 
   test('faculty submit, get it sent back, fix it and resubmit', async ({ page, request }) => {

@@ -12,8 +12,9 @@ export type Profile = {
   portfolio_url: string | null
 }
 
+// CurrentUser is GET /api/v1/me.
 export type CurrentUser = {
-  id: string
+  user_id: string
   email: string
   roles: string[]
   profile: Profile

@@ -7,6 +7,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- Your own notices say "You" again, and signing in as someone else on the
+  same tab clears the previous person's cached data. The client read the
+  signed-in user's id from a field `/me` never sends.
 - The API failed to start on Vercel (every request returned 500): on each
   cold start it checked every migration in its own transaction, and with
   the database in another region those round trips passed the startup

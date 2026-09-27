@@ -19,7 +19,7 @@ function shouldRetry(failureCount: number, error: unknown) {
 // ClearOnUserChange drops cached data when someone else signs in on the same
 // tab, so one person's notices never flash on another person's screen.
 function ClearOnUserChange({ client }: { client: QueryClient }) {
-  const userId = useAuthStore((s) => s.user?.id ?? null)
+  const userId = useAuthStore((s) => s.user?.user_id ?? null)
   useEffect(() => {
     return () => client.clear()
   }, [client, userId])
