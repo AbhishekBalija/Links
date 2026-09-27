@@ -50,12 +50,12 @@ Deliverables:
 
 - [x] Department management API (#10, v0.2.0); department pages come with #15
 - [ ] Role-based dashboard endpoints (#11); the Home summary is built (#39, v0.3.0)
-- [ ] Campus directory and search basics (#12); the directory API with filters and typo-tolerant search is built
+- [x] Campus directory and search (#12): the People screen with filters and typo-tolerant search
 - [x] Targeted announcements API with approval, editing and withdrawal (#13, spec #25, v0.2.0)
 - [x] Home and announcement screens: design system and app shell, reading notices, composer and My announcements, approval queue (spec #38: #39–#42, v0.3.0)
-- [ ] Public profiles in the directory and department pages (#12, #15); the Department overview API is built
+- [x] Public profiles and department pages (#12): Profile, your own profile and the Department page
 - [ ] Frontend for all of the above (#15), then a manual UX pass (#16)
-- [ ] Bulk CSV import endpoint for admin/HOD (#17)
+- [x] Bulk CSV import endpoint for admin/HOD (#17)
 
 ## Phase 3: Events
 

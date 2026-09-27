@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../../components/ui/button'
@@ -9,6 +10,7 @@ export default function EditProfile() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const refreshUser = useAuthStore((s) => s.refreshUser)
+  const queryClient = useQueryClient()
 
   const p = user?.profile
   const [headline, setHeadline] = useState(p?.headline ?? '')
@@ -37,7 +39,9 @@ export default function EditProfile() {
         show_phone: showPhone,
       })
       await refreshUser()
-      navigate('/', { replace: true })
+      // The profile page shows the saved version, not a cached one.
+      await queryClient.invalidateQueries({ queryKey: ['profile'] })
+      navigate('/profile', { replace: true })
     } catch (err) {
       if (err instanceof ApiRequestError) {
         setServerError(err.message)
@@ -116,7 +120,7 @@ export default function EditProfile() {
           <Button type="submit" disabled={loading}>
             {loading ? 'Saving…' : 'Save'}
           </Button>
-          <Button type="button" variant="outline" onClick={() => navigate('/')}>
+          <Button type="button" variant="outline" onClick={() => navigate('/profile')}>
             Cancel
           </Button>
         </div>

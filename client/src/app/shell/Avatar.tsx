@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   const first = parts[0]?.[0] ?? '?'
@@ -5,11 +7,12 @@ function initials(name: string) {
   return (first + last).toUpperCase()
 }
 
-export function Avatar({ name }: { name: string }) {
+// Avatar shows someone's initials. Pass a className to change its size.
+export function Avatar({ name, className }: { name: string; className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-semibold text-ink"
+      className={cn('flex size-9 shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-semibold text-ink', className)}
     >
       {initials(name)}
     </span>

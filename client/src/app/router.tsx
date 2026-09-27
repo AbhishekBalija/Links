@@ -20,6 +20,10 @@ const Compose = lazy(() => import('../features/announcements/pages/Compose'))
 const MyAnnouncement = lazy(() => import('../features/announcements/pages/MyAnnouncement'))
 const MyAnnouncements = lazy(() => import('../features/announcements/pages/MyAnnouncements'))
 const EditProfile = lazy(() => import('../features/profiles/pages/EditProfile'))
+const People = lazy(() => import('../features/people/pages/People'))
+const Profile = lazy(() => import('../features/people/pages/Profile'))
+const MyProfile = lazy(() => import('../features/people/pages/MyProfile'))
+const Department = lazy(() => import('../features/people/pages/Department'))
 
 export function AppRouter() {
   return (
@@ -48,6 +52,10 @@ export function AppRouter() {
             <Route path="/mine/new" element={<Compose />} />
             <Route path="/mine/:id/edit" element={<Compose />} />
           </Route>
+          <Route path="/people" element={<People />} />
+          <Route path="/people/:username" element={<Profile />} />
+          <Route path="/departments/:code" element={<Department />} />
+          <Route path="/profile" element={<MyProfile />} />
           <Route path="/profile/edit" element={<EditProfile />} />
         </Route>
       </Route>

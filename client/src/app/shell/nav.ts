@@ -1,4 +1,4 @@
-import { House, ListChecks, Newspaper, PenLine, UserRound, type LucideIcon } from 'lucide-react'
+import { House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -8,6 +8,8 @@ export type NavItem = {
   icon: LucideIcon
   // Roles that see this item; leave it out for everyone.
   roles?: string[]
+  // Other paths that belong to this item, such as a Department page under People.
+  also?: string[]
 }
 
 // Roles that can post Announcements (auth policy: post_announcement).
@@ -19,9 +21,10 @@ export const approverRoles = ['hod', 'principal', 'admin']
 const items: NavItem[] = [
   { to: '/', label: 'Home', icon: House },
   { to: '/notices', label: 'Notices', icon: Newspaper },
+  { to: '/people', label: 'People', icon: Users, also: ['/departments'] },
   { to: '/approvals', label: 'Approval queue', short: 'Approvals', icon: ListChecks, roles: approverRoles },
   { to: '/mine', label: 'My announcements', short: 'Mine', icon: PenLine, roles: posterRoles },
-  { to: '/profile/edit', label: 'Profile', icon: UserRound },
+  { to: '/profile', label: 'Profile', icon: UserRound },
 ]
 
 export function canApprove(roles: string[]): boolean {
@@ -34,6 +37,15 @@ export function canPost(roles: string[]): boolean {
 
 export function navFor(roles: string[]): NavItem[] {
   return items.filter((item) => !item.roles || item.roles.some((role) => roles.includes(role)))
+}
+
+// The phone's bottom bar fits five tabs. When a role has six, Profile steps
+// out; it stays one tap away from the avatar on Home.
+const maxTabs = 5
+
+export function tabsFor(roles: string[]): NavItem[] {
+  const all = navFor(roles)
+  return all.length > maxTabs ? all.filter((item) => item.to !== '/profile') : all
 }
 
 const roleLabels: Record<string, string> = {
@@ -50,6 +62,10 @@ const roleLabels: Record<string, string> = {
 
 // The sidebar shows the most senior role the user holds.
 const seniority = ['admin', 'principal', 'hod', 'placement_officer', 'faculty', 'student_coordinator', 'club_organizer', 'student', 'alumni']
+
+export function roleLabel(role: string): string {
+  return roleLabels[role] ?? role
+}
 
 export function mainRoleLabel(roles: string[]): string {
   const top = seniority.find((role) => roles.includes(role)) ?? roles[0]

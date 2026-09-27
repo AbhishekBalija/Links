@@ -6,7 +6,7 @@ import { useAuthStore } from '../../features/auth/store'
 import { Avatar } from './Avatar'
 import { LogoutButton } from './LogoutButton'
 import { useDashboard } from '../../features/home/api'
-import { canApprove, mainRoleLabel, navFor, type NavItem } from './nav'
+import { canApprove, mainRoleLabel, navFor, tabsFor, type NavItem } from './nav'
 
 // AppShell frames every signed-in screen: a sidebar on desktop and a bottom
 // navigation bar on phones, where students do most of their reading.
@@ -14,6 +14,7 @@ export function AppShell() {
   const user = useAuthStore((s) => s.user)
   const roles = user?.roles ?? []
   const items = navFor(roles)
+  const tabs = tabsFor(roles)
   const name = user?.profile.full_name ?? user?.email ?? ''
   // The composer and an opened announcement have their own action bar at the
   // bottom on phones, so the tab bar steps aside there.
@@ -67,9 +68,9 @@ export function AppShell() {
         aria-label="Main"
         hidden={focused}
         className="fixed inset-x-0 bottom-0 z-40 grid bg-surface pt-2 pb-[max(env(safe-area-inset-bottom),14px)] shadow-[0_-1px_0_var(--color-line)] lg:hidden"
-        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
-        {items.map((item) => (
+        {tabs.map((item) => (
           <TabLink key={item.to} item={item} badge={badges[item.to]} />
         ))}
       </nav>
@@ -77,15 +78,24 @@ export function AppShell() {
   )
 }
 
+// useAlsoActive is true on the other paths an item owns, such as a
+// Department page under People.
+function useAlsoActive(item: NavItem) {
+  const path = useLocation().pathname
+  return item.also?.some((prefix) => path.startsWith(prefix)) ?? false
+}
+
 function SidebarLink({ item, badge }: { item: NavItem; badge?: number }) {
+  const also = useAlsoActive(item)
   return (
     <NavLink
       to={item.to}
       end={item.to === '/'}
+      aria-current={also ? 'page' : undefined}
       className={({ isActive }) =>
         cn(
           'flex items-center gap-2.5 rounded-lg px-3 py-2.5',
-          isActive
+          isActive || also
             ? 'bg-surface font-semibold text-ink shadow-[0_1px_2px_rgba(27,24,20,0.06)] hover:text-ink'
             : 'text-ink-2 hover:bg-well/60 hover:text-ink',
         )
@@ -93,7 +103,7 @@ function SidebarLink({ item, badge }: { item: NavItem; badge?: number }) {
     >
       {({ isActive }) => (
         <>
-          <span aria-hidden="true" className={cn('size-1.5 rounded-full', isActive && 'bg-rust')} />
+          <span aria-hidden="true" className={cn('size-1.5 rounded-full', (isActive || also) && 'bg-rust')} />
           <span className="flex-1">{item.label}</span>
           {badge !== undefined && <Count n={badge} />}
         </>
@@ -104,14 +114,16 @@ function SidebarLink({ item, badge }: { item: NavItem; badge?: number }) {
 
 function TabLink({ item, badge }: { item: NavItem; badge?: number }) {
   const Icon = item.icon
+  const also = useAlsoActive(item)
   return (
     <NavLink
       to={item.to}
       end={item.to === '/'}
+      aria-current={also ? 'page' : undefined}
       className={({ isActive }) =>
         cn(
           'flex min-h-12 flex-col items-center justify-center gap-1 text-xs',
-          isActive ? 'font-semibold text-rust hover:text-rust' : 'text-ink-2 hover:text-ink',
+          isActive || also ? 'font-semibold text-rust hover:text-rust' : 'text-ink-2 hover:text-ink',
         )
       }
     >
