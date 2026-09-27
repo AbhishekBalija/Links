@@ -107,6 +107,29 @@ func (s *Service) editLogistics(ctx context.Context, repositories Repositories, 
 	return audit(ctx, repositories, actorID, "event_logistics_updated", event.ID, map[string]string{"fields": strings.Join(changed, ",")}, now)
 }
 
+// DeleteDraft removes the proposer's own draft. Only drafts can go: once an
+// Event is submitted, reviewers have seen it, so it is cancelled instead and
+// its history kept.
+func (s *Service) DeleteDraft(ctx context.Context, actorID, id string) error {
+	now := s.now()
+	return s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
+		event, err := repositories.Events.FindForUpdate(ctx, id)
+		if err != nil {
+			return fmt.Errorf("find event: %w", err)
+		}
+		if event == nil || event.ProposerID != actorID {
+			return apperrors.NewNotFound("event not found")
+		}
+		if event.Status != StatusDraft {
+			return apperrors.NewConflict("only a draft can be deleted; cancel a submitted event instead")
+		}
+		if err := repositories.Events.DeleteDraft(ctx, event.ID); err != nil {
+			return fmt.Errorf("delete draft: %w", err)
+		}
+		return audit(ctx, repositories, actorID, "event_draft_deleted", event.ID, map[string]string{"title": event.Title}, now)
+	})
+}
+
 // Cancel calls off an Event that isn't over, rejected or already cancelled.
 // Its RSVPs are kept, so the people who answered can see it was cancelled.
 func (s *Service) Cancel(ctx context.Context, actorID, id string, input CancelInput) (*EventResponse, error) {

@@ -54,6 +54,15 @@ func (r *GormRepository) Update(ctx context.Context, event *Event) error {
 	return r.db.WithContext(ctx).Save(event).Error
 }
 
+// DeleteDraft removes a draft and its Audience rules. A draft has no
+// reviews or answers, so nothing else refers to it.
+func (r *GormRepository) DeleteDraft(ctx context.Context, eventID string) error {
+	if err := r.db.WithContext(ctx).Exec(`DELETE FROM audience_rules WHERE target_type = ? AND target_id = ?`, targetTypeEvent, eventID).Error; err != nil {
+		return err
+	}
+	return r.db.WithContext(ctx).Exec(`DELETE FROM events WHERE id = ? AND status = 'draft'`, eventID).Error
+}
+
 // ReplaceAudience swaps an Event's Audience rules for new ones.
 func (r *GormRepository) ReplaceAudience(ctx context.Context, eventID string, audience []AudienceRule) error {
 	err := r.db.WithContext(ctx).Exec(

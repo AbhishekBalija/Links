@@ -14,6 +14,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Proposers can delete their own event drafts. Anything already submitted is
+  cancelled instead, so its history stays.
 - Event proposals (Phase 3): staff and student coordinators save Event drafts
   for their Department (the principal and admins for any or none, the
   placement officer training only), with type, place, times, capacity,

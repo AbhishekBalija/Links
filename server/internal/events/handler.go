@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	events.GET("/:id/export", h.Export)
 	events.POST("/:id/cancel", h.Cancel)
 	events.PATCH("/:id", h.Update)
+	events.DELETE("/:id", h.DeleteDraft)
 	events.POST("/:id/submit-for-approval", h.Submit)
 	events.PATCH("/:id/hod-review", h.review(StageHOD, auth.PermissionReviewBranchEvent))
 	events.PATCH("/:id/final-approval", h.review(StageFinal, auth.PermissionFinalEventApproval))
@@ -273,6 +274,20 @@ func (h *Handler) Export(c *gin.Context) {
 	c.Header("Content-Disposition", `attachment; filename="event-participants.csv"`)
 	c.Header("Cache-Control", "no-store")
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", file)
+}
+
+// DeleteDraft removes the caller's own draft; anything submitted is cancelled
+// instead, so its history stays.
+func (h *Handler) DeleteDraft(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	if err := h.service.DeleteDraft(c.Request.Context(), actor.UserID, c.Param("id")); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) Cancel(c *gin.Context) {

@@ -629,6 +629,11 @@ the number already going; `null` removes the limit). Sending `title`,
 those need the Event cancelled and proposed again. Each edit writes an
 `event_logistics_updated` audit log. An Event that is over is `409`.
 
+`DELETE /api/v1/events/:id` deletes the caller's own draft and its Audience
+rules, audited as `event_draft_deleted`, and returns `204`. Someone else's
+draft is `404`. An Event that has been submitted is `409`: reviewers have seen
+it, so it is cancelled instead and its history kept.
+
 `POST /api/v1/events/:id/cancel` with `{"reason": "..."}` (required, up to 500
 characters) cancels an Event that isn't over, rejected or already cancelled
 (`409`). Allowed for its proposer and its reviewers (Department HOD, principal,
