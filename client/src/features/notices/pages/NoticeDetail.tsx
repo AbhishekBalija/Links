@@ -47,7 +47,7 @@ export default function NoticeDetail() {
 }
 
 function NoticeView({ notice }: { notice: Notice }) {
-  const userId = useAuthStore((s) => s.user?.id)
+  const userId = useAuthStore((s) => s.user?.user_id)
   const posted = notice.published_at ?? notice.created_at
   const ends = expiry(notice.expires_at)
   const paragraphs = notice.body.split(/\n\s*\n/)
