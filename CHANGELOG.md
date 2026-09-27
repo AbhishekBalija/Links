@@ -33,6 +33,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Drafts, Waiting, Live and Ended, with one New button. Each proposal has its
   own page with its history and the actions its status allows: edit and
   resubmit, delete a draft, or cancel with a reason.
+- Placement staff download an Opportunity's applicants as CSV, all or one
+  status only, with spreadsheet formulas neutralised and no phone numbers.
+  Every download is audited.
+- Placement staff see each Opportunity's applicants (name, email, USN,
+  Department, Batch, never phone numbers), filtered by status, Department
+  and Batch, and move Applications between applied, shortlisted, rejected and
+  selected. A change based on a status someone else already changed is
+  refused, and opening the list and every change are audited.
 - Students apply to an open internal Opportunity they are eligible for, once,
   and withdraw while it is still only applied; for an external one they mark
   that they applied on the company's site so it is tracked. Each Opportunity

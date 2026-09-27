@@ -82,10 +82,10 @@ Deliverables:
 - Eligibility targeting (API built: the feed matches Eligibility like an Audience)
 - Internal application flow (API built: apply once while open, withdraw before shortlisting)
 - External application tracking (API built: "I applied" records an external Application)
-- Applicant list
-- Shortlisting
-- Status updates
-- CSV export
+- Applicant list (API built: filters by status, Department and Batch; audited)
+- Shortlisting (API built)
+- Status updates (API built: row-locked, audited)
+- CSV export (API built: audited, formula-safe)
 
 ## Phase 5: Clubs, Alumni, and Polish
 

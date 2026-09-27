@@ -23,6 +23,7 @@ func NewHandler(service *Service, policy *auth.Policy) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
+	v1.PATCH("/opportunity-applications/:id/status", h.UpdateStatus)
 	opportunities := v1.Group("/opportunities")
 	opportunities.GET("", h.Feed)
 	opportunities.POST("", h.Create)
@@ -33,6 +34,67 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	opportunities.POST("/:id/close", h.staffAction((*Service).Close))
 	opportunities.POST("/:id/apply", h.applicantAction((*Service).Apply, http.StatusCreated))
 	opportunities.POST("/:id/withdraw", h.applicantAction((*Service).Withdraw, http.StatusOK))
+	opportunities.GET("/:id/applications", h.Applicants)
+	opportunities.GET("/:id/export", h.Export)
+}
+
+// Export sends an Opportunity's applicants as a CSV download.
+func (h *Handler) Export(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewApplicantData)
+	if actor == nil {
+		return
+	}
+	file, err := h.service.Export(c.Request.Context(), actor.UserID, c.Param("id"), c.Query("status"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="applicants.csv"`)
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", file)
+}
+
+// Applicants lists an Opportunity's Applications for placement staff.
+func (h *Handler) Applicants(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewApplicantData)
+	if actor == nil {
+		return
+	}
+	limit, ok := parseLimit(c)
+	if !ok {
+		return
+	}
+	items, meta, err := h.service.Applicants(c.Request.Context(), actor.UserID, c.Param("id"), ApplicantQuery{
+		Status:     c.Query("status"),
+		Department: c.Query("department"),
+		Batch:      c.Query("batch"),
+		Cursor:     c.Query("cursor"),
+		Limit:      limit,
+	})
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, items, meta)
+}
+
+// UpdateStatus moves one Application for placement staff.
+func (h *Handler) UpdateStatus(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionShortlistApplicants)
+	if actor == nil {
+		return
+	}
+	var input StatusInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	application, err := h.service.UpdateStatus(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, application, nil)
 }
 
 // applicantAction serves a Student's action on their own Application. Who

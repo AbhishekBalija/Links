@@ -223,3 +223,78 @@ func (r *GormRepository) ApplicationsOf(ctx context.Context, studentID string, o
 	err := r.db.WithContext(ctx).Where("student_id = ? AND opportunity_id IN ?", studentID, opportunityIDs).Find(&applications).Error
 	return applications, err
 }
+
+const applicantColumns = `SELECT a.id, a.opportunity_id, a.student_id, a.mode, a.status, a.applied_at, a.withdrawn_at,
+	a.status_changed_at, p.full_name, p.username, u.email, si.usn, d.code AS department_code, si.batch_year
+	FROM opportunity_applications a
+	JOIN users u ON u.id = a.student_id
+	JOIN profiles p ON p.user_id = a.student_id
+	LEFT JOIN student_identities si ON si.user_id = a.student_id
+	LEFT JOIN departments d ON d.id = si.department_id`
+
+// applicantQuery selects an Opportunity's Applications matching the filter,
+// without ordering.
+func applicantQuery(opportunityID string, filter ApplicantFilter) (string, []any) {
+	query := applicantColumns + ` WHERE a.opportunity_id = ?`
+	args := []any{opportunityID}
+	if filter.Status != nil {
+		query += ` AND a.status = ?`
+		args = append(args, string(*filter.Status))
+	}
+	if filter.DepartmentID != nil {
+		query += ` AND si.department_id = ?`
+		args = append(args, *filter.DepartmentID)
+	}
+	if filter.BatchYear != nil {
+		query += ` AND si.batch_year = ?`
+		args = append(args, *filter.BatchYear)
+	}
+	return query, args
+}
+
+// Applicants lists one page of an Opportunity's Applications in the order
+// they were made.
+func (r *GormRepository) Applicants(ctx context.Context, opportunityID string, filter ApplicantFilter, after *Cursor, limit int) ([]ApplicantRow, error) {
+	query, args := applicantQuery(opportunityID, filter)
+	if after != nil {
+		query += ` AND (a.applied_at, a.id) > (?, CAST(? AS uuid))`
+		args = append(args, after.At, after.ID)
+	}
+	query += ` ORDER BY a.applied_at, a.id LIMIT ?`
+	args = append(args, limit)
+	var rows []ApplicantRow
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error
+	return rows, err
+}
+
+// AllApplicants returns every Application to the Opportunity matching the
+// filter, for the export.
+func (r *GormRepository) AllApplicants(ctx context.Context, opportunityID string, filter ApplicantFilter) ([]ApplicantRow, error) {
+	query, args := applicantQuery(opportunityID, filter)
+	var rows []ApplicantRow
+	err := r.db.WithContext(ctx).Raw(query+` ORDER BY a.applied_at, a.id`, args...).Scan(&rows).Error
+	return rows, err
+}
+
+func (r *GormRepository) Applicant(ctx context.Context, applicationID string) (*ApplicantRow, error) {
+	var rows []ApplicantRow
+	err := r.db.WithContext(ctx).Raw(applicantColumns+` WHERE a.id = ?`, applicationID).Scan(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	return &rows[0], nil
+}
+
+// FindApplicationByIDForUpdate locks one Application, so two staff changing
+// its status run one after the other and the second sees the first.
+func (r *GormRepository) FindApplicationByIDForUpdate(ctx context.Context, id string) (*Application, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, nil
+	}
+	var applications []Application
+	err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).Limit(1).Find(&applications).Error
+	if err != nil || len(applications) == 0 {
+		return nil, err
+	}
+	return &applications[0], nil
+}

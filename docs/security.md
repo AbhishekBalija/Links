@@ -170,6 +170,16 @@ Allowed viewers:
 - Admin
 - HOD only as department-level summary unless explicitly allowed
 
+Built (ADR 0024): the applicant list (`GET /api/v1/opportunities/:id/applications`)
+is for placement staff only, checked against their roles in the database. It
+shows name, username, email, USN, Department and Batch, never phone numbers.
+Opening it is audited (`applicants_viewed`, once per first page). The CSV
+export has the same columns, neutralises spreadsheet formulas and is audited
+on every download (`applicants_exported`). Status
+changes lock the Application row, refuse a change based on a status that has
+moved on, can't touch a withdrawn Application, and are audited with the old
+and new status. HODs get no applicant list yet.
+
 ## Audit Logging
 
 Audit:
@@ -183,7 +193,7 @@ Audit:
 - Announcement approvals
 - Placement status changes
 - CSV exports
-- Applicant list views where possible
+- Applicant list views (`applicants_viewed`)
 
 ## Security Testing
 
