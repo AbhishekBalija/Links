@@ -33,7 +33,7 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 - Bcrypt is acceptable initially.
 - Store refresh tokens hashed.
 - Rotate refresh tokens.
-- Revoke tokens on suspension/password reset.
+- Revoke tokens on suspension, rejection, password reset and when a Role assignment ends.
 - Pin JWT signing algorithm.
 - Use issuer and audience claims.
 
@@ -45,6 +45,12 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 - Prefer `__Host-` prefix.
 - Clear cookies on logout.
 - Add CSRF protection for state-changing cookie-authenticated requests.
+
+## Public Endpoints
+
+Besides health checks and the auth endpoints, only `GET /api/v1/public/departments`
+works without a token. It returns Department codes and names, nothing else
+(ADR 0021).
 
 ## CORS
 
@@ -123,7 +129,7 @@ Allowed viewers:
 Audit:
 
 - User verification
-- Role assignment
+- Role assignment (granted and ended)
 - Account suspension/restoration
 - Event approval decisions
 - Announcement approvals

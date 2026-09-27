@@ -23,6 +23,9 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin.GET("/review-queue", h.ReviewQueue)
 	admin.PATCH("/:id/verify", h.VerifyUser)
 	admin.PATCH("/:id/status", h.UpdateUserStatus)
+	admin.GET("/:id/roles", h.ListRoles)
+	admin.POST("/:id/roles", h.GrantRole)
+	admin.DELETE("/:id/roles/:roleAssignmentId", h.EndRole)
 }
 
 func (h *AdminHandler) ReviewQueue(c *gin.Context) {
@@ -107,4 +110,59 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, UpdateUserStatusResponse{Message: "user status updated successfully"}, nil)
+}
+
+func (h *AdminHandler) ListRoles(c *gin.Context) {
+	if !h.authorizeManager(c) {
+		return
+	}
+	resp, err := h.service.ListUserRoles(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+func (h *AdminHandler) GrantRole(c *gin.Context) {
+	if !h.authorizeManager(c) {
+		return
+	}
+	var input GrantRoleInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	resp, err := h.service.GrantRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusCreated, resp, nil)
+}
+
+func (h *AdminHandler) EndRole(c *gin.Context) {
+	if !h.authorizeManager(c) {
+		return
+	}
+	resp, err := h.service.EndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+// authorizeManager writes the error response and returns false unless the
+// caller may manage users and roles.
+func (h *AdminHandler) authorizeManager(c *gin.Context) bool {
+	if GetActor(c) == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return false
+	}
+	if err := AuthorizeActor(c, h.policy, PermissionManageUsersAndRoles); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return false
+	}
+	return true
 }
