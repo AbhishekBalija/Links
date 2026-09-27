@@ -9,23 +9,13 @@ import (
 // Note this regex can change when I decide to make this platform support all colleges under VTU/Karnataka. For now, it is hardcoded to MITT's 4MNxx format.
 var usnRegex = regexp.MustCompile(`^4MN(\d{2})([A-Z]{2})(\d{3})$`)
 
-// Department codes confirmed against VTU's official stream-wise course code list (vtu.ac.in).
-// Key: 2-letter code, Value: full department name.
-// Add new codes here — the validation regex and lookup stay in sync automatically.
-var departmentCodes = map[string]string{
-	"CS": "Computer Science and Engineering",
-	"AD": "Artificial Intelligence and Data Science",
-	"AI": "Computer Science and Engineering (AI and ML)",
-	"CV": "Civil Engineering",
-	"ME": "Mechanical Engineering",
-	"EC": "Electronics and Communication Engineering",
-}
-
-// ValidateUSN checks that a USN matches the VTU format and uses a known
-// department code. Normalizes to uppercase before validation.
-// Returns the extracted department code and nil on success.
-// MBA/MCA are intentionally excluded — they use a different ID scheme.
-func ValidateUSN(usn string) (string, error) {
+// ValidateUSNFormat checks that a USN has the VTU shape and a joining year in
+// range, and returns its department code. It doesn't know which departments
+// exist: those live in the departments table, so the caller checks the code
+// there (a department an admin adds works without a code change, #18).
+// Normalizes to uppercase before validation. MBA/MCA are intentionally
+// excluded; they use a different ID scheme.
+func ValidateUSNFormat(usn string) (string, error) {
 	normalized := toUSNCase(usn)
 
 	matches := usnRegex.FindStringSubmatch(normalized)
@@ -40,12 +30,7 @@ func ValidateUSN(usn string) (string, error) {
 		return "", fmt.Errorf("USN year %s is out of valid range (2005-%d)", year, nowYear+2)
 	}
 
-	code := matches[2]
-	if _, ok := departmentCodes[code]; !ok {
-		return "", fmt.Errorf("unknown department code: %s", code)
-	}
-
-	return code, nil
+	return matches[2], nil
 }
 
 // BatchYearFromUSN reads a student's Batch from the joining year in their

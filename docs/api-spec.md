@@ -117,6 +117,25 @@ POST /api/v1/auth/activate
 POST /api/v1/auth/resend-activation
 ```
 
+`POST /api/v1/auth/request-access` reads the Department from the USN
+(`4MN24IS001` is `IS`) and checks it exists in the `departments` table, so a
+Department an admin adds works straight away. `department_code`, when sent,
+must be the same Department. `400` for a malformed USN, a joining year out of
+range, a code with no Department, or a mismatch.
+
+`GET /api/v1/public/departments` needs no token. It returns only what the
+Access request form shows, ordered by name, with
+`Cache-Control: public, max-age=300` (ADR 0021):
+
+```json
+{
+  "data": [
+    { "code": "CS", "name": "Computer Science and Engineering" },
+    { "code": "IS", "name": "Information Science and Engineering" }
+  ]
+}
+```
+
 ## Current User and Profiles
 
 ```text
@@ -202,6 +221,80 @@ must carry an existing department's ID, otherwise it returns
 `400 VALIDATION_ERROR`. The department row is share-locked while the role is
 created, so a concurrent department delete either waits and returns `409` or
 runs first and the approval returns `400`.
+
+`PATCH /api/v1/admin/users/:id/status` with `{"status": "suspended" | "rejected" | "active", "note": "..."}`.
+Moving a user to `suspended` or `rejected` also revokes all their refresh
+tokens in the same transaction, so every signed-in device is signed out at its
+next refresh.
+
+### Role management
+
+Principal and admin (`manage_users_and_roles`). Only an admin may grant or end
+the `admin` role; the principal gets `403` for it. The caller's roles for that
+check are read from the database, not the token.
+
+`GET /api/v1/admin/users/:id/roles` lists all of a user's Role assignments,
+newest start first: in effect now (`active`), starting later (`scheduled`) and
+`ended`. It is not paginated; a user holds a handful of assignments.
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "role": "faculty",
+      "scope_type": "department",
+      "scope_id": "uuid",
+      "department": { "id": "uuid", "code": "CS", "name": "Computer Science and Engineering" },
+      "assigned_by": "uuid",
+      "starts_at": "2026-09-27T10:00:00Z",
+      "ends_at": null,
+      "state": "active",
+      "created_at": "2026-09-27T10:00:00Z"
+    }
+  ]
+}
+```
+
+`POST /api/v1/admin/users/:id/roles` grants a staff role and returns `201` with
+the assignment in the shape above:
+
+```json
+{
+  "role": "hod",
+  "scope_type": "department",
+  "scope_id": "<department uuid>",
+  "starts_at": "2026-10-01T00:00:00Z",
+  "ends_at": null,
+  "note": "Takes over from Dr. Rao"
+}
+```
+
+- `role` is one of `faculty`, `hod`, `student_coordinator` (these need
+  `scope_type: "department"` and a Department ID) or `placement_officer`,
+  `principal`, `admin` (these need `scope_type: "global"` and no `scope_id`).
+  `student` and `alumni` come from Access approval and Graduation, and club
+  roles wait for clubs, so they are `400` here.
+- `starts_at` defaults to now and can't be in the past. `ends_at` is optional
+  and must be after `starts_at` and in the future.
+- A `student_coordinator` must be a current Student (student role in effect)
+  whose Student identity is in that Department.
+- `400 VALIDATION_ERROR` for the rules above or an unknown Department (with
+  field `details`); `404` for an unknown user.
+- `409 CONFLICT` when the user already holds the same role and Scope for an
+  overlapping time, when the Department already has another HOD for an
+  overlapping time, or when the user is `rejected`.
+
+`DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId` ends the assignment
+now and returns it with `state: "ended"`. The row is kept as history. A
+scheduled assignment is ended at its start, so it never takes effect. In the
+same transaction it revokes all the user's refresh tokens, clears the
+Department's named HOD when an HOD role ends, and writes the audit log. `404`
+when the assignment isn't this user's, `409` when it has already ended or when
+it is the last admin role in effect.
+
+Both grant and end write an audit log (`role_granted`, `role_ended`) with the
+role, Scope, dates and optional note.
 
 ## Announcements
 
@@ -504,7 +597,8 @@ GET /api/v1/departments/:code/events
 GET /api/v1/departments/:code/reports
 ```
 
-The list and detail routes require authentication. Department mutations require
+The list and detail routes require authentication (the code-and-name list for
+the sign-up form is `GET /api/v1/public/departments`, above). Department mutations require
 the `admin` role. Department codes are immutable uppercase VTU course codes.
 
 Create request:

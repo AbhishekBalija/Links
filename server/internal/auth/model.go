@@ -185,6 +185,9 @@ type AuthService interface {
 	ReviewQueue(ctx context.Context) (*ReviewQueueResponse, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
+	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)
+	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
+	EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error)
 }
 
 // AuditLog represents the audit_logs table per docs/database-design.md § audit_logs.
@@ -215,11 +218,39 @@ type UserRepository interface {
 	Update(ctx context.Context, user *User) error
 	UpdateStatus(ctx context.Context, id string, status UserStatus) error
 	FindDepartmentByCode(ctx context.Context, code string) (*Department, error)
+	FindDepartmentByID(ctx context.Context, id string) (*Department, error)
 	LockDepartmentForShare(ctx context.Context, id string) (bool, error)
 	CreateProfile(ctx context.Context, profile *Profile) error
 	CreateStudentIdentity(ctx context.Context, identity *StudentIdentity) error
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
+	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
+	FindRoleAssignmentForUpdate(ctx context.Context, userID, id string) (*RoleAssignment, error)
+	HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error)
+	LockDepartmentForUpdate(ctx context.Context, id string) (bool, error)
+	LockAdminAssignmentsInEffect(ctx context.Context) ([]RoleAssignment, error)
+	EndRoleAssignment(ctx context.Context, id string, endsAt time.Time) error
+	ClearDepartmentHOD(ctx context.Context, departmentID, userID string) error
+}
+
+// RoleAssignmentView is a Role assignment with its Department's code and name,
+// for listing a user's roles.
+type RoleAssignmentView struct {
+	RoleAssignment
+	DepartmentCode *string `gorm:"column:department_code"`
+	DepartmentName *string `gorm:"column:department_name"`
+}
+
+// OverlapFilter finds Role assignments of one role and Scope whose time range
+// overlaps [StartsAt, EndsAt). A nil EndsAt means open-ended, and an empty
+// UserID means any user.
+type OverlapFilter struct {
+	UserID    string
+	Role      Role
+	ScopeType ScopeType
+	ScopeID   *string
+	StartsAt  time.Time
+	EndsAt    *time.Time
 }
 
 // RefreshTokenRepository defines the interface for refresh token persistence operations.
