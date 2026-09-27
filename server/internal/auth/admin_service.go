@@ -173,6 +173,13 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		if err := repos.Users.Update(ctx, user); err != nil {
 			return fmt.Errorf("update user: %w", err)
 		}
+		// A suspended or rejected user is signed out everywhere, not just
+		// refused at their next refresh.
+		if newStatus == UserStatusSuspended || newStatus == UserStatusRejected {
+			if err := repos.RefreshTokens.RevokeAllByUserID(ctx, userID); err != nil {
+				return fmt.Errorf("revoke refresh tokens: %w", err)
+			}
+		}
 
 		auditLog := &AuditLog{
 			ActorID:      &actorID,
