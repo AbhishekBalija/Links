@@ -35,6 +35,20 @@ func (s *Service) List(ctx context.Context) (*DepartmentListResponse, error) {
 	return &DepartmentListResponse{Departments: response}, nil
 }
 
+// ListPublic returns every Department's code and name for the Access request
+// form, which is used before anyone has an account.
+func (s *Service) ListPublic(ctx context.Context) ([]PublicDepartment, error) {
+	departments, err := s.repository.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list departments: %w", err)
+	}
+	response := make([]PublicDepartment, 0, len(departments))
+	for _, department := range departments {
+		response = append(response, PublicDepartment{Code: department.Code, Name: department.Name})
+	}
+	return response, nil
+}
+
 func (s *Service) GetByCode(ctx context.Context, code string) (*DepartmentResponse, error) {
 	department, err := s.repository.FindByCode(ctx, normalizeCode(code))
 	if err != nil {
