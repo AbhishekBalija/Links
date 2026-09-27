@@ -155,6 +155,7 @@ type Repository interface {
 	Reviews(ctx context.Context, eventIDs []string) ([]ReviewView, error)
 	DepartmentHasHOD(ctx context.Context, departmentID string) (bool, error)
 	Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error)
+	QueueSummary(ctx context.Context, scope ReviewerScope) (int, *time.Time, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
 	Feed(ctx context.Context, readerID string, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
