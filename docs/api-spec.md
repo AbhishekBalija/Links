@@ -117,6 +117,25 @@ POST /api/v1/auth/activate
 POST /api/v1/auth/resend-activation
 ```
 
+`POST /api/v1/auth/request-access` reads the Department from the USN
+(`4MN24IS001` is `IS`) and checks it exists in the `departments` table, so a
+Department an admin adds works straight away. `department_code`, when sent,
+must be the same Department. `400` for a malformed USN, a joining year out of
+range, a code with no Department, or a mismatch.
+
+`GET /api/v1/public/departments` needs no token. It returns only what the
+Access request form shows, ordered by name, with
+`Cache-Control: public, max-age=300` (ADR 0021):
+
+```json
+{
+  "data": [
+    { "code": "CS", "name": "Computer Science and Engineering" },
+    { "code": "IS", "name": "Information Science and Engineering" }
+  ]
+}
+```
+
 ## Current User and Profiles
 
 ```text
@@ -439,7 +458,8 @@ GET /api/v1/departments/:code/events
 GET /api/v1/departments/:code/reports
 ```
 
-The list and detail routes require authentication. Department mutations require
+The list and detail routes require authentication (the code-and-name list for
+the sign-up form is `GET /api/v1/public/departments`, above). Department mutations require
 the `admin` role. Department codes are immutable uppercase VTU course codes.
 
 Create request:

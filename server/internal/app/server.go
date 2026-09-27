@@ -101,6 +101,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	departmentService := departments.NewService(departmentRepo, departmentUnitOfWork)
 	departmentHandler := departments.NewHandler(departmentService, policy)
 	departmentHandler.RegisterRoutes(v1)
+	departmentHandler.RegisterPublicRoutes(api.Group("/v1"))
 
 	announcementRepo := announcements.NewGormRepository(database.GORM())
 	announcementUnitOfWork := announcements.NewGormUnitOfWork(database.GORM())

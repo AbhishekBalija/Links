@@ -33,7 +33,7 @@ func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, er
 		}
 		if u.StudentIdentity != nil {
 			departmentCode := ""
-			if code, err := ValidateUSN(u.StudentIdentity.USN); err == nil {
+			if code, err := ValidateUSNFormat(u.StudentIdentity.USN); err == nil {
 				departmentCode = code
 			}
 			pur.StudentIdentity = &PendingUserStudentID{

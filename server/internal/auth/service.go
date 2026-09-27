@@ -73,9 +73,13 @@ func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInpu
 	}
 
 	if input.USN != "" {
-		usnCode, err := ValidateUSN(input.USN)
+		usnCode, err := ValidateUSNFormat(input.USN)
 		if err != nil {
 			return nil, apperrors.NewValidation("invalid USN: "+err.Error(), nil)
+		}
+		// The USN names the Department, so a form choice can't contradict it.
+		if input.DepartmentCode != "" && input.DepartmentCode != usnCode {
+			return nil, apperrors.NewValidation("the USN's department code "+usnCode+" doesn't match the chosen department", nil)
 		}
 		if deptID == "" {
 			dept, err := s.userRepo.FindDepartmentByCode(ctx, usnCode)
