@@ -572,6 +572,68 @@ identify a user with an existing HOD role scoped to that same department. Delete
 returns `409 CONFLICT` when student identities, scoped role assignments,
 Events or audience rules still reference the department.
 
+## Directory
+
+```text
+GET /api/v1/directory
+```
+
+Any signed-in member (`view_public_profiles`); `401` without a token. Lists
+members alphabetically by `full_name` (case-insensitive), then by user ID,
+cursor-paginated: `limit` 1 to 50 (default 20), `cursor` from
+`meta.next_cursor`.
+
+Who appears: active, verified accounts with a public profile and at least one
+role in effect now. Suspended, pending and rejected accounts, hidden profiles
+(even the viewer's own) and people whose roles have all ended never appear.
+
+Filters, combined with AND:
+
+- `department`: a Department code (`CS`). Matches a member whose Student
+  identity is in it or who holds a Department-scoped role in effect there.
+- `role`: a LINKS role (`faculty`), in effect now.
+- `batch`: the Student identity's Batch (`2023`), 2000 to 2100.
+
+An unknown Department, a role that isn't a LINKS role, a batch out of range,
+or a bad `limit` or `cursor` is `400 VALIDATION_ERROR` with the field in
+`details`.
+
+```json
+{
+  "data": [
+    {
+      "username": "asha.rao",
+      "full_name": "Asha Rao",
+      "headline": "Networks and systems",
+      "avatar_url": null,
+      "roles": ["hod", "faculty"],
+      "department": { "code": "CS", "name": "Computer Science and Engineering" },
+      "email": "asha.rao@gmail.com"
+    },
+    {
+      "username": "bala.k",
+      "full_name": "Bala Krishna",
+      "headline": null,
+      "avatar_url": null,
+      "roles": ["student_coordinator", "student"],
+      "department": { "code": "CS", "name": "Computer Science and Engineering" },
+      "batch_year": 2023
+    }
+  ],
+  "meta": { "next_cursor": "..." }
+}
+```
+
+- `roles` are the roles in effect, once each, most senior first: admin,
+  principal, hod, placement_officer, faculty, student_coordinator,
+  club_organizer, student, alumni.
+- `department` is the most senior Department-scoped role's Department,
+  otherwise the Student identity's, otherwise `null`.
+- `batch_year` is present only for students.
+- `email` and `phone` are present only when the member chose to show them,
+  by the same rule as `GET /api/v1/profiles/:username`.
+- The USN is never returned.
+
 ## Clubs
 
 ```text
