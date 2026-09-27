@@ -240,11 +240,14 @@ ravi.k@gmail.com,"Kumar, Ravi",4MN24EC102
 
 - The header must have exactly `email`, `full_name` and `usn`, in any order.
   Excel's UTF-8 byte order mark and CRLF line ends are fine.
-- At most 500 rows and 1 MB. An empty file, a wrong header, a malformed CSV,
+- At most 200 rows and 1 MB. An empty file, a wrong header, a malformed CSV,
   too many rows or too large a file is `400` and nothing is imported.
 - Each row is its own transaction, so rows succeed or fail on their own. A
   created row is a `pending`, verified user with a Student identity (Department
   and Batch from the USN), the `student` role and an Activation email.
+- The Activation emails go out after every row is saved, in batches of up to
+  100 through Resend's batch endpoint. A batch that fails leaves its rows
+  created, with the note below, and their links invalidated.
 - A row fails for: an invalid email, an empty or overlong name, a missing or
   malformed USN, a Department code with no Department, an email or USN
   already registered or earlier in the same file, or (for an HOD) a

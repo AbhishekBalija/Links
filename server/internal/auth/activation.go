@@ -124,9 +124,12 @@ func newActivationToken(userID string) (*AccountActivationToken, string, error) 
 	return token, tokenRaw, nil
 }
 
+func (s *authService) activationLink(tokenRaw string) string {
+	return s.frontendURL + "/activate?token=" + tokenRaw
+}
+
 func (s *authService) sendStoredActivationEmail(email, name, tokenRaw string) error {
-	activationLink := s.frontendURL + "/activate?token=" + tokenRaw
-	if err := s.mailer.SendActivationEmail(email, name, activationLink); err != nil {
+	if err := s.mailer.SendActivationEmail(email, name, s.activationLink(tokenRaw)); err != nil {
 		return fmt.Errorf("send email: %w", err)
 	}
 

@@ -2,7 +2,8 @@ package auth
 
 // Bulk import: an admin, the principal or an HOD uploads a CSV of students,
 // and each valid row becomes a pending, verified student who gets an
-// Activation email (#17, ADR 0012, synchronous per ADR 0014).
+// Activation email (#17, ADR 0012). The emails go out after all the rows,
+// in batches, still inside the request (ADR 0014).
 
 import (
 	"context"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -23,8 +25,10 @@ const (
 	// MaxImportBytes keeps a file with its multipart wrapping under the
 	// API's 1 MiB request body limit.
 	MaxImportBytes = 1_000_000
-	maxImportRows  = 500
-	maxNameLength  = 200
+	// maxImportRows keeps a whole file inside the API's 30 second
+	// WriteTimeout; see ADR 0014's notes for the time per row.
+	maxImportRows = 200
+	maxNameLength = 200
 )
 
 var importColumns = []string{"email", "full_name", "usn"}
@@ -118,6 +122,16 @@ type importer struct {
 	byCode      map[string]*Department
 	emails      map[string]bool
 	usns        map[string]bool
+	// activations are the created rows whose email hasn't gone out yet.
+	activations []pendingActivation
+}
+
+// pendingActivation is a created row waiting for its Activation email.
+// Index is its position in the import's results.
+type pendingActivation struct {
+	Index   int
+	TokenID string
+	Email   mailer.ActivationEmail
 }
 
 func (s *authService) ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error) {
@@ -140,8 +154,8 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		usns:        map[string]bool{},
 	}
 	result := &ImportResponse{Rows: make([]ImportRowResult, 0, len(rows))}
-	for _, row := range rows {
-		outcome := run.importRow(ctx, row)
+	for i, row := range rows {
+		outcome := run.importRow(ctx, i, row)
 		if outcome.Status == ImportCreated {
 			result.Created++
 		} else {
@@ -149,6 +163,7 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		}
 		result.Rows = append(result.Rows, outcome)
 	}
+	run.sendActivations(ctx, result.Rows)
 
 	now := time.Now()
 	summary := &AuditLog{
@@ -190,7 +205,7 @@ func (s *authService) importScope(ctx context.Context, actorID string) (bool, ma
 	return false, departments, nil
 }
 
-func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResult {
+func (run *importer) importRow(ctx context.Context, index int, row importRow) ImportRowResult {
 	outcome := ImportRowResult{Row: row.Line, Email: row.Email, Status: ImportFailed}
 	department, problem := run.check(ctx, row)
 	if problem != "" {
@@ -209,14 +224,32 @@ func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResu
 	}
 	outcome.Status = ImportCreated
 	outcome.UserID = userID
-
-	// The account exists either way; without the email the student can ask
-	// for a new link from the sign-in page.
-	if err := run.service.sendStoredActivationEmail(row.Email, row.FullName, tokenRaw); err != nil {
-		_ = run.service.invalidateActivationToken(ctx, token.ID)
-		outcome.Error = "created, but the activation email could not be sent; the student can use Resend activation"
-	}
+	run.activations = append(run.activations, pendingActivation{
+		Index:   index,
+		TokenID: token.ID,
+		Email:   mailer.ActivationEmail{To: row.Email, Name: row.FullName, Link: run.service.activationLink(tokenRaw)},
+	})
 	return outcome
+}
+
+// sendActivations sends the created rows' emails, up to Resend's batch limit
+// per request. A failed batch leaves its accounts in place: their links are
+// invalidated and the student can use Resend activation from the sign-in page.
+func (run *importer) sendActivations(ctx context.Context, results []ImportRowResult) {
+	for start := 0; start < len(run.activations); start += mailer.MaxBatchSize {
+		batch := run.activations[start:min(start+mailer.MaxBatchSize, len(run.activations))]
+		emails := make([]mailer.ActivationEmail, len(batch))
+		for i, pending := range batch {
+			emails[i] = pending.Email
+		}
+		if err := run.service.mailer.SendActivationEmails(emails); err == nil {
+			continue
+		}
+		for _, pending := range batch {
+			_ = run.service.invalidateActivationToken(ctx, pending.TokenID)
+			results[pending.Index].Error = "created, but the activation email could not be sent; the student can use Resend activation"
+		}
+	}
 }
 
 // check applies the rules that need no transaction and returns why the row

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/AbhishekBalija/Links/server/test/apitest"
 )
@@ -168,8 +169,8 @@ func TestImportRejectsBadFilesWhole(t *testing.T) {
 
 	var tooMany strings.Builder
 	tooMany.WriteString("email,full_name,usn\n")
-	for i := range 501 {
-		fmt.Fprintf(&tooMany, "s%d@gmail.com,Student %d,4MN24CS%03d\n", i, i, i%1000)
+	for i := range 201 {
+		fmt.Fprintf(&tooMany, "s%d@gmail.com,Student %d,4MN24CS%03d\n", i, i, i)
 	}
 	bad := map[string]string{
 		"empty file":     "",
@@ -177,7 +178,7 @@ func TestImportRejectsBadFilesWhole(t *testing.T) {
 		"missing column": "email,full_name\na@gmail.com,A\n",
 		"unknown column": "email,full_name,usn,phone\na@gmail.com,A,4MN24CS401,123\n",
 		"ragged row":     "email,full_name,usn\na@gmail.com,A\n",
-		"over 500 rows":  tooMany.String(),
+		"over 200 rows":  tooMany.String(),
 		"over one MB":    "email,full_name,usn\n" + strings.Repeat("a", 1_000_001),
 		"broken quotes":  "email,full_name,usn\n\"a@gmail.com,A,4MN24CS401\n",
 	}
@@ -197,5 +198,30 @@ func TestImportRejectsBadFilesWhole(t *testing.T) {
 	request.Header.Set("Authorization", "Bearer "+admin.Token)
 	if response := h.Send(request); response.Status != http.StatusBadRequest {
 		t.Errorf("no file status = %d, want %d: %s", response.Status, http.StatusBadRequest, response.Body)
+	}
+}
+
+// The API's WriteTimeout is 30 seconds (cmd/api/main.go). A full file must
+// finish well inside it, or the admin gets a broken response instead of the
+// report while the accounts are still created.
+func TestAFullImportFinishesWellInsideTheWriteTimeout(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+
+	var file strings.Builder
+	file.WriteString("email,full_name,usn\n")
+	for i := range 200 {
+		fmt.Fprintf(&file, "full%d@gmail.com,Student %d,4MN24CS%03d\n", i, i, i)
+	}
+	started := time.Now()
+	result := imported(t, importCSV(h, admin.Token, file.String()))
+	took := time.Since(started)
+
+	if result.Created != 200 || result.Failed != 0 {
+		t.Fatalf("created %d, failed %d; want 200 and 0", result.Created, result.Failed)
+	}
+	t.Logf("200 rows took %s (%s per row)", took, took/200)
+	if took > 10*time.Second {
+		t.Errorf("200 rows took %s, want well under the 30 s WriteTimeout", took)
 	}
 }
