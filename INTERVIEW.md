@@ -182,6 +182,13 @@ words with swapped letters: "ahsa" shares almost no three-letter pieces with
 is also compared letter by letter: a name word with exactly the same letters,
 in any order, counts as a match. Results are ranked by score, then by name.
 
+### Why does the Department overview count hidden profiles but not list them?
+
+Hiding a profile means "don't show me to people", and a count of 120 students
+in Batch 2023 shows no one. Leaving hidden members out of the counts would make
+the numbers wrong for no privacy gain. The lists (HOD, staff) name people, so
+they go through the same rules as the directory.
+
 ## Testing
 
 ### Why have three kinds of tests instead of just end-to-end ones?

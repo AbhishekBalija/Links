@@ -53,7 +53,7 @@ Deliverables:
 - [ ] Campus directory and search basics (#12); the directory API with filters and typo-tolerant search is built
 - [x] Targeted announcements API with approval, editing and withdrawal (#13, spec #25, v0.2.0)
 - [x] Home and announcement screens: design system and app shell, reading notices, composer and My announcements, approval queue (spec #38: #39–#42, v0.3.0)
-- [ ] Public profiles in the directory and department pages (#12, #15)
+- [ ] Public profiles in the directory and department pages (#12, #15); the Department overview API is built
 - [ ] Frontend for all of the above (#15), then a manual UX pass (#16)
 - [ ] Bulk CSV import endpoint for admin/HOD (#17)
 

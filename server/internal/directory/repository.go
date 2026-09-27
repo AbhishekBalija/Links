@@ -140,3 +140,46 @@ func (r *GormRepository) DepartmentByCode(ctx context.Context, code string) (*De
 	}
 	return &departments[0], nil
 }
+
+// Staff returns the listed members holding a staff role scoped to the
+// Department, in name order; the service ranks them by role.
+func (r *GormRepository) Staff(ctx context.Context, departmentID string) ([]Member, error) {
+	var members []Member
+	err := r.db.WithContext(ctx).Raw(`SELECT `+memberColumns+` `+memberFrom+`
+		WHERE `+listed+` AND EXISTS (
+			SELECT 1 FROM role_assignments r WHERE r.user_id = u.id AND `+inEffect+`
+			AND r.scope_type = 'department' AND r.scope_id = ? AND r.role IN ?)
+		ORDER BY lower(p.full_name), u.id`, departmentID, staffRoles).
+		Scan(&members).Error
+	return members, err
+}
+
+// StudentsByBatch counts active students of the Department per Batch, hidden
+// profiles included: a count reveals no one.
+func (r *GormRepository) StudentsByBatch(ctx context.Context, departmentID string) ([]BatchCount, error) {
+	var counts []BatchCount
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT si.batch_year, count(*) AS count
+		FROM student_identities si
+		JOIN users u ON u.id = si.user_id
+		WHERE si.department_id = ? AND u.status = 'active'
+		  AND EXISTS (SELECT 1 FROM role_assignments r WHERE r.user_id = u.id AND `+inEffect+` AND r.role = 'student')
+		GROUP BY si.batch_year
+		ORDER BY si.batch_year`, departmentID).
+		Scan(&counts).Error
+	return counts, err
+}
+
+// FacultyCount counts active users teaching in the Department, hidden
+// profiles included.
+func (r *GormRepository) FacultyCount(ctx context.Context, departmentID string) (int, error) {
+	var count int
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT count(DISTINCT u.id)
+		FROM users u
+		JOIN role_assignments r ON r.user_id = u.id
+		WHERE u.status = 'active' AND `+inEffect+`
+		  AND r.role = 'faculty' AND r.scope_type = 'department' AND r.scope_id = ?`, departmentID).
+		Scan(&count).Error
+	return count, err
+}

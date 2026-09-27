@@ -260,3 +260,75 @@ func stringValue(value *string) string {
 	}
 	return *value
 }
+
+// Overview returns a Department's page. Counts include every active member,
+// visible or not, since a number reveals no one; the HOD and staff list show
+// only members the directory would list.
+func (s *Service) Overview(ctx context.Context, viewerID, code string) (*Overview, error) {
+	department, err := s.repo.DepartmentByCode(ctx, strings.ToUpper(strings.TrimSpace(code)))
+	if err != nil {
+		return nil, fmt.Errorf("find department: %w", err)
+	}
+	if department == nil {
+		return nil, apperrors.NewNotFound("department not found")
+	}
+
+	batches, err := s.repo.StudentsByBatch(ctx, department.ID)
+	if err != nil {
+		return nil, fmt.Errorf("count students: %w", err)
+	}
+	faculty, err := s.repo.FacultyCount(ctx, department.ID)
+	if err != nil {
+		return nil, fmt.Errorf("count faculty: %w", err)
+	}
+	overview := &Overview{
+		Department: OverviewDepartment{Code: department.Code, Name: department.Name, Description: department.Description},
+		Counts:     OverviewCounts{Faculty: faculty, StudentsByBatch: batches},
+		Staff:      []Entry{},
+	}
+	if overview.Counts.StudentsByBatch == nil {
+		overview.Counts.StudentsByBatch = []BatchCount{}
+	}
+	for _, batch := range batches {
+		overview.Counts.Students += batch.Count
+	}
+
+	staff, err := s.repo.Staff(ctx, department.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list staff: %w", err)
+	}
+	ids := make([]string, 0, len(staff))
+	for _, member := range staff {
+		ids = append(ids, member.UserID)
+	}
+	grants, err := s.repo.Grants(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list roles: %w", err)
+	}
+	byUser := map[string][]Grant{}
+	for _, grant := range grants {
+		byUser[grant.UserID] = append(byUser[grant.UserID], grant)
+	}
+
+	// Staff are ordered by their most senior role in this Department, then
+	// by name (the repository's order, kept by the stable sort).
+	ranks := map[string]int{}
+	for _, member := range staff {
+		ranks[member.UserID] = len(roleOrder)
+		for _, grant := range byUser[member.UserID] {
+			if grant.DepartmentCode != nil && *grant.DepartmentCode == department.Code && rank(grant.Role) < ranks[member.UserID] {
+				ranks[member.UserID] = rank(grant.Role)
+			}
+		}
+	}
+	sort.SliceStable(staff, func(i, j int) bool { return ranks[staff[i].UserID] < ranks[staff[j].UserID] })
+	for _, member := range staff {
+		entry := entryFor(member, byUser[member.UserID], viewerID)
+		overview.Staff = append(overview.Staff, entry)
+		if overview.HOD == nil && ranks[member.UserID] == rank(auth.RoleHOD) {
+			hod := entry
+			overview.HOD = &hod
+		}
+	}
+	return overview, nil
+}

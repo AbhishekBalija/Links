@@ -33,3 +33,24 @@ type ListQuery struct {
 type ListMeta struct {
 	NextCursor string `json:"next_cursor,omitempty"`
 }
+
+// Overview is a Department's page: who leads and teaches it, and how many
+// students it has.
+type Overview struct {
+	Department OverviewDepartment `json:"department"`
+	HOD        *Entry             `json:"hod"`
+	Counts     OverviewCounts     `json:"counts"`
+	Staff      []Entry            `json:"staff"`
+}
+
+type OverviewDepartment struct {
+	Code        string  `json:"code"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+type OverviewCounts struct {
+	Students        int          `json:"students"`
+	Faculty         int          `json:"faculty"`
+	StudentsByBatch []BatchCount `json:"students_by_batch"`
+}
