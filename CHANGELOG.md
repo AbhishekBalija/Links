@@ -34,6 +34,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   an internal application or an external link, and Eligibility by
   Department, Batch and role. Any of them can edit any draft, and they list
   every Opportunity by status.
+- Home's approvals summary also counts the Event proposals waiting for the
+  reviewer (`events_pending_count` and `oldest_event_submitted_at`), apart from
+  Announcements, with the same scope as the event review queue.
 - Events screens: an Events tab listing what's coming up for you by week
   (Upcoming, Going and Past, and by type), each with your answer and the
   seats left; an event page with one Going / Interested / Can't go control
