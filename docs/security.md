@@ -103,6 +103,10 @@ Private by default:
 - Placement application data
 - Shortlisting status except to authorized viewers
 
+Events: drafts are visible only to their proposer, proposals under review
+also to their reviewers (with the review notes), and published Events to
+their Audience without the review notes. Anyone else gets `404`.
+
 ## Applicant Data
 
 Allowed viewers:

@@ -338,7 +338,22 @@ GET   /api/v1/events/:id/export
 ```
 
 The workflow and its rules are in ADR 0023. Built so far: creating drafts,
-editing them, the proposer's list, submission and both review stages.
+editing them, the proposer's list, submission, both review stages, the feed
+and the detail.
+
+`GET /api/v1/events` (any signed-in member, `view_targeted_notices`) lists
+published Events whose Audience includes the reader, matched exactly as the
+Announcement feed matches, soonest first, cursor-paginated (`limit` up to 50,
+`meta.next_cursor`). Without `from` only Events not over yet are listed.
+Filters: `from` and `to` (RFC 3339, on `starts_at`), `department` (a code),
+`event_type`. A bad value is `400` with the field in `details`. Feed items
+carry no review notes.
+
+`GET /api/v1/events/:id` returns one Event to its proposer (any status); to
+the principal, admins and the HOD of its Department once it has left draft,
+with its `reviews`; and to a reader in its Audience once it has been
+published (including after it is cancelled), without review notes. Anyone
+else gets `404`, so drafts and proposals stay private.
 
 `POST /api/v1/events` (roles with `propose_event`: student coordinator,
 faculty, HOD, placement officer, principal, admin) submits a new Event for

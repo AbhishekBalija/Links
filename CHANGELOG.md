@@ -15,7 +15,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   is none) and then to the principal or an admin for final approval; reviewers
   approve, ask for changes or reject with a note, and see earlier notes. HODs'
   own events and training events skip the HOD stage; the principal's and
-  admins' events publish straight away.
+  admins' events publish straight away. Members see upcoming published
+  events for their Audience, filtered by date, Department and type, and open
+  one; review notes stay with the proposer and reviewers.
 
 ## [0.3.0] - 2026-09-27
 
