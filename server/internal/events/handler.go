@@ -23,9 +23,11 @@ func NewHandler(service *Service, policy *auth.Policy) *Handler {
 
 func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	events := v1.Group("/events")
+	events.GET("", h.Feed)
 	events.POST("", h.Create)
 	events.GET("/mine", h.Mine)
 	events.GET("/reviews", h.Queue)
+	events.GET("/:id", h.Get)
 	events.PATCH("/:id", h.Update)
 	events.POST("/:id/submit-for-approval", h.Submit)
 	events.PATCH("/:id/hod-review", h.review(StageHOD, auth.PermissionReviewBranchEvent))
@@ -177,4 +179,43 @@ func writeError(c *gin.Context, err error) {
 		return
 	}
 	response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+}
+
+// Feed lists published Events for the reader's Audience.
+func (h *Handler) Feed(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewTargetedNotices)
+	if actor == nil {
+		return
+	}
+	limit, ok := parseLimit(c)
+	if !ok {
+		return
+	}
+	items, meta, err := h.service.Feed(c.Request.Context(), actor.UserID, FeedQuery{
+		From:       c.Query("from"),
+		To:         c.Query("to"),
+		Department: c.Query("department"),
+		EventType:  c.Query("event_type"),
+		Cursor:     c.Query("cursor"),
+		Limit:      limit,
+	})
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, items, meta)
+}
+
+// Get returns one Event; the service decides who may see it.
+func (h *Handler) Get(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	event, err := h.service.Get(c.Request.Context(), actor.UserID, c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, event, nil)
 }

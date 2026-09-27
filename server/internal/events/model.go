@@ -154,6 +154,33 @@ type Repository interface {
 	Reviews(ctx context.Context, eventIDs []string) ([]ReviewView, error)
 	DepartmentHasHOD(ctx context.Context, departmentID string) (bool, error)
 	Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error)
+	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
+	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
+	Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
+	VisibleTo(ctx context.Context, reader Reader, id string) (bool, error)
+}
+
+// Membership is one role a reader holds with the Department it belongs to
+// (nil when none), as for Announcements.
+type Membership struct {
+	Role         string
+	DepartmentID *string
+}
+
+// Reader is who is looking at Events. A rule matches only when one
+// Membership satisfies its role and Department together.
+type Reader struct {
+	Memberships []Membership
+	BatchYear   *int
+}
+
+// FeedFilter narrows the Event feed. Without From, only Events not yet over
+// are listed.
+type FeedFilter struct {
+	From         *time.Time
+	To           *time.Time
+	DepartmentID *string
+	EventType    *Type
 }
 
 // Stage is which review an Event is at.

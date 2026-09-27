@@ -251,3 +251,26 @@ func (r *GormRepository) Queue(ctx context.Context, scope ReviewerScope, after *
 	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&views).Error
 	return views, err
 }
+
+// StudentPlacement returns the Department and Batch of the user's Student
+// identity, if they have one.
+func (r *GormRepository) StudentPlacement(ctx context.Context, userID string) (*string, *int, error) {
+	var rows []struct {
+		DepartmentID *string `gorm:"column:department_id"`
+		BatchYear    *int    `gorm:"column:batch_year"`
+	}
+	err := r.db.WithContext(ctx).Raw(`SELECT department_id, batch_year FROM student_identities WHERE user_id = ?`, userID).Scan(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return nil, nil, err
+	}
+	return rows[0].DepartmentID, rows[0].BatchYear, nil
+}
+
+func (r *GormRepository) DepartmentIDByCode(ctx context.Context, code string) (*string, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).Raw(`SELECT id FROM departments WHERE code = ?`, code).Scan(&ids).Error
+	if err != nil || len(ids) == 0 {
+		return nil, err
+	}
+	return &ids[0], nil
+}
