@@ -321,3 +321,34 @@ func (r *GormRepository) RSVPPeople(ctx context.Context, eventID string, after *
 	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&people).Error
 	return people, err
 }
+
+// ExportRows lists everyone who answered, by answer and then name. The
+// Department is the Student identity's, otherwise one of their
+// Department-scoped roles in effect.
+func (r *GormRepository) ExportRows(ctx context.Context, eventID string) ([]ExportRow, error) {
+	var rows []ExportRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT p.full_name, u.email,
+			CASE WHEN s.is_student THEN si.usn END AS usn,
+			CASE WHEN s.is_student THEN si.batch_year END AS batch_year,
+			COALESCE(sd.code, (
+				SELECT d.code FROM role_assignments r JOIN departments d ON d.id = r.scope_id
+				WHERE r.user_id = u.id AND r.scope_type = 'department'
+				  AND r.starts_at <= now() AND (r.ends_at IS NULL OR r.ends_at > now())
+				ORDER BY d.code LIMIT 1
+			)) AS department_code,
+			v.status, v.updated_at
+		FROM event_rsvps v
+		JOIN users u ON u.id = v.user_id
+		JOIN profiles p ON p.user_id = v.user_id
+		LEFT JOIN student_identities si ON si.user_id = v.user_id
+		LEFT JOIN departments sd ON sd.id = si.department_id
+		CROSS JOIN LATERAL (SELECT EXISTS (
+			SELECT 1 FROM role_assignments r WHERE r.user_id = u.id AND r.role = 'student'
+			  AND r.starts_at <= now() AND (r.ends_at IS NULL OR r.ends_at > now())
+		) AS is_student) s
+		WHERE v.event_id = ?
+		ORDER BY CASE v.status WHEN 'going' THEN 0 WHEN 'interested' THEN 1 ELSE 2 END, lower(p.full_name), v.user_id`, eventID).
+		Scan(&rows).Error
+	return rows, err
+}

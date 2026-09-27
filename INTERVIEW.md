@@ -156,6 +156,13 @@ until the first commits, then counts 40 and gets `409 event is full`. A test
 fires six requests at a one-seat event at once and checks that exactly one
 gets in.
 
+### Why prefix some CSV cells with a quote?
+
+Spreadsheets run a cell that starts with `=`, `+`, `-` or `@` as a formula. A
+member could set their name to a formula that fetches a URL with the other
+cells' data when an organiser opens the export ("CSV injection"). Prefixing
+such cells with `'` makes the spreadsheet show them as text.
+
 ### How does a PATCH tell "leave this field alone" from "clear it"?
 
 In Go, a missing JSON field and `null` both leave a pointer nil. The event

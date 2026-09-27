@@ -162,6 +162,19 @@ type Repository interface {
 	SaveRSVP(ctx context.Context, rsvp *RSVP) error
 	RSVPCounts(ctx context.Context, eventID string) (map[RSVPStatus]int, error)
 	RSVPPeople(ctx context.Context, eventID string, after *Cursor, limit int) ([]RSVPPerson, error)
+	ExportRows(ctx context.Context, eventID string) ([]ExportRow, error)
+}
+
+// ExportRow is one participant in an Event's export. USN and Batch are set
+// only for students.
+type ExportRow struct {
+	FullName       string     `gorm:"column:full_name"`
+	Email          *string    `gorm:"column:email"`
+	USN            *string    `gorm:"column:usn"`
+	BatchYear      *int       `gorm:"column:batch_year"`
+	DepartmentCode *string    `gorm:"column:department_code"`
+	Status         RSVPStatus `gorm:"column:status"`
+	RespondedAt    time.Time  `gorm:"column:updated_at"`
 }
 
 // RSVPStatus is a reader's answer to an Event.

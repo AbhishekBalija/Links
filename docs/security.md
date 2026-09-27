@@ -103,6 +103,11 @@ Private by default:
 - Placement application data
 - Shortlisting status except to authorized viewers
 
+Event participant exports go only to the Event's organisers (proposer,
+Department HOD, principal, admins), are audited, include email and USN (the
+organisers need them to run the Event) but no phone numbers or placement
+data, and neutralise spreadsheet formulas.
+
 Events: drafts are visible only to their proposer, proposals under review
 also to their reviewers (with the review notes), and published Events to
 their Audience without the review notes. Anyone else gets `404`.
