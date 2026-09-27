@@ -2,3 +2,8 @@ LINKS
 Copyright 2026 Abhishek A N
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Agent skills in .claude/skills and .agents/skills come from third parties
+under the MIT License: mattpocock/skills (Copyright Matt Pocock) and
+samber/cc-skills-golang (Copyright Samuel Berthe), among the other sources
+listed in skills-lock.json.
