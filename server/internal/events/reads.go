@@ -20,6 +20,7 @@ type FeedQuery struct {
 	To         string
 	Department string
 	EventType  string
+	Show       string
 	Cursor     string
 	Limit      int
 }
@@ -42,7 +43,7 @@ func (s *Service) Feed(ctx context.Context, actorID string, query FeedQuery) ([]
 	if err != nil {
 		return nil, nil, err
 	}
-	views, err := s.repository.Feed(ctx, reader, filter, after, limit+1)
+	views, err := s.repository.Feed(ctx, actorID, reader, filter, after, limit+1)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load feed: %w", err)
 	}
@@ -56,8 +57,24 @@ func (s *Service) Feed(ctx context.Context, actorID string, query FeedQuery) ([]
 	if err != nil {
 		return nil, nil, err
 	}
+	ids := make([]string, 0, len(responses))
+	for _, response := range responses {
+		ids = append(ids, response.ID)
+	}
+	counts, mine, err := s.repository.RSVPSummaries(ctx, ids, actorID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load answers: %w", err)
+	}
 	for i := range responses {
 		responses[i].Reviews = []ReviewResponse{}
+		id := responses[i].ID
+		summary := &RSVPSummary{Counts: RSVPCounts{
+			Going: counts[id][RSVPGoing], Interested: counts[id][RSVPInterested], NotGoing: counts[id][RSVPNotGoing],
+		}}
+		if status, ok := mine[id]; ok {
+			summary.MyStatus = &status
+		}
+		responses[i].RSVP = summary
 	}
 	return responses, meta, nil
 }
@@ -96,6 +113,14 @@ func (s *Service) feedFilter(ctx context.Context, query FeedQuery) (FeedFilter, 
 			details["event_type"] = "use talk, workshop, competition, cultural, sports, training or other"
 		}
 		filter.EventType = &eventType
+	}
+	switch show := Show(strings.TrimSpace(query.Show)); show {
+	case "", ShowUpcoming:
+		filter.Show = ShowUpcoming
+	case ShowGoing, ShowPast:
+		filter.Show = show
+	default:
+		details["show"] = "use upcoming, going or past"
 	}
 	if len(details) > 0 {
 		return filter, apperrors.NewValidation("invalid event filter", details)
