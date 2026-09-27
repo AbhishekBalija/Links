@@ -337,6 +337,55 @@ GET   /api/v1/events/:id/rsvps
 GET   /api/v1/events/:id/export
 ```
 
+The workflow and its rules are in ADR 0023. Built so far: creating drafts,
+editing them, and the proposer's list.
+
+`POST /api/v1/events` (roles with `propose_event`: student coordinator,
+faculty, HOD, placement officer, principal, admin) saves a draft:
+
+```json
+{
+  "title": "Intro to embedded systems",
+  "description": "A hands-on session with microcontrollers.",
+  "event_type": "workshop",
+  "department_id": "<uuid or null for college-wide>",
+  "faculty_mentor_id": "<uuid, optional>",
+  "location": "CS Lab 3",
+  "starts_at": "2026-10-04T09:00:00Z",
+  "ends_at": "2026-10-04T11:00:00Z",
+  "capacity": 40,
+  "audience": [{ "department_id": "<uuid>", "batch_year": 2023 }]
+}
+```
+
+- `event_type` is `talk`, `workshop`, `competition`, `cultural`, `sports`,
+  `training` or `other`. `title` 3 to 200 characters, `description` up to
+  5000, `location` 1 to 200, `ends_at` after `starts_at`, `capacity` 1 to
+  100000 or left out for no limit, a faculty mentor must hold a faculty role
+  in effect. The Audience works as for Announcements; empty means the whole
+  college. A draft may have past dates; submitting will need future ones.
+- Who may propose what (roles read from the database): faculty and student
+  coordinators only for their own Department, an HOD for their own Department,
+  the principal and admins for any Department or none, the placement officer
+  `training` events only. Anything else is `400` naming `department_id` or
+  `event_type`; `403` without `propose_event`.
+- Returns `201` with the Event: `id`, `title`, `description`, `event_type`,
+  `status`, `proposer_id`, `proposer_name`, `department {id, code}`,
+  `faculty_mentor {user_id, full_name}`, `location`, `starts_at`, `ends_at`,
+  `capacity`, `audience` (with `department_code`), timestamps.
+
+`PATCH /api/v1/events/:id` (proposer only; anyone else gets `404`) changes
+only the fields sent. `department_id`, `faculty_mentor_id` and `capacity` can
+be cleared with `null`. The same rules apply to the result. Allowed while the
+Event is `draft`, `hod_changes_requested` or `final_changes_requested`;
+otherwise `409`.
+
+`GET /api/v1/events/mine` (any signed-in user) lists the caller's Events,
+newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
+`status` narrows it: `draft`, `waiting` (at either review stage), `attention`
+(changes requested or rejected), `live` (published, not over) or `ended`
+(cancelled or over). Any other value is `400`.
+
 ## Opportunities and Applications
 
 ```text
@@ -391,8 +440,8 @@ Update replaces the editable fields for the department identified by `:code`:
 
 Create the department before assigning its HOD. On update, `hodUserId` must
 identify a user with an existing HOD role scoped to that same department. Delete
-returns `409 CONFLICT` when student identities, scoped role assignments or
-announcement audience rules still reference the department.
+returns `409 CONFLICT` when student identities, scoped role assignments,
+Events or audience rules still reference the department.
 
 ## Clubs
 

@@ -1,0 +1,123 @@
+package events
+
+import (
+	"errors"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/AbhishekBalija/Links/server/internal/auth"
+	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
+	"github.com/AbhishekBalija/Links/server/internal/shared/response"
+)
+
+type Handler struct {
+	service *Service
+	policy  *auth.Policy
+}
+
+func NewHandler(service *Service, policy *auth.Policy) *Handler {
+	return &Handler{service: service, policy: policy}
+}
+
+func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
+	events := v1.Group("/events")
+	events.POST("", h.Create)
+	events.GET("/mine", h.Mine)
+	events.PATCH("/:id", h.Update)
+}
+
+func (h *Handler) Create(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionProposeEvent)
+	if actor == nil {
+		return
+	}
+	var input CreateEventInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	event, err := h.service.Create(c.Request.Context(), actor.UserID, input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusCreated, event, nil)
+}
+
+// Update needs no permission beyond signing in: the service only finds the
+// caller's own Events.
+func (h *Handler) Update(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	var input UpdateEventInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	event, err := h.service.Update(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, event, nil)
+}
+
+// Mine is open to any signed-in user, so former proposers keep their history.
+func (h *Handler) Mine(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	limit, ok := parseLimit(c)
+	if !ok {
+		return
+	}
+	items, meta, err := h.service.Mine(c.Request.Context(), actor.UserID, c.Query("status"), c.Query("cursor"), limit)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, items, meta)
+}
+
+func parseLimit(c *gin.Context) (int, bool) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "0"))
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "invalid limit", map[string]string{"limit": "use a whole number"})
+		return 0, false
+	}
+	return limit, true
+}
+
+func (h *Handler) signedIn(c *gin.Context) *auth.Actor {
+	actor := auth.GetActor(c)
+	if actor == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+	}
+	return actor
+}
+
+func (h *Handler) authorize(c *gin.Context, permission auth.Permission) *auth.Actor {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return nil
+	}
+	if err := auth.AuthorizeActor(c, h.policy, permission); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return nil
+	}
+	return actor
+}
+
+func writeError(c *gin.Context, err error) {
+	var appErr *apperrors.AppError
+	if errors.As(err, &appErr) {
+		response.Error(c, appErr.HTTPStatus, appErr.Code, appErr.Message, appErr.Details)
+		return
+	}
+	response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+}

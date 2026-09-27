@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Event proposals (Phase 3): staff and student coordinators save Event drafts
+  for their Department (the principal and admins for any or none, the
+  placement officer training only), with type, place, times, capacity,
+  faculty mentor and Audience, edit them, and list their own.
+
 ## [0.3.0] - 2026-09-27
 
 LINKS gets its look and its screens: everyone can read notices, staff can

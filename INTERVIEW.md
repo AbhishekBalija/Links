@@ -129,6 +129,24 @@ queue, an approver could approve it and bring the notice back without anyone
 deciding to republish it. Closing the edit, in the same transaction as the
 withdrawal, keeps the queue showing only things that can still go live.
 
+## Events
+
+### Why one status column for events instead of a status and an approval status?
+
+With two columns, "published but HOD rejected" is a state the database allows
+and the code must never produce. One column with nine values lists every state
+that can exist, a CHECK constraint enforces it, and each workflow step is a
+move from one value to another. The history of who decided what lives in a
+separate `event_reviews` table, so the status doesn't have to remember it.
+
+### How does a PATCH tell "leave this field alone" from "clear it"?
+
+In Go, a missing JSON field and `null` both leave a pointer nil. The event
+update uses a small `Optional[T]` type whose `UnmarshalJSON` runs whenever the
+key is present, even for `null`, so it records "was sent" separately from the
+value. Leaving `capacity` out keeps it; sending `"capacity": null` removes the
+limit.
+
 ## Testing
 
 ### Why have three kinds of tests instead of just end-to-end ones?

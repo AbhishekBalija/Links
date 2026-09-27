@@ -95,8 +95,23 @@ The right to publish an Announcement to an Audience without approval: an HOD for
 An HOD, the principal or an admin accepting an Announcement (or an edit to one) from an author without Publishing authority over its Audience.
 _Avoid_: plain "approval", moderation
 
+**Event**:
+An official campus event (talk, workshop, competition, cultural, sports, training) with a date, place, Department (or the whole college) and Audience.
+_Avoid_: activity, programme
+
 **Event proposal**:
-An event submitted by a Student coordinator (or staff), which needs HOD review and then Principal or admin final approval before it is published.
+An Event before it is published: drafted by a Student coordinator, faculty member, HOD, placement officer (training only), principal or admin, and submitted for review (ADR 0023).
+
+**HOD review**:
+The first review of a Student coordinator's or faculty member's Event proposal, by the HOD of its Department (the principal or an admin when the Department has no HOD): approve, request changes or reject.
+_Avoid_: department approval
+
+**Final approval**:
+The principal's or an admin's review of an Event proposal after HOD review (or straight away for an HOD's own Event or a training Event). Approving publishes it.
+
+**RSVP**:
+A reader's answer to a published Event: going, interested or not going. Going counts against the Event's capacity.
+_Avoid_: registration, sign-up
 
 **Opportunity**:
 A job, internship or training posted by the Placement officer to an Audience.
