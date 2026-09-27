@@ -30,12 +30,46 @@ func RunMigrations(ctx context.Context, database *gorm.DB, fsys fs.FS) error {
 		return err
 	}
 
-	for _, migration := range migrations {
+	// Read what's already applied in one query, so a normal startup costs one
+	// round trip instead of a transaction per migration. Serverless cold
+	// starts run this on every boot, and far from the database those
+	// per-migration round trips added up past the startup deadline.
+	applied, err := appliedMigrations(ctx, database)
+	if err != nil {
+		return err
+	}
+
+	for _, migration := range pendingMigrations(migrations, applied) {
+		// applyMigration still locks and re-checks, so two instances starting
+		// together apply each pending migration once.
 		if err := applyMigration(ctx, database, fsys, migration); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func appliedMigrations(ctx context.Context, database *gorm.DB) (map[string]bool, error) {
+	var versions []string
+	if err := database.WithContext(ctx).Table(migrationTable).Pluck("version", &versions).Error; err != nil {
+		return nil, fmt.Errorf("read applied migrations: %w", err)
+	}
+	applied := make(map[string]bool, len(versions))
+	for _, version := range versions {
+		applied[version] = true
+	}
+	return applied, nil
+}
+
+// pendingMigrations keeps the migrations not yet applied, in their order.
+func pendingMigrations(migrations []string, applied map[string]bool) []string {
+	pending := []string{}
+	for _, migration := range migrations {
+		if !applied[migration] {
+			pending = append(pending, migration)
+		}
+	}
+	return pending
 }
 
 func migrationFiles(fsys fs.FS) ([]string, error) {

@@ -9,6 +9,7 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"github.com/AbhishekBalija/Links/server/internal/dashboard"
 	"github.com/AbhishekBalija/Links/server/internal/departments"
+	"github.com/AbhishekBalija/Links/server/internal/directory"
 	"github.com/AbhishekBalija/Links/server/internal/events"
 	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"github.com/AbhishekBalija/Links/server/internal/profiles"
@@ -118,6 +119,8 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	profileService := profiles.NewService(profileRepo, userRepo, profileUnitOfWork)
 	profileHandler := profiles.NewHandler(profileService)
 	profileHandler.RegisterRoutes(api, v1, tokenCfg)
+
+	directory.NewHandler(directory.NewService(directory.NewGormRepository(database.GORM())), policy).RegisterRoutes(v1)
 
 	return router, nil
 }
