@@ -26,7 +26,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   events for their Audience, filtered by date, Department and type, and open
   one; review notes stay with the proposer and reviewers. Members answer
   going, interested or not going; going stops at the event's capacity, and
-  organisers see who answered.
+  organisers see who answered and can export them as CSV (each export is
+  audited).
 - Member directory (#12): signed-in members can list active members
   alphabetically, filtered by Department, role and Batch, with roles,
   Department, Batch for students, and contact details only where the member

@@ -461,6 +461,15 @@ so two people can't take the last seat. Returns the counts and `my_status`.
 `people` (`user_id`, `full_name`, `username`, `status`, `responded_at`),
 earliest answer first, cursor-paginated with `meta.next_cursor`.
 
+`GET /api/v1/events/:id/export` gives the same organisers a CSV download
+(`text/csv`, `Content-Disposition: attachment`, `Cache-Control: no-store`) of
+everyone who answered: `full_name, email, usn, batch_year, department,
+rsvp_status, responded_at`, going first, then by name. USN and Batch appear
+only for students. Cells a spreadsheet would run as a formula get a leading
+`'`. Every export writes an `event_participants_exported` audit log in the
+same transaction. `403` for others who can see the Event, `404` for anyone
+else. No passwords, tokens, phone numbers or applicant data are included.
+
 `POST /api/v1/events` (roles with `propose_event`: student coordinator,
 faculty, HOD, placement officer, principal, admin) submits a new Event for
 review, or saves it as a draft with `"draft": true`:

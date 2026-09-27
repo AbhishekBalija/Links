@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	events.GET("/:id", h.Get)
 	events.POST("/:id/rsvp", h.RSVP)
 	events.GET("/:id/rsvps", h.RSVPs)
+	events.GET("/:id/export", h.Export)
 	events.PATCH("/:id", h.Update)
 	events.POST("/:id/submit-for-approval", h.Submit)
 	events.PATCH("/:id/hod-review", h.review(StageHOD, auth.PermissionReviewBranchEvent))
@@ -255,4 +256,20 @@ func (h *Handler) RSVPs(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusOK, summary, meta)
+}
+
+// Export sends the participant list as a CSV download.
+func (h *Handler) Export(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	file, err := h.service.Export(c.Request.Context(), actor.UserID, c.Param("id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="event-participants.csv"`)
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", file)
 }
