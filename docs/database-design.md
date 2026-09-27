@@ -330,19 +330,22 @@ opportunities (
 
 ### opportunity_applications
 
+One per Student per Opportunity (ADR 0024). `mode` is the Opportunity's
+application mode when the Student applied: `external` records that they
+applied on the company's site. `withdrawn` is set only by the Student and is
+final; placement staff move the others.
+
 ```sql
 opportunity_applications (
   id uuid primary key,
   opportunity_id uuid not null references opportunities(id),
   student_id uuid not null references users(id),
-  status text not null,
-  application_mode text not null,
-  external_application_url text,
-  external_application_confirmed_at timestamptz,
-  applied_at timestamptz,
-  shortlisted_at timestamptz,
-  selected_at timestamptz,
-  notes text,
+  mode text not null,              -- internal | external
+  status text not null,            -- applied | shortlisted | rejected | selected | withdrawn
+  applied_at timestamptz not null,
+  withdrawn_at timestamptz,        -- check: set exactly when withdrawn
+  status_changed_at timestamptz,
+  status_changed_by uuid references users(id),
   created_at timestamptz not null,
   updated_at timestamptz not null,
   unique (opportunity_id, student_id)

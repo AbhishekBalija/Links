@@ -89,12 +89,14 @@ type OpportunityResponse struct {
 	Eligibility     []EligibilityRuleResponse `json:"eligibility"`
 	Status          Status                    `json:"status"`
 	// Open is true while it is published and apply_by is ahead.
-	Open        bool       `json:"open"`
-	PostedBy    PosterRef  `json:"posted_by"`
-	PublishedAt *time.Time `json:"published_at"`
-	ClosedAt    *time.Time `json:"closed_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	Open bool `json:"open"`
+	// MyApplication is the caller's own Application, if they made one.
+	MyApplication *ApplicationResponse `json:"my_application"`
+	PostedBy      PosterRef            `json:"posted_by"`
+	PublishedAt   *time.Time           `json:"published_at"`
+	ClosedAt      *time.Time           `json:"closed_at"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
 }
 
 type ListMeta struct {
@@ -108,4 +110,25 @@ type FeedQuery struct {
 	Department string
 	Cursor     string
 	Limit      int
+}
+
+// ApplicationResponse is a Student's own view of their Application.
+type ApplicationResponse struct {
+	ID            string            `json:"id"`
+	OpportunityID string            `json:"opportunity_id"`
+	Mode          Mode              `json:"mode"`
+	Status        ApplicationStatus `json:"status"`
+	AppliedAt     time.Time         `json:"applied_at"`
+	WithdrawnAt   *time.Time        `json:"withdrawn_at"`
+}
+
+func toApplicationResponse(application Application) *ApplicationResponse {
+	return &ApplicationResponse{
+		ID:            application.ID,
+		OpportunityID: application.OpportunityID,
+		Mode:          application.Mode,
+		Status:        application.Status,
+		AppliedAt:     application.AppliedAt,
+		WithdrawnAt:   application.WithdrawnAt,
+	}
 }

@@ -14,6 +14,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Students apply to an open internal Opportunity they are eligible for, once,
+  and withdraw while it is still only applied; for an external one they mark
+  that they applied on the company's site so it is tracked. Each Opportunity
+  shows the student their own application only, and an "applied" view lists
+  everything they applied to.
 - Placement staff publish Opportunities and close them early; members see
   the open ones they are eligible for, soonest deadline first, and the closed
   ones apart, filtered by type and Department. A published Opportunity keeps

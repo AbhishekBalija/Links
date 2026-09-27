@@ -172,3 +172,54 @@ func (r *GormRepository) LockDepartments(ctx context.Context, departmentIDs []st
 	err := r.db.WithContext(ctx).Raw(`SELECT id FROM departments WHERE id IN ? FOR SHARE`, departmentIDs).Scan(&ids).Error
 	return len(ids), err
 }
+
+// LockForShare reads the Opportunity and share-locks it, so it can't be
+// closed or edited while an Application to it is being made.
+func (r *GormRepository) LockForShare(ctx context.Context, id string) (*Opportunity, error) {
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, nil
+	}
+	var opportunity Opportunity
+	err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "SHARE"}).First(&opportunity, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &opportunity, err
+}
+
+func (r *GormRepository) CreateApplication(ctx context.Context, application *Application) error {
+	if application.ID == "" {
+		application.ID = uuid.NewString()
+	}
+	return r.db.WithContext(ctx).Create(application).Error
+}
+
+func (r *GormRepository) UpdateApplication(ctx context.Context, application *Application) error {
+	return r.db.WithContext(ctx).Save(application).Error
+}
+
+// FindApplicationForUpdate locks the Student's Application to the
+// Opportunity, if they made one.
+func (r *GormRepository) FindApplicationForUpdate(ctx context.Context, opportunityID, studentID string) (*Application, error) {
+	if _, err := uuid.Parse(opportunityID); err != nil {
+		return nil, nil
+	}
+	var applications []Application
+	err := r.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("opportunity_id = ? AND student_id = ?", opportunityID, studentID).Limit(1).Find(&applications).Error
+	if err != nil || len(applications) == 0 {
+		return nil, err
+	}
+	return &applications[0], nil
+}
+
+// ApplicationsOf returns the Student's own Applications to these
+// Opportunities.
+func (r *GormRepository) ApplicationsOf(ctx context.Context, studentID string, opportunityIDs []string) ([]Application, error) {
+	if len(opportunityIDs) == 0 {
+		return nil, nil
+	}
+	var applications []Application
+	err := r.db.WithContext(ctx).Where("student_id = ? AND opportunity_id IN ?", studentID, opportunityIDs).Find(&applications).Error
+	return applications, err
+}

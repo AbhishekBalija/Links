@@ -126,7 +126,7 @@ The Audience of an Opportunity: who may see it and apply, by Department, Batch a
 _Avoid_: criteria, target
 
 **Application**:
-A Student's application to an Opportunity, made inside LINKS (internal) or tracked from an external link. Visible only to the Student, the Placement officer, the Principal and admins.
+A Student's application to an Opportunity, made inside LINKS (internal) or their record that they applied on the company's site (external). One per Student per Opportunity; withdrawing is final. Visible only to the Student, the Placement officer, the Principal and admins.
 
 **Shortlist**:
 The Applications the Placement officer moves forward for an Opportunity.

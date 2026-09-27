@@ -65,7 +65,7 @@ func (s *Service) transition(ctx context.Context, actorID, id string, change fun
 	if err != nil {
 		return nil, err
 	}
-	return s.response(ctx, id)
+	return s.response(ctx, id, actorID)
 }
 
 // checkLiveEdit keeps what Students rely on once an Opportunity is out: a

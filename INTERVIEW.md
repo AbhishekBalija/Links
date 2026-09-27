@@ -210,6 +210,14 @@ deadline. So the only stored statuses are the ones a person sets (`draft`,
 `apply_by > now()`. The closed view is the reverse: closed early, or past the
 deadline.
 
+### Why does an external application get a row in the database at all?
+
+LINKS can't see what a student does on a company's careers site. But the
+placement office still wants to know who applied where, and the student wants
+one list of everything they applied to. So "I applied" creates an Application
+with `mode = external`: the same one-per-student rule, the same statuses the
+office can update when the company replies, and the same place in reports.
+
 ### Why can any placement staff member edit any Opportunity?
 
 Events belong to their proposer, but the placement office is a small team that

@@ -96,7 +96,7 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateOpport
 	if err != nil {
 		return nil, err
 	}
-	return s.response(ctx, opportunity.ID)
+	return s.response(ctx, opportunity.ID, actorID)
 }
 
 // Update edits an Opportunity. Placement staff work as one office, so any
@@ -144,7 +144,7 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateOp
 	if err != nil {
 		return nil, err
 	}
-	return s.response(ctx, id)
+	return s.response(ctx, id, actorID)
 }
 
 // Managed lists every Opportunity for placement staff, newest first,
@@ -179,7 +179,7 @@ func (s *Service) Managed(ctx context.Context, actorID, status, cursor string, l
 		last := views[len(views)-1]
 		meta.NextCursor = encodeCursor(Cursor{At: last.CreatedAt, ID: last.ID})
 	}
-	responses, err := s.toResponses(ctx, views)
+	responses, err := s.toResponses(ctx, views, actorID)
 	return responses, meta, err
 }
 
@@ -384,7 +384,9 @@ func (s *Service) requireStaff(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (s *Service) response(ctx context.Context, id string) (*OpportunityResponse, error) {
+// response loads one Opportunity as the viewer sees it, with their own
+// Application if they made one.
+func (s *Service) response(ctx context.Context, id, viewerID string) (*OpportunityResponse, error) {
 	view, err := s.repository.Find(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("load opportunity: %w", err)
@@ -392,14 +394,14 @@ func (s *Service) response(ctx context.Context, id string) (*OpportunityResponse
 	if view == nil {
 		return nil, apperrors.NewNotFound("opportunity not found")
 	}
-	responses, err := s.toResponses(ctx, []View{*view})
+	responses, err := s.toResponses(ctx, []View{*view}, viewerID)
 	if err != nil {
 		return nil, err
 	}
 	return &responses[0], nil
 }
 
-func (s *Service) toResponses(ctx context.Context, views []View) ([]OpportunityResponse, error) {
+func (s *Service) toResponses(ctx context.Context, views []View, viewerID string) ([]OpportunityResponse, error) {
 	ids := make([]string, 0, len(views))
 	for _, view := range views {
 		ids = append(ids, view.ID)
@@ -407,6 +409,14 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]OpportunityR
 	rules, err := s.repository.EligibilityRules(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("load eligibility: %w", err)
+	}
+	applications, err := s.repository.ApplicationsOf(ctx, viewerID, ids)
+	if err != nil {
+		return nil, fmt.Errorf("load applications: %w", err)
+	}
+	mine := make(map[string]*ApplicationResponse, len(applications))
+	for _, application := range applications {
+		mine[application.OpportunityID] = toApplicationResponse(application)
 	}
 	byOpportunity := map[string][]EligibilityRuleResponse{}
 	for _, rule := range rules {
@@ -431,6 +441,7 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]OpportunityR
 			Eligibility:     byOpportunity[view.ID],
 			Status:          view.Status,
 			Open:            view.Status == StatusPublished && view.ApplyBy.After(now),
+			MyApplication:   mine[view.ID],
 			PostedBy:        PosterRef{UserID: view.PostedBy, FullName: view.PosterName},
 			PublishedAt:     view.PublishedAt,
 			ClosedAt:        view.ClosedAt,

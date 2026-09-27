@@ -31,6 +31,25 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	opportunities.PATCH("/:id", h.Update)
 	opportunities.POST("/:id/publish", h.staffAction((*Service).Publish))
 	opportunities.POST("/:id/close", h.staffAction((*Service).Close))
+	opportunities.POST("/:id/apply", h.applicantAction((*Service).Apply, http.StatusCreated))
+	opportunities.POST("/:id/withdraw", h.applicantAction((*Service).Withdraw, http.StatusOK))
+}
+
+// applicantAction serves a Student's action on their own Application. Who
+// may apply is decided in the service.
+func (h *Handler) applicantAction(action func(*Service, context.Context, string, string) (*ApplicationResponse, error), status int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		actor := h.signedIn(c)
+		if actor == nil {
+			return
+		}
+		application, err := action(h.service, c.Request.Context(), actor.UserID, c.Param("id"))
+		if err != nil {
+			writeError(c, err)
+			return
+		}
+		response.Success(c, status, application, nil)
+	}
 }
 
 // Feed lists the Opportunities the caller is eligible for.
