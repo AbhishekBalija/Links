@@ -163,6 +163,15 @@ member could set their name to a formula that fetches a URL with the other
 cells' data when an organiser opens the export ("CSV injection"). Prefixing
 such cells with `'` makes the spreadsheet show them as text.
 
+### Why can only logistics change after an event is published?
+
+Reviewers approved a specific event: its title, type, Department and Audience.
+If those could change afterwards, an HOD-approved CS workshop could quietly
+become a college-wide cultural event nobody reviewed. Room, time and capacity
+changes happen all the time and don't change what was approved, so organisers
+can make them (each is audited). Anything else means cancelling and proposing
+again.
+
 ### How does a PATCH tell "leave this field alone" from "clear it"?
 
 In Go, a missing JSON field and `null` both leave a pointer nil. The event

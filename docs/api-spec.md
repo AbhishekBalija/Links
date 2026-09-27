@@ -454,6 +454,22 @@ Departments without an HOD), and every final approval for the principal and
 admins. Each item carries `stage` (`hod` or `final`) and the earlier
 `reviews`. The caller's own Events are never listed.
 
+A `published` Event that isn't over takes logistics edits through
+`PATCH /api/v1/events/:id` from its organisers (the proposer, the Department's
+HOD, the principal, admins; `404` for anyone else): `description`,
+`location`, `starts_at` (in the future), `ends_at` and `capacity` (not below
+the number already going; `null` removes the limit). Sending `title`,
+`event_type`, `department_id`, `faculty_mentor_id` or `audience` is `400`:
+those need the Event cancelled and proposed again. Each edit writes an
+`event_logistics_updated` audit log. An Event that is over is `409`.
+
+`POST /api/v1/events/:id/cancel` with `{"reason": "..."}` (required, up to 500
+characters) cancels an Event that isn't over, rejected or already cancelled
+(`409`). Allowed for its proposer and its reviewers (Department HOD, principal,
+admins); `403` for others who can see it, `404` for anyone else. RSVPs are
+kept; the Event leaves the feed but its Audience can still open it and see
+`cancel_reason`. Audited as `event_cancelled`.
+
 `GET /api/v1/events/mine` (any signed-in user) lists the caller's Events,
 newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
 `status` narrows it: `draft`, `waiting` (at either review stage), `attention`

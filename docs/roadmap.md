@@ -69,7 +69,7 @@ Deliverables:
 - Principal/admin final approval (API built)
 - RSVP/interest tracking (API built)
 - Participant export (API built)
-- Event cancellation flow
+- Event cancellation flow (API built)
 
 ## Phase 4: Placement
 
