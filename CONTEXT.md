@@ -44,7 +44,7 @@ _Avoid_: user role, user type
 Where a Role assignment applies: global, one Department, or one club.
 
 **Public profile**:
-A user's profile that others can view, with contact details hidden unless the user chooses to show them.
+A user's profile that others can view, with contact details hidden unless the user chooses to show them. Public by default; a member can make it private, visible only to them.
 
 **Directory**:
 The list of members any signed-in member can browse and filter by Department, role and Batch. It shows only active, verified members with a Public profile and a role in effect.
@@ -118,11 +118,15 @@ A reader's answer to a published Event: going, interested or not going. Going co
 _Avoid_: registration, sign-up
 
 **Opportunity**:
-A job, internship or training posted by the Placement officer to an Audience.
+A job, internship or training posted by placement staff (the Placement officer, the principal or an admin) with an Eligibility. Open while published and before its apply-by date.
 _Avoid_: job post, drive
 
+**Eligibility**:
+The Audience of an Opportunity: who may see it and apply, by Department, Batch and role.
+_Avoid_: criteria, target
+
 **Application**:
-A Student's application to an Opportunity, made inside LINKS (internal) or tracked from an external link. Visible only to the Student, the Placement officer, the Principal and admins.
+A Student's application to an Opportunity, made inside LINKS (internal) or their record that they applied on the company's site (external). One per Student per Opportunity; withdrawing is final. Visible only to the Student, the Placement officer, the Principal and admins.
 
 **Shortlist**:
 The Applications the Placement officer moves forward for an Opportunity.

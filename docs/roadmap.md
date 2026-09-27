@@ -49,7 +49,7 @@ Goal: Make LINKS useful as a daily information hub. Milestone "Phase 2: Campus H
 Deliverables:
 
 - [x] Department management API (#10, v0.2.0); department pages come with #15
-- [ ] Role-based dashboard endpoints (#11); the Home summary is built (#39, v0.3.0)
+- [ ] Role-based dashboard endpoints (#11); the Home summary is built (#39, v0.3.0) and counts waiting Event reviews
 - [x] Campus directory and search (#12): the People screen with filters and typo-tolerant search
 - [x] Targeted announcements API with approval, editing and withdrawal (#13, spec #25, v0.2.0)
 - [x] Home and announcement screens: design system and app shell, reading notices, composer and My announcements, approval queue (spec #38: #39–#42, v0.3.0)
@@ -78,10 +78,10 @@ Goal: Build the placement workflow end to end.
 Deliverables:
 
 - Placement officer dashboard
-- Job/internship/training posts
-- Eligibility targeting
-- Internal application flow
-- External application tracking
+- Job/internship/training posts (drafts, publishing and closing API built; ADR 0024)
+- Eligibility targeting (API built: the feed matches Eligibility like an Audience)
+- Internal application flow (API built: apply once while open, withdraw before shortlisting)
+- External application tracking (API built: "I applied" records an external Application)
 - Applicant list
 - Shortlisting
 - Status updates

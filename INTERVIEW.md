@@ -188,6 +188,43 @@ key is present, even for `null`, so it records "was sent" separately from the
 value. Leaving `capacity` out keeps it; sending `"capacity": null` removes the
 limit.
 
+## Placement
+
+### Why is an Opportunity's eligibility stored as Audience rules instead of a JSON column?
+
+The first sketch had an `eligibility jsonb` column. But "CS students of batch
+2023" is exactly what an Announcement's Audience already says, and the feed
+already knows how to match it. Two matchers would drift: a student could see
+an Opportunity in one place and be told they're not eligible in another.
+Reusing `audience_rules` with `target_type = 'opportunity'` gives one rule
+set, indexed columns for the Department filter, and a foreign key that stops a
+Department in use from being deleted.
+
+### Why isn't "open" a status of an Opportunity?
+
+An Opportunity stops taking applications when its apply-by date passes, and
+nothing runs at that moment to change a status (there are no background jobs
+yet, ADR 0007). Storing `open` would need one, or it would lie after the
+deadline. So the only stored statuses are the ones a person sets (`draft`,
+`published`, `closed`), and "open" is computed in the query: published and
+`apply_by > now()`. The closed view is the reverse: closed early, or past the
+deadline.
+
+### Why does an external application get a row in the database at all?
+
+LINKS can't see what a student does on a company's careers site. But the
+placement office still wants to know who applied where, and the student wants
+one list of everything they applied to. So "I applied" creates an Application
+with `mode = external`: the same one-per-student rule, the same statuses the
+office can update when the company replies, and the same place in reports.
+
+### Why can any placement staff member edit any Opportunity?
+
+Events belong to their proposer, but the placement office is a small team that
+covers for each other during a recruitment drive. If only the author could
+edit a draft, a job post would be stuck the day its author is away. Every
+edit is audited, so who changed what is still on record.
+
 ## Member Directory
 
 ### Why share the profile privacy rules through a type instead of repeating them in the directory's SQL?

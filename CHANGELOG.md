@@ -17,6 +17,28 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Students apply to an open internal Opportunity they are eligible for, once,
+  and withdraw while it is still only applied; for an external one they mark
+  that they applied on the company's site so it is tracked. Each Opportunity
+  shows the student their own application only, and an "applied" view lists
+  everything they applied to.
+- Placement staff publish Opportunities and close them early; members see
+  the open ones they are eligible for, soonest deadline first, and the closed
+  ones apart, filtered by type and Department. A published Opportunity keeps
+  its application mode and its deadline ahead.
+- Placement Opportunities (Phase 4, ADR 0024): the placement officer, the
+  principal and admins save jobs, internships and training posts as drafts,
+  with company, role, description, location, stipend or CTC, apply-by date,
+  an internal application or an external link, and Eligibility by
+  Department, Batch and role. Any of them can edit any draft, and they list
+  every Opportunity by status.
+- Members can make their profile private or public again
+  (`public_profile_enabled` on `PATCH /api/v1/me/profile`, #81). A private
+  member leaves People and their profile opens only for them; department
+  counts still include them. Each change is audited.
+- Home's approvals summary also counts the Event proposals waiting for the
+  reviewer (`events_pending_count` and `oldest_event_submitted_at`), apart from
+  Announcements, with the same scope as the event review queue.
 - Events screens: an Events tab listing what's coming up for you by week
   (Upcoming, Going and Past, and by type), each with your answer and the
   seats left; an event page with one Going / Interested / Can't go control

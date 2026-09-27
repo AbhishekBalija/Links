@@ -203,6 +203,29 @@ as a directory entry describes them: `roles` (in effect, most senior first),
 `department` (`{code, name}`) and, for students, `batch_year`. Anonymous
 visitors never get these fields.
 
+### `PATCH /api/v1/me/profile`
+
+Updates the caller's own profile. Every field is optional; a missing field is
+left as it is, and an empty string clears a text field.
+
+```json
+{
+  "headline": "...", "bio": "...", "avatar_url": "https://...",
+  "linkedin_url": "https://...", "github_url": "https://...", "portfolio_url": "https://...",
+  "public_profile_enabled": false, "show_email": true, "show_phone": false
+}
+```
+
+- `public_profile_enabled` (default `true`): off, the member leaves
+  `GET /api/v1/directory` and `GET /api/v1/profiles/:username` returns `404`
+  to everyone but them. Department overview counts still include them. A
+  change is audited as `profile_visibility_changed` with the new value, in the
+  same transaction.
+- `show_email` and `show_phone`: a change is audited as
+  `profile_privacy_updated`.
+- URLs must be `http` or `https`. Returns the updated profile as the owner
+  sees it.
+
 ## Dashboards, Search, and Reports
 
 ```text
@@ -220,12 +243,22 @@ sections without changing these:
 {
   "user": { "full_name": "...", "roles": ["faculty"], "department": { "id": "...", "code": "CS", "name": "..." } },
   "notices": { "items": [/* newest five from the feed */], "has_more": true },
-  "approvals": { "pending_count": 2, "oldest_submitted_at": "..." },
+  "approvals": {
+    "pending_count": 2, "oldest_submitted_at": "...",
+    "events_pending_count": 1, "oldest_event_submitted_at": "..."
+  },
   "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 }
 }
 ```
 
 - `approvals` appears only for HODs, the principal and admins.
+  `pending_count` and `oldest_submitted_at` count Announcements and edits
+  waiting for Announcement approval; `events_pending_count` and
+  `oldest_event_submitted_at` count Event proposals waiting for the caller,
+  with the same scope as `GET /api/v1/events/reviews` (the HOD stage of their
+  Departments, and for the principal and admins the HOD stage of Departments
+  without an HOD and every final approval; never the caller's own). An
+  `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
 - `department` is the Student identity's Department, otherwise the first
   Department-scoped role, otherwise `null`.
@@ -660,18 +693,145 @@ newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
 
 ## Opportunities and Applications
 
+The placement workflow is ADR 0024. Built so far: drafts, publishing, the
+feed and Applications.
+
 ```text
 GET   /api/v1/opportunities
 POST  /api/v1/opportunities
+GET   /api/v1/opportunities/manage
 GET   /api/v1/opportunities/:id
 PATCH /api/v1/opportunities/:id
+POST  /api/v1/opportunities/:id/publish
+POST  /api/v1/opportunities/:id/close
 POST  /api/v1/opportunities/:id/apply
-GET   /api/v1/opportunities/:id/applications
-PATCH /api/v1/opportunity-applications/:id/status
-POST  /api/v1/opportunities/:id/save
-DELETE /api/v1/opportunities/:id/save
-GET   /api/v1/opportunities/:id/export
+POST  /api/v1/opportunities/:id/withdraw
 ```
+
+Planned in the same workflow: the applicant list with status updates, and the
+applicant export.
+
+### Opportunities
+
+Placement staff (the placement officer, the principal and admins,
+`post_opportunity`) work as one office: any of them can create, edit and list
+any Opportunity, drafts included. Their roles are read from the database.
+Anyone else gets `403` on these routes.
+
+`POST /api/v1/opportunities` saves a draft (`201`):
+
+```json
+{
+  "opportunity_type": "job",
+  "title": "Graduate Engineer Trainee",
+  "company": "Acme Systems",
+  "description": "...",
+  "location": "Mysuru",
+  "compensation": "4.5 LPA",
+  "apply_by": "2026-10-15T18:30:00Z",
+  "application_mode": "internal",
+  "external_url": null,
+  "eligibility": [{ "department_id": "<uuid>", "batch_year": 2023, "role": "student" }]
+}
+```
+
+- `opportunity_type`: `job`, `internship` or `training`.
+- `title` (the role) 3 to 200 characters; `company` 1 to 200; `description`
+  up to 10,000; `location` and `compensation` optional, up to 200.
+  `compensation` is free text for a stipend or CTC.
+- `apply_by` is required.
+- `application_mode`: `internal` (Students apply in LINKS) or `external`
+  (Students apply on the company's site). `external_url` is required for
+  `external`, must be an `http` or `https` link, and is refused for
+  `internal`.
+- `eligibility` is an Audience, matched as for Announcements (a rule's fields
+  must all match; any rule is enough; empty means everyone), up to 20 rules.
+  An unknown Department is `400`.
+
+`PATCH /api/v1/opportunities/:id` changes only the fields sent; `location`,
+`compensation` and `external_url` can be cleared with `null`, and
+`eligibility` replaces the whole list. The result is checked as on create
+(`400`); an unknown ID is `404`. A published Opportunity keeps its
+`application_mode` (`409` otherwise) and a changed `apply_by` must be in the
+future (`400`); a closed one can't be edited (`409`).
+
+`POST /api/v1/opportunities/:id/publish` opens a draft to its Eligibility
+(`200`). Its `apply_by` must be in the future (`400`); anything but a draft is
+`409`. `POST /api/v1/opportunities/:id/close` closes a published Opportunity
+early (`200`); anything else is `409`. Closing is final. Both are placement
+staff only and audited (`opportunity_published`, `opportunity_closed`).
+
+`GET /api/v1/opportunities` (any signed-in member) lists published and closed
+Opportunities the caller is eligible for, matched like an Announcement's
+Audience:
+
+- `state`: `open` (default: published and `apply_by` ahead, soonest deadline
+  first), `closed` (closed early or past `apply_by`, latest deadline first) or
+  `applied` (what the caller applied to, in any status, eligible now or not,
+  latest deadline first).
+- `type`: `job`, `internship` or `training`.
+- `department`: a Department code (any case); lists Opportunities whose
+  Eligibility names that Department.
+- `cursor` and `limit` (1 to 50, default 20); the next page is
+  `meta.next_cursor`.
+
+An unknown `state`, `type` or `department`, or a bad cursor, is `400`.
+
+`GET /api/v1/opportunities/manage` lists every Opportunity for placement
+staff, newest first: `status` (`draft`, `published`, `closed`), `cursor` and
+`limit` (1 to 50, default 20); the next page is `meta.next_cursor`.
+
+`GET /api/v1/opportunities/:id` returns one Opportunity: any of them to
+placement staff, a published or closed one to a member in its Eligibility or
+who applied to it, and `404` to anyone else, so drafts stay private.
+
+Each Opportunity:
+
+```json
+{
+  "id": "uuid",
+  "opportunity_type": "job",
+  "title": "...", "company": "...", "description": "...",
+  "location": "Mysuru", "compensation": "4.5 LPA",
+  "apply_by": "...",
+  "application_mode": "internal", "external_url": null,
+  "eligibility": [{ "department_id": "<uuid>", "department_code": "CS", "batch_year": 2023, "role": "student" }],
+  "status": "published",
+  "open": true,
+  "my_application": { "id": "uuid", "opportunity_id": "uuid", "mode": "internal", "status": "applied", "applied_at": "...", "withdrawn_at": null },
+  "posted_by": { "user_id": "uuid", "full_name": "..." },
+  "published_at": null, "closed_at": null,
+  "created_at": "...", "updated_at": "..."
+}
+```
+
+`open` is `true` while the Opportunity is published and `apply_by` is ahead.
+`my_application` is the caller's own Application (or `null`); nobody sees
+anyone else's here.
+Creating and editing are audited (`opportunity_created`,
+`opportunity_updated`) in the same transaction.
+
+### Applications
+
+`POST /api/v1/opportunities/:id/apply` (`201`) records the caller's
+Application. For an `internal` Opportunity this is their application; for an
+`external` one it is their note that they applied on the company's site
+(`mode: "external"`), so it shows in their list and in placement reports.
+
+- The Opportunity must be published or closed and the caller in its
+  Eligibility, otherwise `404`.
+- Only a Student applies (the `student` role in effect and a Student
+  identity): anyone else gets `403`.
+- It must be open (published, `apply_by` ahead), otherwise `409`.
+- Once per Student per Opportunity: a second application, even after
+  withdrawing, is `409`.
+
+`POST /api/v1/opportunities/:id/withdraw` (`200`) withdraws the caller's
+Application while it is still `applied`; once shortlisted, rejected or
+selected it is `409`, and without an Application `404`. Withdrawing is final.
+
+Both return the caller's Application (`my_application` above) and are audited
+(`application_submitted`, `application_withdrawn`) in the same transaction.
 
 ## Departments
 
