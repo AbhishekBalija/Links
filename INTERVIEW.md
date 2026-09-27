@@ -148,6 +148,16 @@ for rows after `(lower(full_name), id)`. Every member appears exactly once
 across pages even when two share a name, and new sign-ups don't shift pages
 the way an offset would.
 
+### How does the directory search tolerate typos?
+
+Postgres's `pg_trgm` splits text into three-letter pieces and scores how many
+pieces a search shares with a name, so "asha rau" still finds "Asha Rao". GIN
+trigram indexes keep the `LIKE '%ash%'` part fast. Trigrams are weak on short
+words with swapped letters: "ahsa" shares almost no three-letter pieces with
+"asha", and scores the same as any name starting with "a". So a one-word search
+is also compared letter by letter: a name word with exactly the same letters,
+in any order, counts as a match. Results are ranked by score, then by name.
+
 ## Testing
 
 ### Why have three kinds of tests instead of just end-to-end ones?

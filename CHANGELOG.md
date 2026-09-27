@@ -11,6 +11,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   alphabetically, filtered by Department, role and Batch, with roles,
   Department, Batch for students, and contact details only where the member
   opted in. Hidden, suspended, pending and former members never appear.
+  Searching by name, username or headline tolerates typos and ranks the
+  best matches first.
 
 ## [0.3.0] - 2026-09-27
 

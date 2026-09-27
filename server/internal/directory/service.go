@@ -21,6 +21,10 @@ const (
 	maxLimit     = 50
 	minBatchYear = 2000
 	maxBatchYear = 2100
+	// A one-letter q matches nearly everyone, so it is ignored.
+	minQueryLength = 2
+	maxQueryLength = 100
+	searchLimit    = 50
 )
 
 // roleOrder is how roles are listed on an entry: most senior first.
@@ -37,7 +41,8 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// List returns one page of the directory, alphabetical by name.
+// List returns one page of the directory, alphabetical by name, or with a
+// search term the best matches first.
 func (s *Service) List(ctx context.Context, viewerID string, query ListQuery) ([]Entry, *ListMeta, error) {
 	filter, err := s.parseFilter(ctx, query)
 	if err != nil {
@@ -46,6 +51,13 @@ func (s *Service) List(ctx context.Context, viewerID string, query ListQuery) ([
 	limit, err := parseLimit(query.Limit)
 	if err != nil {
 		return nil, nil, err
+	}
+	q, err := parseQuery(query.Q)
+	if err != nil {
+		return nil, nil, err
+	}
+	if q != "" {
+		return s.search(ctx, viewerID, filter, q, query.Cursor)
 	}
 	after, err := decodeCursor(query.Cursor)
 	if err != nil {
@@ -64,6 +76,33 @@ func (s *Service) List(ctx context.Context, viewerID string, query ListQuery) ([
 	}
 	entries, err := s.entries(ctx, viewerID, members)
 	return entries, meta, err
+}
+
+// search returns the top matches in one response: ranked results have no
+// stable order to page through.
+func (s *Service) search(ctx context.Context, viewerID string, filter Filter, q, cursor string) ([]Entry, *ListMeta, error) {
+	if cursor != "" {
+		return nil, nil, apperrors.NewValidation("invalid cursor", map[string]string{"cursor": "search results come in one page; leave cursor out with q"})
+	}
+	members, err := s.repo.Search(ctx, filter, q, searchLimit)
+	if err != nil {
+		return nil, nil, fmt.Errorf("search members: %w", err)
+	}
+	entries, err := s.entries(ctx, viewerID, members)
+	return entries, &ListMeta{}, err
+}
+
+// parseQuery lower-cases and trims q, and drops one too short to mean anything.
+func parseQuery(value string) (string, error) {
+	q := strings.ToLower(strings.Join(strings.Fields(value), " "))
+	length := len([]rune(q))
+	if length > maxQueryLength {
+		return "", apperrors.NewValidation("invalid search", map[string]string{"q": fmt.Sprintf("at most %d characters", maxQueryLength)})
+	}
+	if length < minQueryLength {
+		return "", nil
+	}
+	return q, nil
 }
 
 func (s *Service) parseFilter(ctx context.Context, query ListQuery) (Filter, error) {

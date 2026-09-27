@@ -25,6 +25,7 @@ type ListQuery struct {
 	Department string
 	Role       string
 	Batch      string
+	Q          string
 	Limit      string
 	Cursor     string
 }
