@@ -46,6 +46,10 @@ Where a Role assignment applies: global, one Department, or one club.
 **Public profile**:
 A user's profile that others can view, with contact details hidden unless the user chooses to show them.
 
+**Directory**:
+The list of members any signed-in member can browse and filter by Department, role and Batch. It shows only active, verified members with a Public profile and a role in effect.
+_Avoid_: people search, user list
+
 ## Roles
 
 **Student**:

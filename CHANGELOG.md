@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Member directory (#12): signed-in members can list active members
+  alphabetically, filtered by Department, role and Batch, with roles,
+  Department, Batch for students, and contact details only where the member
+  opted in. Hidden, suspended, pending and former members never appear.
+
 ## [0.3.0] - 2026-09-27
 
 LINKS gets its look and its screens: everyone can read notices, staff can
