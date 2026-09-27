@@ -12,6 +12,18 @@ Default five canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, 
 
 Single-context (`CONTEXT.md` + `docs/adr/`). See `docs/agents/domain.md`.
 
+### Project skills
+
+Committed in `.claude/skills/`, so every session, local or cloud, has them. Pinned in `skills-lock.json`.
+
+- `tdd`: every behaviour change. The agreed seams are the API tests in `server/test/integration/` and Vitest for client logic, so no need to ask which seams to test.
+- `domain-modeling`: when a change adds or changes a domain word (update `CONTEXT.md`) or makes a decision worth an ADR.
+- `codebase-design`: when designing a new package or deciding where a seam goes.
+- `implement`: when working from an issue or a spec.
+- `diagnosing-bugs`: for anything broken, flaky or slow; build a failing loop first.
+- `resolving-merge-conflicts`: when a branch conflicts with `master`.
+- `golang-code-style`, `golang-design-patterns`, `golang-data-structures`, `golang-security` and `security-review`: for Go code and anything touching auth, input or data exposure.
+
 # LINKS
 
 LINKS is a campus hub for colleges, not a chat platform or casual social network. Domain words (USN, Access request, Access approval, Activation, Role assignment, Scope, Audience) are defined in `CONTEXT.md`; use them in code, issues and docs.

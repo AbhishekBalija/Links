@@ -45,3 +45,8 @@ test-results
 
 # Local reference notes (college data, contacts); never published
 docs/local/
+
+# Local design work and agent worktrees; project skills in .claude/skills are committed.
+.claude/canvas-work/
+.claude/worktrees/
+.claude/settings.local.json
