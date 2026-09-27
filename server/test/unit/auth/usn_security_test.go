@@ -7,7 +7,7 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/auth"
 )
 
-func TestValidateUSN_Hardening_SQLInjection(t *testing.T) {
+func TestValidateUSNFormat_Hardening_SQLInjection(t *testing.T) {
 	payloads := []string{
 		"4MN20EC001'",
 		"4MN20EC001'; DROP TABLE students;--",
@@ -16,14 +16,14 @@ func TestValidateUSN_Hardening_SQLInjection(t *testing.T) {
 		"4MN20EC001' UNION SELECT * FROM users--",
 	}
 	for _, usn := range payloads {
-		_, err := auth.ValidateUSN(usn)
+		_, err := auth.ValidateUSNFormat(usn)
 		if err == nil {
-			t.Errorf("ValidateUSN(%q) should reject SQL-ish payload", usn)
+			t.Errorf("ValidateUSNFormat(%q) should reject SQL-ish payload", usn)
 		}
 	}
 }
 
-func TestValidateUSN_Hardening_NullBytes(t *testing.T) {
+func TestValidateUSNFormat_Hardening_NullBytes(t *testing.T) {
 	payloads := []string{
 		"4MN20EC\x00EC001",
 		"4MN20\x00EC001",
@@ -31,14 +31,14 @@ func TestValidateUSN_Hardening_NullBytes(t *testing.T) {
 		"4MN20EC001\x00",
 	}
 	for _, usn := range payloads {
-		_, err := auth.ValidateUSN(usn)
+		_, err := auth.ValidateUSNFormat(usn)
 		if err == nil {
-			t.Errorf("ValidateUSN(%q) should reject null bytes", usn)
+			t.Errorf("ValidateUSNFormat(%q) should reject null bytes", usn)
 		}
 	}
 }
 
-func TestValidateUSN_Hardening_Unicode(t *testing.T) {
+func TestValidateUSNFormat_Hardening_Unicode(t *testing.T) {
 	payloads := []string{
 		"4MN20𝐄𝐂001",
 		"4MN20EC𝟬𝟬𝟭",
@@ -48,45 +48,45 @@ func TestValidateUSN_Hardening_Unicode(t *testing.T) {
 		"4MN20EC001ð",
 	}
 	for _, usn := range payloads {
-		_, err := auth.ValidateUSN(usn)
+		_, err := auth.ValidateUSNFormat(usn)
 		if err == nil {
-			t.Errorf("ValidateUSN(%q) should reject Unicode lookalikes", usn)
+			t.Errorf("ValidateUSNFormat(%q) should reject Unicode lookalikes", usn)
 		}
 	}
 }
 
-func TestValidateUSN_Hardening_Overrun(t *testing.T) {
+func TestValidateUSNFormat_Hardening_Overrun(t *testing.T) {
 	payloads := []string{
 		"4MN20EC001" + strings.Repeat("X", 1000),
 		"4MN20EC001" + strings.Repeat(" ", 1000),
 		strings.Repeat("X", 10000),
 	}
 	for _, usn := range payloads {
-		_, err := auth.ValidateUSN(usn)
+		_, err := auth.ValidateUSNFormat(usn)
 		if err == nil {
-			t.Errorf("ValidateUSN(overrun payload) should reject, got nil")
+			t.Errorf("ValidateUSNFormat(overrun payload) should reject, got nil")
 		}
 	}
 }
 
-func TestValidateUSN_Hardening_Casing(t *testing.T) {
+func TestValidateUSNFormat_Hardening_Casing(t *testing.T) {
 	payloads := []string{
 		strings.ToLower("4MN20EC001"),
 		"4mn20ec001",
 		"4Mn20eC001",
 	}
 	for _, usn := range payloads {
-		code, err := auth.ValidateUSN(usn)
+		code, err := auth.ValidateUSNFormat(usn)
 		if err != nil {
-			t.Errorf("ValidateUSN(%q) expected valid (case normalization), got: %v", usn, err)
+			t.Errorf("ValidateUSNFormat(%q) expected valid (case normalization), got: %v", usn, err)
 		}
 		if code != "EC" {
-			t.Errorf("ValidateUSN(%q) = %q, want EC", usn, code)
+			t.Errorf("ValidateUSNFormat(%q) = %q, want EC", usn, code)
 		}
 	}
 }
 
-func TestValidateUSN_Hardening_BoundaryLength(t *testing.T) {
+func TestValidateUSNFormat_Hardening_BoundaryLength(t *testing.T) {
 	short := []string{
 		"4MN",
 		"4MN2",
@@ -97,9 +97,9 @@ func TestValidateUSN_Hardening_BoundaryLength(t *testing.T) {
 		"4MN20EC00",
 	}
 	for _, usn := range short {
-		_, err := auth.ValidateUSN(usn)
+		_, err := auth.ValidateUSNFormat(usn)
 		if err == nil {
-			t.Errorf("ValidateUSN(%q) should reject under-length USN", usn)
+			t.Errorf("ValidateUSNFormat(%q) should reject under-length USN", usn)
 		}
 	}
 
@@ -108,9 +108,9 @@ func TestValidateUSN_Hardening_BoundaryLength(t *testing.T) {
 		"4MN20EC0012",
 	}
 	for _, usn := range long {
-		_, err := auth.ValidateUSN(usn)
+		_, err := auth.ValidateUSNFormat(usn)
 		if err == nil {
-			t.Errorf("ValidateUSN(%q) should reject over-length USN", usn)
+			t.Errorf("ValidateUSNFormat(%q) should reject over-length USN", usn)
 		}
 	}
 }

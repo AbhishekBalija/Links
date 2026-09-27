@@ -156,6 +156,28 @@ func (f *fakeUserRepo) CreateRoleAssignment(ctx context.Context, ra *RoleAssignm
 	return nil
 }
 
+// Role management is covered by the API tests; these stubs only satisfy the interface.
+func (f *fakeUserRepo) FindDepartmentByID(context.Context, string) (*Department, error) {
+	return nil, nil
+}
+func (f *fakeUserRepo) ListRoleAssignments(context.Context, string) ([]RoleAssignmentView, error) {
+	return nil, nil
+}
+func (f *fakeUserRepo) FindRoleAssignmentForUpdate(context.Context, string, string) (*RoleAssignment, error) {
+	return nil, nil
+}
+func (f *fakeUserRepo) HasOverlappingAssignment(context.Context, OverlapFilter) (bool, error) {
+	return false, nil
+}
+func (f *fakeUserRepo) LockDepartmentForUpdate(context.Context, string) (bool, error) {
+	return false, nil
+}
+func (f *fakeUserRepo) LockAdminAssignmentsInEffect(context.Context) ([]RoleAssignment, error) {
+	return nil, nil
+}
+func (f *fakeUserRepo) EndRoleAssignment(context.Context, string, time.Time) error { return nil }
+func (f *fakeUserRepo) ClearDepartmentHOD(context.Context, string, string) error   { return nil }
+
 type fakeRefreshTokenRepo struct {
 	create            func(ctx context.Context, token *RefreshToken) error
 	findByHash        func(ctx context.Context, hash string) (*RefreshToken, error)
