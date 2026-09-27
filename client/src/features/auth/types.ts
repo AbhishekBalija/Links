@@ -65,3 +65,5 @@ export type UpdateProfileInput = {
   github_url?: string | null
   portfolio_url?: string | null
 }
+
+export type PublicDepartment = { code: string; name: string }

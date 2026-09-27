@@ -138,7 +138,9 @@ test.describe('Writing announcements', () => {
     await page.getByRole('button', { name: 'Withdraw' }).click()
     await page.getByRole('button', { name: 'Withdraw' }).click()
     await page.waitForURL('**/mine?status=ended')
-    await expect(page.getByText('Withdrawn', { exact: true })).toBeVisible()
+    // Check the row in the Ended list, not any "Withdrawn" text: the detail
+    // page can still be on screen for a moment with its own status badges.
+    await expect(page.getByRole('link', { name: /CS lab 3 closed on Monday/ })).toContainText('Withdrawn')
 
     const readerToken = await loginViaAPI(request, reader.email, reader.password)
     expect(await feedTitles(request, readerToken)).not.toContain('CS lab 3 closed on Monday')

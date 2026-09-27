@@ -115,6 +115,15 @@ func (r *GormUserRepository) FindDepartmentByCode(ctx context.Context, code stri
 	return &dept, err
 }
 
+func (r *GormUserRepository) FindDepartmentByID(ctx context.Context, id string) (*Department, error) {
+	var dept Department
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&dept).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &dept, err
+}
+
 // LockDepartmentForShare reports whether the department exists and holds a
 // share lock on it until the transaction ends, so the department can't be
 // deleted while a role scoped to it is being created.
@@ -152,6 +161,88 @@ func (r *GormUserRepository) FindPendingUsers(ctx context.Context) ([]User, erro
 		Order("created_at asc").
 		Find(&users).Error
 	return users, err
+}
+
+func (r *GormUserRepository) ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error) {
+	var views []RoleAssignmentView
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT ra.*, d.code AS department_code, d.name AS department_name
+		FROM role_assignments ra
+		LEFT JOIN departments d ON ra.scope_type = 'department' AND d.id = ra.scope_id
+		WHERE ra.user_id = ?
+		ORDER BY ra.starts_at DESC, ra.created_at DESC, ra.id`, userID).
+		Scan(&views).Error
+	return views, err
+}
+
+func (r *GormUserRepository) FindRoleAssignmentForUpdate(ctx context.Context, userID, id string) (*RoleAssignment, error) {
+	var assignments []RoleAssignment
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ? AND user_id = ?", id, userID).
+		Limit(1).
+		Find(&assignments).Error
+	if err != nil || len(assignments) == 0 {
+		return nil, err
+	}
+	return &assignments[0], nil
+}
+
+func (r *GormUserRepository) HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error) {
+	query := r.db.WithContext(ctx).Model(&RoleAssignment{}).
+		Where("role = ? AND scope_type = ?", filter.Role, filter.ScopeType).
+		// Two ranges overlap when each starts before the other ends.
+		Where("ends_at IS NULL OR ends_at > ?", filter.StartsAt)
+	if filter.EndsAt != nil {
+		query = query.Where("starts_at < ?", *filter.EndsAt)
+	}
+	if filter.ScopeID == nil {
+		query = query.Where("scope_id IS NULL")
+	} else {
+		query = query.Where("scope_id = ?", *filter.ScopeID)
+	}
+	if filter.UserID != "" {
+		query = query.Where("user_id = ?", filter.UserID)
+	}
+	var count int64
+	err := query.Count(&count).Error
+	return count > 0, err
+}
+
+// LockDepartmentForUpdate reports whether the department exists and holds a
+// row lock on it, so two HOD grants for one department run one after another.
+func (r *GormUserRepository) LockDepartmentForUpdate(ctx context.Context, id string) (bool, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).
+		Raw("SELECT id FROM departments WHERE id = ? FOR UPDATE", id).
+		Scan(&ids).Error
+	return len(ids) > 0, err
+}
+
+// LockAdminAssignmentsInEffect locks every admin assignment in effect now held
+// by an active user, so two admins can't end each other's role at once and
+// leave the college with none.
+func (r *GormUserRepository) LockAdminAssignmentsInEffect(ctx context.Context) ([]RoleAssignment, error) {
+	var assignments []RoleAssignment
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT ra.* FROM role_assignments ra
+		JOIN users u ON u.id = ra.user_id
+		WHERE ra.role = ? AND u.status = ?
+		  AND ra.starts_at <= now() AND (ra.ends_at IS NULL OR ra.ends_at > now())
+		FOR UPDATE OF ra`, RoleAdmin, UserStatusActive).
+		Scan(&assignments).Error
+	return assignments, err
+}
+
+func (r *GormUserRepository) EndRoleAssignment(ctx context.Context, id string, endsAt time.Time) error {
+	return r.db.WithContext(ctx).Model(&RoleAssignment{}).Where("id = ?", id).Update("ends_at", endsAt).Error
+}
+
+// ClearDepartmentHOD removes the user as the department's named HOD, if they are.
+func (r *GormUserRepository) ClearDepartmentHOD(ctx context.Context, departmentID, userID string) error {
+	return r.db.WithContext(ctx).
+		Exec("UPDATE departments SET hod_user_id = NULL, updated_at = now() WHERE id = ? AND hod_user_id = ?", departmentID, userID).
+		Error
 }
 
 func (r *GormUserRepository) CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error {
@@ -206,8 +297,12 @@ func (r *GormRefreshTokenRepository) RevokeIfActive(ctx context.Context, hash st
 	return nil
 }
 
+// RevokeAllByUserID revokes the user's refresh tokens that are still usable,
+// leaving already revoked ones with their original time.
 func (r *GormRefreshTokenRepository) RevokeAllByUserID(ctx context.Context, userID string) error {
-	return r.db.WithContext(ctx).Model(&RefreshToken{}).Where("user_id = ?", userID).Update("revoked_at", time.Now()).Error
+	return r.db.WithContext(ctx).Model(&RefreshToken{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Update("revoked_at", time.Now()).Error
 }
 
 // GormActivationTokenRepository implements ActivationTokenRepository.

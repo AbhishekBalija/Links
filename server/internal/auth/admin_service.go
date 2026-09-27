@@ -33,7 +33,7 @@ func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, er
 		}
 		if u.StudentIdentity != nil {
 			departmentCode := ""
-			if code, err := ValidateUSN(u.StudentIdentity.USN); err == nil {
+			if code, err := ValidateUSNFormat(u.StudentIdentity.USN); err == nil {
 				departmentCode = code
 			}
 			pur.StudentIdentity = &PendingUserStudentID{
@@ -172,6 +172,13 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		user.UpdatedAt = time.Now()
 		if err := repos.Users.Update(ctx, user); err != nil {
 			return fmt.Errorf("update user: %w", err)
+		}
+		// A suspended or rejected user is signed out everywhere, not just
+		// refused at their next refresh.
+		if newStatus == UserStatusSuspended || newStatus == UserStatusRejected {
+			if err := repos.RefreshTokens.RevokeAllByUserID(ctx, userID); err != nil {
+				return fmt.Errorf("revoke refresh tokens: %w", err)
+			}
 		}
 
 		auditLog := &AuditLog{
