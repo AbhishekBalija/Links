@@ -67,7 +67,7 @@ Deliverables:
 - Student coordinator proposal flow (API built)
 - HOD review (API built)
 - Principal/admin final approval (API built)
-- RSVP/interest tracking (API built)
+- RSVP/interest tracking (API built; the Events list, event page and answering are built)
 - Participant export (API built)
 - Event cancellation flow (API built)
 

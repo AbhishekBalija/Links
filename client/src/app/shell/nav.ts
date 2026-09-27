@@ -1,4 +1,4 @@
-import { House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
+import { CalendarDays, House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -21,6 +21,7 @@ export const approverRoles = ['hod', 'principal', 'admin']
 const items: NavItem[] = [
   { to: '/', label: 'Home', icon: House },
   { to: '/notices', label: 'Notices', icon: Newspaper },
+  { to: '/events', label: 'Events', icon: CalendarDays },
   { to: '/people', label: 'People', icon: Users, also: ['/departments'] },
   { to: '/approvals', label: 'Approval queue', short: 'Approvals', icon: ListChecks, roles: approverRoles },
   { to: '/mine', label: 'My announcements', short: 'Mine', icon: PenLine, roles: posterRoles },
@@ -39,13 +40,19 @@ export function navFor(roles: string[]): NavItem[] {
   return items.filter((item) => !item.roles || item.roles.some((role) => roles.includes(role)))
 }
 
-// The phone's bottom bar fits five tabs. When a role has six, Profile steps
-// out; it stays one tap away from the avatar on Home.
+// The phone's bottom bar fits five tabs. When a role has more, Profile steps
+// out first (it stays one tap away from the avatar on Home), then People
+// (reachable from Home's department link), so HODs keep their work tabs.
 const maxTabs = 5
+const leaveFirst = ['/profile', '/people']
 
 export function tabsFor(roles: string[]): NavItem[] {
-  const all = navFor(roles)
-  return all.length > maxTabs ? all.filter((item) => item.to !== '/profile') : all
+  let tabs = navFor(roles)
+  for (const path of leaveFirst) {
+    if (tabs.length <= maxTabs) break
+    tabs = tabs.filter((item) => item.to !== path)
+  }
+  return tabs
 }
 
 const roleLabels: Record<string, string> = {

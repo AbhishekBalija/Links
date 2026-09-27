@@ -120,13 +120,17 @@ Top bar:
 ### Mobile
 
 Use bottom navigation for student-heavy routes. Today's tabs are Home,
-Notices, People and Profile, plus Approvals and Mine for the roles that have
-them; Events and Jobs join as those screens ship.
+Notices, Events, People and Profile, plus Approvals and Mine for the roles
+that have them; Jobs joins when that screen ships.
 
 The bar holds at most five tabs. When a role would have more, Profile leaves
-the bar and stays one tap away from the avatar on Home. Department pages open
-from People, a profile or Home's date line, and count as People in the
-navigation.
+the bar first (it stays one tap away from the avatar on Home), then People
+(reachable from Home's department link), so an HOD keeps Home, Notices,
+Events, Approvals and Mine. Department pages open from People, a profile or
+Home's date line, and count as People in the navigation.
+
+An open event, like the composer, hides the tab bar on phones: its answer bar
+takes the bottom of the screen, the one place to act.
 
 Secondary pages can live behind a menu:
 

@@ -9,6 +9,8 @@ import { useRefetchAtExpiry } from '../../notices/useRefetchAtExpiry'
 import { useQueue } from '../../announcements/api'
 import { waited } from '../../announcements/status'
 import { audienceLabel } from '../../notices/format'
+import { useEventFeed } from '../../events/api'
+import { EventRow } from '../../events/components/EventRow'
 import { useDashboard, type Dashboard } from '../api'
 
 function greeting(now: Date) {
@@ -87,6 +89,7 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
       <div className={cn('grid items-start gap-5 lg:gap-7', mine && 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]')}>
         {approvals && <ReviewPanel approvals={approvals} />}
         {mine && <MinePanel mine={mine} />}
+        <ComingUp />
         <LatestNotices notices={notices.items} />
       </div>
     </>
@@ -141,6 +144,31 @@ function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approval
           })}
         </ul>
       )}
+    </section>
+  )
+}
+
+// ComingUp shows the next two Events for the reader. Home stays quiet when
+// nothing is coming up, so the block only appears with something in it.
+function ComingUp() {
+  const feed = useEventFeed('upcoming', null, 2)
+  const events = feed.data?.pages[0]?.data ?? []
+  if (events.length === 0) return null
+  return (
+    <section aria-labelledby="coming-h" className="flex flex-col gap-3 lg:col-start-1">
+      <div className="flex items-baseline justify-between px-1 lg:px-0">
+        <h2 id="coming-h" className="font-serif text-xl font-medium">
+          Coming up
+        </h2>
+        <Link to="/events" className="text-sm font-semibold">
+          All events →
+        </Link>
+      </div>
+      <ul className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface lg:gap-0.5 lg:p-1.5 [&>li+li]:shadow-[0_-1px_0_#efe9de] lg:[&>li+li]:shadow-none">
+        {events.map((event) => (
+          <EventRow key={event.id} event={event} />
+        ))}
+      </ul>
     </section>
   )
 }
