@@ -171,6 +171,25 @@ update uses a small `Optional[T]` type whose `UnmarshalJSON` runs whenever the
 key is present, even for `null`, so it records "was sent" separately from the
 value. Leaving `capacity` out keeps it; sending `"capacity": null` removes the
 limit.
+
+## Member Directory
+
+### Why share the profile privacy rules through a type instead of repeating them in the directory's SQL?
+
+Two copies of "who may see this email" drift apart: someone fixes one and
+forgets the other, and the directory starts leaking what the profile page
+hides. The `profiles.Privacy` type holds the rules once, and both the profile
+endpoint and the directory call it. The directory's SQL only does the part
+that must happen in the database to paginate correctly (leave out hidden,
+suspended or role-less members).
+
+### Why paginate the directory by name with a (name, id) cursor?
+
+People look for someone by name, so alphabetical order is what they expect.
+Names aren't unique, so the cursor carries the user ID too, and the query asks
+for rows after `(lower(full_name), id)`. Every member appears exactly once
+across pages even when two share a name, and new sign-ups don't shift pages
+the way an offset would.
 ## Role Management
 
 ### Why end a role by setting `ends_at` instead of deleting the row?
