@@ -24,3 +24,19 @@ func TestMigrationFilesReturnsSortedUpMigrations(t *testing.T) {
 		t.Fatalf("migration files = %v, want %v", files, want)
 	}
 }
+
+func TestPendingMigrationsSkipsAppliedOnesInOrder(t *testing.T) {
+	t.Parallel()
+
+	all := []string{"001_a.up.sql", "002_b.up.sql", "003_c.up.sql", "004_d.up.sql"}
+	applied := map[string]bool{"001_a.up.sql": true, "003_c.up.sql": true}
+
+	got := pendingMigrations(all, applied)
+	want := []string{"002_b.up.sql", "004_d.up.sql"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("pending = %v, want %v", got, want)
+	}
+	if none := pendingMigrations(all, map[string]bool{"001_a.up.sql": true, "002_b.up.sql": true, "003_c.up.sql": true, "004_d.up.sql": true}); len(none) != 0 {
+		t.Fatalf("pending = %v, want none when everything is applied", none)
+	}
+}
