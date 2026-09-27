@@ -33,6 +33,7 @@ func (h *Handler) List(c *gin.Context) {
 		Department: c.Query("department"),
 		Role:       c.Query("role"),
 		Batch:      c.Query("batch"),
+		Q:          c.Query("q"),
 		Limit:      c.Query("limit"),
 		Cursor:     c.Query("cursor"),
 	})

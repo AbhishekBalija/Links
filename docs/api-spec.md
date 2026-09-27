@@ -514,6 +514,18 @@ An unknown Department, a role that isn't a LINKS role, a batch out of range,
 or a bad `limit` or `cursor` is `400 VALIDATION_ERROR` with the field in
 `details`.
 
+Search: `q` matches `full_name`, `username` and `headline`, case-insensitively
+and with typos (`ash`, `ASHA`, `ahsa` and `asha rau` all find "Asha Rao"). It
+combines with the filters. With `q` the best matches come first (ties by
+name), up to 50 in one response with no `next_cursor`; `limit` is ignored and
+sending `cursor` with `q` is `400`. A `q` shorter than 2 characters is ignored
+(the normal list comes back); longer than 100 is `400`. The USN is never
+searched.
+
+A result matches when the text contains `q`, when a word is close enough by
+trigram similarity (`pg_trgm` `word_similarity` of at least 0.3), or, for a
+one-word `q`, when a name word has the same letters (a swapped-letter typo).
+
 ```json
 {
   "data": [
