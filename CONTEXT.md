@@ -77,7 +77,7 @@ An academic B.E. department of the college, identified by its Department code, w
 _Avoid_: branch
 
 **Department code**:
-The two-letter VTU course code of a Department (`CS`, `AD`, `AI`, `CV`, `EC`, `ME`), also part of every USN in that Department. Never changes once created.
+The two-letter VTU course code of a Department (`CS`, `AD`, `AI`, `CV`, `EC`, `ME`), also part of every USN in that Department. Never changes once created. The `departments` table is the only list of codes (ADR 0021).
 
 ## Campus hub
 
