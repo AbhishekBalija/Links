@@ -120,7 +120,8 @@ Top bar:
 ### Mobile
 
 Use bottom navigation for student-heavy routes. Today's tabs are Home,
-Notices, Events, People and Profile, plus Approvals and Mine for the roles
+Notices, Events, People and Profile, plus Approvals and Mine (My posts on
+desktop: a poster's announcements and event proposals together) for the roles
 that have them; Jobs joins when that screen ships.
 
 The bar holds at most five tabs. When a role would have more, Profile leaves

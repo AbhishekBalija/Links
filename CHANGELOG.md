@@ -14,6 +14,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Proposing events from the app: a proposal form (kind, title, when, where,
+  who's invited and a seat limit) that says who reviews it before you send
+  it, keeps drafts, and asks before you leave with changes. My announcements
+  becomes **My posts**: announcements and events together under Needs you,
+  Drafts, Waiting, Live and Ended, with one New button. Each proposal has its
+  own page with its history and the actions its status allows: edit and
+  resubmit, delete a draft, or cancel with a reason.
 - Events screens: an Events tab listing what's coming up for you by week
   (Upcoming, Going and Past, and by type), each with your answer and the
   seats left; an event page with one Going / Interested / Can't go control

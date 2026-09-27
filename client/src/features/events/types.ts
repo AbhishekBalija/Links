@@ -31,12 +31,32 @@ export type EventAudienceRule = {
   role?: string
 }
 
+export type EventStatus =
+  | 'draft'
+  | 'submitted'
+  | 'hod_changes_requested'
+  | 'hod_rejected'
+  | 'hod_approved'
+  | 'final_changes_requested'
+  | 'final_rejected'
+  | 'published'
+  | 'cancelled'
+
+// One reviewer's decision, at the HOD stage or at final approval.
+export type Review = {
+  stage: 'hod' | 'final'
+  decision: 'approve' | 'request_changes' | 'reject'
+  note?: string
+  reviewer_name: string
+  decided_at: string
+}
+
 export type CampusEvent = {
   id: string
   title: string
   description: string
   event_type: EventType
-  status: string
+  status: EventStatus
   proposer_id: string
   proposer_name: string
   department: { id: string; code: string } | null
@@ -46,8 +66,14 @@ export type CampusEvent = {
   ends_at: string
   capacity: number | null
   audience: EventAudienceRule[] | null
+  submitted_at?: string
+  published_at?: string
   cancelled_at?: string
   cancel_reason?: string
+  created_at: string
+  updated_at: string
+  // Every decision so far, oldest first. Empty for readers.
+  reviews?: Review[]
   // Set on feed items only.
   rsvp?: AnswerSummary
 }
@@ -55,3 +81,20 @@ export type CampusEvent = {
 export type Show = 'upcoming' | 'going' | 'past'
 
 export type FeedMeta = { next_cursor?: string }
+
+// The proposer's own list, one status group at a time (GET /events/mine).
+export type MineEventFilter = 'draft' | 'waiting' | 'attention' | 'live' | 'ended'
+
+// What the proposal form sends. Dates are ISO strings; null capacity means
+// no limit.
+export type EventInput = {
+  title: string
+  description: string
+  event_type: EventType
+  department_id: string | null
+  location: string
+  starts_at: string
+  ends_at: string
+  capacity: number | null
+  audience: { department_id?: string; batch_year?: number; role?: string }[]
+}

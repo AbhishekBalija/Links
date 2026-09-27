@@ -18,10 +18,12 @@ const NoticeDetail = lazy(() => import('../features/notices/pages/NoticeDetail')
 const ApprovalQueue = lazy(() => import('../features/announcements/pages/ApprovalQueue'))
 const Compose = lazy(() => import('../features/announcements/pages/Compose'))
 const MyAnnouncement = lazy(() => import('../features/announcements/pages/MyAnnouncement'))
-const MyAnnouncements = lazy(() => import('../features/announcements/pages/MyAnnouncements'))
+const MyPosts = lazy(() => import('../features/posts/pages/MyPosts'))
 const EditProfile = lazy(() => import('../features/profiles/pages/EditProfile'))
 const Events = lazy(() => import('../features/events/pages/Events'))
 const EventDetail = lazy(() => import('../features/events/pages/EventDetail'))
+const MyEvent = lazy(() => import('../features/events/pages/MyEvent'))
+const Propose = lazy(() => import('../features/events/pages/Propose'))
 const People = lazy(() => import('../features/people/pages/People'))
 const Profile = lazy(() => import('../features/people/pages/Profile'))
 const MyProfile = lazy(() => import('../features/people/pages/MyProfile'))
@@ -44,8 +46,9 @@ export function AppRouter() {
           <Route path="/" element={<Home />} />
           <Route path="/notices" element={<Notices />} />
           <Route path="/notices/:id" element={<NoticeDetail />} />
-          <Route path="/mine" element={<MyAnnouncements />} />
+          <Route path="/mine" element={<MyPosts />} />
           <Route path="/mine/:id" element={<MyAnnouncement />} />
+          <Route path="/mine/events/:id" element={<MyEvent />} />
           <Route element={<ApproverRoute />}>
             <Route path="/approvals" element={<ApprovalQueue />} />
             <Route path="/approvals/:id" element={<ApprovalQueue />} />
@@ -53,6 +56,8 @@ export function AppRouter() {
           <Route element={<PosterRoute />}>
             <Route path="/mine/new" element={<Compose />} />
             <Route path="/mine/:id/edit" element={<Compose />} />
+            <Route path="/mine/events/new" element={<Propose />} />
+            <Route path="/mine/events/:id/edit" element={<Propose />} />
           </Route>
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
@@ -69,7 +74,8 @@ export function AppRouter() {
   )
 }
 
-// PosterRoute keeps the composer to roles that can post. The server checks
+// PosterRoute keeps the composer and the proposal form to roles that can
+// post (the same roles propose events). The server checks
 // again; this only saves others a screen that would refuse them.
 function PosterRoute() {
   const roles = useAuthStore((s) => s.user?.roles) ?? []

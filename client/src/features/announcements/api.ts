@@ -21,15 +21,6 @@ export function useMine(filter: MineFilter | null) {
   })
 }
 
-// useSentBack loads everything waiting on the author's changes. It is short,
-// so one page of 50 is plenty.
-export function useSentBack() {
-  return useQuery({
-    queryKey: ['mine', 'attention'],
-    queryFn: ({ signal }) => apiRequest<Authored[]>(`${base}/mine?status=attention&limit=50`, { signal }),
-  })
-}
-
 export function useAuthored(id: string | undefined) {
   return useQuery({
     queryKey: ['mine', 'one', id],
@@ -51,9 +42,11 @@ export function useDepartments() {
 
 // usePreview asks the server what posting would do (publish now or go to an
 // approver) and how many people the Audience reaches.
-export function usePreview(category: Category, audience: RuleInput[]) {
+// Without a category (an event's audience) there is nothing to preview.
+export function usePreview(category: Category | undefined, audience: RuleInput[]) {
   return useQuery({
     queryKey: ['preview', category, audience],
+    enabled: category !== undefined,
     staleTime: 60_000,
     placeholderData: keepPreviousData,
     queryFn: ({ signal }) =>
