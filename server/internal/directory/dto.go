@@ -32,6 +32,8 @@ type ListQuery struct {
 
 type ListMeta struct {
 	NextCursor string `json:"next_cursor,omitempty"`
+	// Total is how many members match the filters (and search) in all.
+	Total int `json:"total"`
 }
 
 // Overview is a Department's page: who leads and teaches it, and how many

@@ -96,6 +96,25 @@ func escapeLike(q string) string {
 	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
 }
 
+// MemberByID reads one member whether or not the directory lists them.
+func (r *GormRepository) MemberByID(ctx context.Context, userID string) (*Member, error) {
+	var members []Member
+	err := r.db.WithContext(ctx).Raw(`SELECT `+memberColumns+` `+memberFrom+` WHERE u.id = ?`, userID).Scan(&members).Error
+	if err != nil || len(members) == 0 {
+		return nil, err
+	}
+	return &members[0], nil
+}
+
+// Count is how many listed members match the filter.
+func (r *GormRepository) Count(ctx context.Context, filter Filter) (int, error) {
+	conditions, args := filterConditions(filter)
+	var count int
+	err := r.db.WithContext(ctx).Raw(`SELECT count(*) `+memberFrom+` WHERE `+strings.Join(conditions, " AND "), args...).
+		Scan(&count).Error
+	return count, err
+}
+
 // filterConditions turns a Filter into SQL. A member belongs to a Department
 // through their Student identity or any Department-scoped role in effect.
 func filterConditions(filter Filter) ([]string, []any) {

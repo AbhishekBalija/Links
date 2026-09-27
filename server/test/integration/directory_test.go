@@ -28,6 +28,7 @@ type directoryPage struct {
 	Data []directoryEntry `json:"data"`
 	Meta struct {
 		NextCursor string `json:"next_cursor"`
+		Total      *int   `json:"total"`
 	} `json:"meta"`
 }
 
@@ -236,6 +237,42 @@ func TestDirectoryPagesThroughEveryoneOnceInOrder(t *testing.T) {
 	}
 	if !sameNames(got, want) {
 		t.Fatalf("paged directory = %v, want %v", got, want)
+	}
+}
+
+func TestDirectoryTotalCountsEveryMatchAcrossPages(t *testing.T) {
+	h := apitest.New(t)
+	viewer := member(t, h, "Aaron Viewer", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "student"}}, Student: &apitest.StudentSeed{DepartmentCode: "EC", BatchYear: 2023}})
+	for _, name := range []string{"Bala", "Chitra", "Dev", "Esha"} {
+		member(t, h, name, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "student"}}, Student: &apitest.StudentSeed{DepartmentCode: "CS", BatchYear: 2023}})
+	}
+	member(t, h, "Farah", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "student"}}, Student: &apitest.StudentSeed{DepartmentCode: "CS", BatchYear: 2024}})
+	hidden := member(t, h, "Hidden", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "student"}}, Student: &apitest.StudentSeed{DepartmentCode: "CS", BatchYear: 2023}})
+	if err := h.DB().Exec(`UPDATE profiles SET public_profile_enabled = false WHERE user_id = ?`, hidden.ID).Error; err != nil {
+		t.Fatalf("hide profile: %v", err)
+	}
+
+	cases := []struct {
+		name  string
+		query url.Values
+		want  int
+	}{
+		{"department", url.Values{"department": {"CS"}, "limit": {"2"}}, 5},
+		{"department and batch", url.Values{"department": {"CS"}, "batch": {"2023"}, "limit": {"2"}}, 4},
+		{"search", url.Values{"department": {"CS"}, "q": {"dev"}}, 1},
+	}
+	for _, c := range cases {
+		page := directory(t, h, viewer.Token, c.query)
+		if page.Meta.Total == nil || *page.Meta.Total != c.want {
+			t.Errorf("%s: total = %v, want %d", c.name, page.Meta.Total, c.want)
+		}
+	}
+
+	// Later pages carry the same total.
+	first := directory(t, h, viewer.Token, url.Values{"department": {"CS"}, "limit": {"2"}})
+	second := directory(t, h, viewer.Token, url.Values{"department": {"CS"}, "limit": {"2"}, "cursor": {first.Meta.NextCursor}})
+	if second.Meta.Total == nil || *second.Meta.Total != 5 {
+		t.Errorf("second page total = %v, want 5", second.Meta.Total)
 	}
 }
 

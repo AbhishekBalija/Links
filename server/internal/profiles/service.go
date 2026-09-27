@@ -15,14 +15,34 @@ type UserReader interface {
 	FindPhoneByUserID(ctx context.Context, userID string) (*string, error)
 }
 
-type Service struct {
-	repo       ProfileRepository
-	userReader UserReader
-	unitOfWork UnitOfWork
+// Membership is who a member is at the college: their roles in effect, most
+// senior first, their Department and, for students, their Batch.
+type Membership struct {
+	Roles      []string
+	Department *MembershipDepartment
+	BatchYear  *int
 }
 
-func NewService(repo ProfileRepository, userReader UserReader, unitOfWork UnitOfWork) *Service {
-	return &Service{repo: repo, userReader: userReader, unitOfWork: unitOfWork}
+type MembershipDepartment struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// MembershipReader reads a member's Membership. The directory implements it,
+// so a profile and a directory entry describe a member the same way.
+type MembershipReader interface {
+	Membership(ctx context.Context, userID string) (*Membership, error)
+}
+
+type Service struct {
+	repo        ProfileRepository
+	userReader  UserReader
+	memberships MembershipReader
+	unitOfWork  UnitOfWork
+}
+
+func NewService(repo ProfileRepository, userReader UserReader, memberships MembershipReader, unitOfWork UnitOfWork) *Service {
+	return &Service{repo: repo, userReader: userReader, memberships: memberships, unitOfWork: unitOfWork}
 }
 
 func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerID *string) (*ProfileResponse, error) {
@@ -39,6 +59,16 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerI
 	}
 
 	resp := s.profileToResponse(ctx, profile, viewerID)
+	// Roles, Department and Batch are for members only, like the directory.
+	if viewerID != nil {
+		membership, err := s.memberships.Membership(ctx, profile.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("read membership: %w", err)
+		}
+		resp.Roles = membership.Roles
+		resp.Department = membership.Department
+		resp.BatchYear = membership.BatchYear
+	}
 	return resp, nil
 }
 

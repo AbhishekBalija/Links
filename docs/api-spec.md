@@ -192,6 +192,17 @@ Returns the authenticated user's identity, profile, and student identity.
 }
 ```
 
+### `GET /api/v1/profiles/:username`
+
+Works without a token. A public profile is visible to everyone, a private one
+only to its owner (`404` for anyone else). Email and phone appear only for the
+owner or when the owner opted in.
+
+Signed-in viewers also get who the member is at the college, described exactly
+as a directory entry describes them: `roles` (in effect, most senior first),
+`department` (`{code, name}`) and, for students, `batch_year`. Anonymous
+visitors never get these fields.
+
 ## Dashboards, Search, and Reports
 
 ```text
@@ -727,7 +738,8 @@ GET /api/v1/directory
 Any signed-in member (`view_public_profiles`); `401` without a token. Lists
 members alphabetically by `full_name` (case-insensitive), then by user ID,
 cursor-paginated: `limit` 1 to 50 (default 20), `cursor` from
-`meta.next_cursor`.
+`meta.next_cursor`. `meta.total` is how many members match the filters in all,
+the same on every page.
 
 Who appears: active, verified accounts with a public profile and at least one
 role in effect now. Suspended, pending and rejected accounts, hidden profiles
@@ -748,7 +760,8 @@ Search: `q` matches `full_name`, `username` and `headline`, case-insensitively
 and with typos (`ash`, `ASHA`, `ahsa` and `asha rau` all find "Asha Rao"). It
 combines with the filters. With `q` the best matches come first (ties by
 name), up to 50 in one response with no `next_cursor`; `limit` is ignored and
-sending `cursor` with `q` is `400`. A `q` shorter than 2 characters is ignored
+sending `cursor` with `q` is `400`. `meta.total` is the number of matches
+returned. A `q` shorter than 2 characters is ignored
 (the normal list comes back); longer than 100 is `400`. The USN is never
 searched.
 
@@ -778,7 +791,7 @@ one-word `q`, when a name word has the same letters (a swapped-letter typo).
       "batch_year": 2023
     }
   ],
-  "meta": { "next_cursor": "..." }
+  "meta": { "next_cursor": "...", "total": 412 }
 }
 ```
 

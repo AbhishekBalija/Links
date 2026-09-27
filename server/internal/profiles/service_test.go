@@ -86,6 +86,13 @@ func (u *fakeProfileUnitOfWork) WithinTransaction(ctx context.Context, fn func(R
 	return fn(Repositories{Profiles: u.profiles, AuditLogs: u.auditLogs})
 }
 
+// fakeMemberships gives every member the same Membership.
+type fakeMemberships struct{}
+
+func (fakeMemberships) Membership(context.Context, string) (*Membership, error) {
+	return &Membership{Roles: []string{"student"}}, nil
+}
+
 type profileHarness struct {
 	service   *Service
 	repo      *fakeProfileRepo
@@ -99,7 +106,7 @@ func newProfileHarness() *profileHarness {
 	auditLogs := &fakeAuditLogRepo{}
 	uow := &fakeProfileUnitOfWork{profiles: repo, auditLogs: auditLogs}
 	return &profileHarness{
-		service:   NewService(repo, reader, uow),
+		service:   NewService(repo, reader, fakeMemberships{}, uow),
 		repo:      repo,
 		reader:    reader,
 		auditLogs: auditLogs,
