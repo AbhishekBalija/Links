@@ -155,6 +155,15 @@ resubmitting goes back to `submitted` (the HOD's queue);
 `hod_approved` (their queue) and the HOD isn't asked again. No extra column is
 needed, and a unit test pins the whole table of moves.
 
+### How does the capacity limit hold when two people RSVP at the same moment?
+
+Counting "going" answers and then inserting one is a check-then-act race: two
+requests can both count 39 of 40 and both insert. The RSVP transaction first
+locks the Event row with `SELECT ... FOR UPDATE`, so the second request waits
+until the first commits, then counts 40 and gets `409 event is full`. A test
+fires six requests at a one-seat event at once and checks that exactly one
+gets in.
+
 ### How does a PATCH tell "leave this field alone" from "clear it"?
 
 In Go, a missing JSON field and `null` both leave a pointer nil. The event

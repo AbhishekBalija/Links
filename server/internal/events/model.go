@@ -158,6 +158,40 @@ type Repository interface {
 	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
 	Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
 	VisibleTo(ctx context.Context, reader Reader, id string) (bool, error)
+	FindRSVP(ctx context.Context, eventID, userID string) (*RSVP, error)
+	SaveRSVP(ctx context.Context, rsvp *RSVP) error
+	RSVPCounts(ctx context.Context, eventID string) (map[RSVPStatus]int, error)
+	RSVPPeople(ctx context.Context, eventID string, after *Cursor, limit int) ([]RSVPPerson, error)
+}
+
+// RSVPStatus is a reader's answer to an Event.
+type RSVPStatus string
+
+const (
+	RSVPGoing      RSVPStatus = "going"
+	RSVPInterested RSVPStatus = "interested"
+	RSVPNotGoing   RSVPStatus = "not_going"
+)
+
+// RSVP is one reader's answer; one per reader per Event.
+type RSVP struct {
+	ID        string     `gorm:"column:id;primaryKey"`
+	EventID   string     `gorm:"column:event_id"`
+	UserID    string     `gorm:"column:user_id"`
+	Status    RSVPStatus `gorm:"column:status"`
+	CreatedAt time.Time  `gorm:"column:created_at"`
+	UpdatedAt time.Time  `gorm:"column:updated_at"`
+}
+
+func (RSVP) TableName() string { return "event_rsvps" }
+
+// RSVPPerson is an RSVP with who gave it, for the Event's organisers.
+type RSVPPerson struct {
+	UserID    string     `gorm:"column:user_id"`
+	FullName  string     `gorm:"column:full_name"`
+	Username  string     `gorm:"column:username"`
+	Status    RSVPStatus `gorm:"column:status"`
+	UpdatedAt time.Time  `gorm:"column:updated_at"`
 }
 
 // Membership is one role a reader holds with the Department it belongs to

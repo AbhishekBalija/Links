@@ -28,6 +28,8 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	events.GET("/mine", h.Mine)
 	events.GET("/reviews", h.Queue)
 	events.GET("/:id", h.Get)
+	events.POST("/:id/rsvp", h.RSVP)
+	events.GET("/:id/rsvps", h.RSVPs)
 	events.PATCH("/:id", h.Update)
 	events.POST("/:id/submit-for-approval", h.Submit)
 	events.PATCH("/:id/hod-review", h.review(StageHOD, auth.PermissionReviewBranchEvent))
@@ -218,4 +220,39 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusOK, event, nil)
+}
+
+func (h *Handler) RSVP(c *gin.Context) {
+	actor := h.authorize(c, auth.PermissionViewTargetedNotices)
+	if actor == nil {
+		return
+	}
+	var input RSVPInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	summary, err := h.service.RSVP(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, summary, nil)
+}
+
+func (h *Handler) RSVPs(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	limit, ok := parseLimit(c)
+	if !ok {
+		return
+	}
+	summary, meta, err := h.service.RSVPs(c.Request.Context(), actor.UserID, c.Param("id"), c.Query("cursor"), limit)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, summary, meta)
 }

@@ -274,3 +274,50 @@ func (r *GormRepository) DepartmentIDByCode(ctx context.Context, code string) (*
 	}
 	return &ids[0], nil
 }
+
+func (r *GormRepository) FindRSVP(ctx context.Context, eventID, userID string) (*RSVP, error) {
+	var rsvps []RSVP
+	err := r.db.WithContext(ctx).Where("event_id = ? AND user_id = ?", eventID, userID).Limit(1).Find(&rsvps).Error
+	if err != nil || len(rsvps) == 0 {
+		return nil, err
+	}
+	return &rsvps[0], nil
+}
+
+func (r *GormRepository) SaveRSVP(ctx context.Context, rsvp *RSVP) error {
+	if rsvp.ID == "" {
+		rsvp.ID = uuid.NewString()
+		return r.db.WithContext(ctx).Create(rsvp).Error
+	}
+	return r.db.WithContext(ctx).Save(rsvp).Error
+}
+
+func (r *GormRepository) RSVPCounts(ctx context.Context, eventID string) (map[RSVPStatus]int, error) {
+	var rows []struct {
+		Status RSVPStatus `gorm:"column:status"`
+		Count  int        `gorm:"column:count"`
+	}
+	err := r.db.WithContext(ctx).Raw(`SELECT status, count(*) AS count FROM event_rsvps WHERE event_id = ? GROUP BY status`, eventID).Scan(&rows).Error
+	counts := map[RSVPStatus]int{}
+	for _, row := range rows {
+		counts[row.Status] = row.Count
+	}
+	return counts, err
+}
+
+// RSVPPeople lists who answered, earliest answer first.
+func (r *GormRepository) RSVPPeople(ctx context.Context, eventID string, after *Cursor, limit int) ([]RSVPPerson, error) {
+	query := `SELECT v.user_id, p.full_name, p.username, v.status, v.updated_at
+		FROM event_rsvps v JOIN profiles p ON p.user_id = v.user_id
+		WHERE v.event_id = ?`
+	args := []any{eventID}
+	if after != nil {
+		query += ` AND (v.updated_at, v.user_id) > (?, CAST(? AS uuid))`
+		args = append(args, after.At, after.ID)
+	}
+	query += ` ORDER BY v.updated_at, v.user_id LIMIT ?`
+	args = append(args, limit)
+	var people []RSVPPerson
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&people).Error
+	return people, err
+}

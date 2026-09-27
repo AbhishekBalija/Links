@@ -448,6 +448,19 @@ with its `reviews`; and to a reader in its Audience once it has been
 published (including after it is cancelled), without review notes. Anyone
 else gets `404`, so drafts and proposals stay private.
 
+`POST /api/v1/events/:id/rsvp` with `{"status": "going" | "interested" | "not_going"}`
+records the caller's answer (one per person, changeable). The Event must be
+published and in the caller's Audience (`404` otherwise), not cancelled and
+not started (`409`). `going` when the Event is at capacity is
+`409 CONFLICT` ("the event is full"); the Event row is locked while counting,
+so two people can't take the last seat. Returns the counts and `my_status`.
+
+`GET /api/v1/events/:id/rsvps` returns `{"counts": {"going", "interested",
+"not_going"}, "my_status"}` to anyone who can see the Event. Its organisers
+(the proposer, the Department's HOD, the principal and admins) also get
+`people` (`user_id`, `full_name`, `username`, `status`, `responded_at`),
+earliest answer first, cursor-paginated with `meta.next_cursor`.
+
 `POST /api/v1/events` (roles with `propose_event`: student coordinator,
 faculty, HOD, placement officer, principal, admin) submits a new Event for
 review, or saves it as a draft with `"draft": true`:
