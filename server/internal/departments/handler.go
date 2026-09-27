@@ -30,6 +30,25 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	admin.DELETE("/:code", h.Delete)
 }
 
+// publicListMaxAge lets browsers and the CDN reuse the list for a few minutes;
+// a new department shows up on the sign-up form within that time.
+const publicListMaxAge = "public, max-age=300"
+
+// RegisterPublicRoutes adds the routes that work without a token.
+func (h *Handler) RegisterPublicRoutes(v1 *gin.RouterGroup) {
+	v1.GET("/public/departments", h.ListPublic)
+}
+
+func (h *Handler) ListPublic(c *gin.Context) {
+	result, err := h.service.ListPublic(c.Request.Context())
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Header("Cache-Control", publicListMaxAge)
+	response.Success(c, http.StatusOK, result, nil)
+}
+
 func (h *Handler) List(c *gin.Context) {
 	result, err := h.service.List(c.Request.Context())
 	if err != nil {
