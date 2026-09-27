@@ -117,6 +117,10 @@ type ReviewResponse struct {
 	DecidedAt    time.Time `json:"decided_at"`
 }
 
+type CancelInput struct {
+	Reason string `json:"reason" binding:"max=500"`
+}
+
 type RSVPInput struct {
 	Status string `json:"status" binding:"required"`
 }

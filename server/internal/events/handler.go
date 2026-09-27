@@ -31,6 +31,7 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	events.POST("/:id/rsvp", h.RSVP)
 	events.GET("/:id/rsvps", h.RSVPs)
 	events.GET("/:id/export", h.Export)
+	events.POST("/:id/cancel", h.Cancel)
 	events.PATCH("/:id", h.Update)
 	events.POST("/:id/submit-for-approval", h.Submit)
 	events.PATCH("/:id/hod-review", h.review(StageHOD, auth.PermissionReviewBranchEvent))
@@ -272,4 +273,22 @@ func (h *Handler) Export(c *gin.Context) {
 	c.Header("Content-Disposition", `attachment; filename="event-participants.csv"`)
 	c.Header("Cache-Control", "no-store")
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", file)
+}
+
+func (h *Handler) Cancel(c *gin.Context) {
+	actor := h.signedIn(c)
+	if actor == nil {
+		return
+	}
+	var input CancelInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	event, err := h.service.Cancel(c.Request.Context(), actor.UserID, c.Param("id"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, event, nil)
 }

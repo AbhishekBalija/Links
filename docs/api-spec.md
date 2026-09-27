@@ -338,8 +338,10 @@ GET   /api/v1/events/:id/export
 ```
 
 The workflow and its rules are in ADR 0023. Built so far: creating drafts,
-editing them, the proposer's list, submission, both review stages, the feed
-and the detail.
+editing them, the proposer's list, submission, both review stages, the feed,
+the detail, RSVPs, the export, logistics edits and cancelling. The full list
+of Event endpoints adds `GET /api/v1/events/mine`, `GET /api/v1/events/reviews`
+and `POST /api/v1/events/:id/cancel`.
 
 `GET /api/v1/events` (any signed-in member, `view_targeted_notices`) lists
 published Events whose Audience includes the reader, matched exactly as the
