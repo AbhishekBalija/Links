@@ -142,6 +142,7 @@ func validMineFilter(filter MineFilter) bool {
 type Repository interface {
 	Create(ctx context.Context, event *Event, audience []AudienceRule) error
 	Update(ctx context.Context, event *Event) error
+	DeleteDraft(ctx context.Context, eventID string) error
 	ReplaceAudience(ctx context.Context, eventID string, audience []AudienceRule) error
 	FindForUpdate(ctx context.Context, id string) (*Event, error)
 	Find(ctx context.Context, id string) (*View, error)

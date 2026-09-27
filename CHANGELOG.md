@@ -14,6 +14,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Proposers can delete their own event drafts. Anything already submitted is
+  cancelled instead, so its history stays.
 - The event feed carries each Event's answer counts and your own answer,
   lists upcoming, going or past Events (`show`), and keeps a cancelled Event
   in view, until it ends, for the people who answered it.
