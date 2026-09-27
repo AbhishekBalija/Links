@@ -51,7 +51,7 @@ function PhoneBar() {
       <span className="px-1 font-serif text-[26px] font-semibold tracking-[-0.4px] text-ink">Links</span>
       <span className="flex items-center gap-1">
         <LogoutButton iconOnly />
-        <Link to="/profile/edit" aria-label="Your profile" className="flex min-h-11 min-w-11 items-center justify-center rounded-full">
+        <Link to="/profile" aria-label="Your profile" className="flex min-h-11 min-w-11 items-center justify-center rounded-full">
           <Avatar name={name} />
         </Link>
       </span>
@@ -68,7 +68,14 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
       <header className="flex flex-col gap-1.5 px-1 lg:gap-2 lg:px-0">
         <p className="font-mono text-[11px] uppercase tracking-[1.2px] text-ink-3 lg:text-xs">
           {dateLine}
-          {user.department && ` · ${user.department.code}`}
+          {user.department && (
+            <>
+              {' · '}
+              <Link to={`/departments/${user.department.code}`} className="text-ink-3 hover:text-rust">
+                {user.department.code}
+              </Link>
+            </>
+          )}
         </p>
         <h1 className="font-serif text-[30px] leading-[1.1] font-medium tracking-[-0.5px] lg:text-[44px] lg:leading-[1.08] lg:tracking-[-0.8px]">
           {greeting(now)}, {firstName(user.full_name)}

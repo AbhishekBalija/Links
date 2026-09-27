@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { getDatabaseURL, getSchemaClient, replaceActivationToken } from '../helpers/db'
 import {
   bootstrapAdmin,
@@ -10,6 +10,15 @@ import {
   cleanupTestUsers,
   expectHome,
 } from '../helpers/auth'
+
+// openEditProfile goes the way a member would: Profile in the sidebar, then
+// Edit profile on their profile page.
+async function openEditProfile(page: Page) {
+  await page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Profile' }).click()
+  await page.waitForURL('**/profile')
+  await page.getByRole('link', { name: 'Edit profile' }).click()
+  await page.waitForURL('**/profile/edit')
+}
 
 const TS = Date.now()
 const STUDENT = { email: `e2e-student-${TS}@test.com`, password: 'E2EPass123', phone: '+91 98765 43210', usn: `4MN${String(new Date().getFullYear()).slice(2)}CS${String(TS).slice(-3)}` }
@@ -76,10 +85,9 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
     await expect(page.getByRole('navigation', { name: 'Main' }).getByText('Student', { exact: true })).toBeVisible()
   })
 
-  test('5. Edit Profile — save values', async ({ page }) => {
+  test('5. Edit Profile: save values', async ({ page }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
-    await page.click('a[href="/profile/edit"]')
-    await page.waitForURL('**/profile/edit')
+    await openEditProfile(page)
 
     await page.fill('#headline', 'Computer Science Student')
     await page.fill('#bio', 'A passionate developer building cool things.')
@@ -89,14 +97,14 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 	await page.check('input[type="checkbox"]')
 	await page.click('button:has-text("Save")')
 
-    await page.waitForURL('**/')
-    await expectHome(page)
+    // Saving returns to the profile page, which shows the new headline.
+    await page.waitForURL('**/profile')
+    await expect(page.getByText('Computer Science Student')).toBeVisible()
   })
 
   test('6. Profile edits persist after navigation', async ({ page }) => {
     await loginViaUI(page, STUDENT.email, STUDENT.password)
-    await page.click('a[href="/profile/edit"]')
-    await page.waitForURL('**/profile/edit')
+    await openEditProfile(page)
 
     await expect(page.locator('#headline')).toHaveValue('Computer Science Student')
     await expect(page.locator('#bio')).toHaveValue('A passionate developer building cool things.')
@@ -133,8 +141,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 
 	test('8. Profile edits survive refresh and optional fields can be cleared', async ({ page }) => {
 		await loginViaUI(page, STUDENT.email, STUDENT.password)
-		await page.click('a[href="/profile/edit"]')
-		await page.waitForURL('**/profile/edit')
+		await openEditProfile(page)
 
 		await expect(page.locator('#headline')).toHaveValue('Computer Science Student')
 
@@ -144,9 +151,8 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 		await page.fill('#github', '')
 		await page.fill('#portfolio', '')
 		await page.click('button:has-text("Save")')
-		await page.waitForURL('**/')
-		await page.click('a[href="/profile/edit"]')
-		await page.waitForURL('**/profile/edit')
+		await page.waitForURL('**/profile')
+		await openEditProfile(page)
 		await expect(page.locator('#headline')).toHaveValue('')
 		await expect(page.locator('#linkedin')).toHaveValue('')
 	})

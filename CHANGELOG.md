@@ -30,6 +30,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
   audited). After publishing, organisers can change the description, place,
   times and capacity (each change audited), or cancel with a reason; answers
   are kept.
+- People, profile and department screens (#12). People opens on your own
+  Department, A to Z under letter headings, with search that forgives typos
+  and filters for Department, role and Batch (selects on desktop, chips and
+  one filter sheet on phones). Opening someone shows who they are, what they
+  wrote, the contact details they share (with a copy button) and their
+  Department. Profile shows your own page as others see it, with Edit
+  profile, which now returns there after saving. A Department page lists
+  its HOD, faculty and student coordinators with student numbers by Batch.
+  Home's department code links to it. Phones keep at most five tabs, so an
+  HOD's Profile moves to the avatar on Home.
 - The directory says how many members match (`meta.total`), and a signed-in
   member opening a profile sees that member's roles, Department and Batch.
   Anonymous visitors still see only the profile itself.

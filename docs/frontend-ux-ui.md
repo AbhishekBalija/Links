@@ -119,19 +119,18 @@ Top bar:
 
 ### Mobile
 
-Use bottom navigation for student-heavy routes:
+Use bottom navigation for student-heavy routes. Today's tabs are Home,
+Notices, People and Profile, plus Approvals and Mine for the roles that have
+them; Events and Jobs join as those screens ship.
 
-- Home
-- Events
-- Jobs
-- Notices
-- Profile
+The bar holds at most five tabs. When a role would have more, Profile leaves
+the bar and stays one tap away from the avatar on Home. Department pages open
+from People, a profile or Home's date line, and count as People in the
+navigation.
 
 Secondary pages can live behind a menu:
 
-- Directory
 - Clubs
-- Departments
 - Mentors
 - Saved
 
