@@ -78,7 +78,7 @@ Goal: Build the placement workflow end to end.
 Deliverables:
 
 - Placement officer dashboard
-- Job/internship/training posts
+- Job/internship/training posts (drafts API built; ADR 0024)
 - Eligibility targeting
 - Internal application flow
 - External application tracking

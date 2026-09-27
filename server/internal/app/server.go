@@ -12,6 +12,7 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/directory"
 	"github.com/AbhishekBalija/Links/server/internal/events"
 	"github.com/AbhishekBalija/Links/server/internal/mailer"
+	"github.com/AbhishekBalija/Links/server/internal/opportunities"
 	"github.com/AbhishekBalija/Links/server/internal/profiles"
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
@@ -118,6 +119,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 
 	eventService := events.NewService(events.NewGormRepository(database.GORM()), userRepo, events.NewGormUnitOfWork(database.GORM()))
 	events.NewHandler(eventService, policy).RegisterRoutes(v1)
+
+	opportunityService := opportunities.NewService(opportunities.NewGormRepository(database.GORM()), userRepo, opportunities.NewGormUnitOfWork(database.GORM()))
+	opportunities.NewHandler(opportunityService, policy).RegisterRoutes(v1)
 
 	directoryService := directory.NewService(directory.NewGormRepository(database.GORM()))
 	directory.NewHandler(directoryService, policy).RegisterRoutes(v1)

@@ -118,8 +118,12 @@ A reader's answer to a published Event: going, interested or not going. Going co
 _Avoid_: registration, sign-up
 
 **Opportunity**:
-A job, internship or training posted by the Placement officer to an Audience.
+A job, internship or training posted by placement staff (the Placement officer, the principal or an admin) with an Eligibility. Open while published and before its apply-by date.
 _Avoid_: job post, drive
+
+**Eligibility**:
+The Audience of an Opportunity: who may see it and apply, by Department, Batch and role.
+_Avoid_: criteria, target
 
 **Application**:
 A Student's application to an Opportunity, made inside LINKS (internal) or tracked from an external link. Visible only to the Student, the Placement officer, the Principal and admins.

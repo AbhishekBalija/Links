@@ -301,20 +301,28 @@ event_rsvps (
 
 ### opportunities
 
+One `status` column (ADR 0024): `draft`, `published`, `closed`. "Open" is
+computed: `published` and `apply_by` in the future. An Opportunity's
+Eligibility is its `audience_rules` with `target_type = 'opportunity'`, not a
+JSON column, so it matches exactly like an Announcement's Audience.
+
 ```sql
 opportunities (
   id uuid primary key,
-  title text not null,
-  description text not null,
-  opportunity_type text not null,
-  company_or_source text,
+  opportunity_type text not null,  -- job | internship | training
+  title text not null,             -- the role
+  company text not null,
+  description text not null default '',
   location text,
-  eligibility jsonb not null,
-  application_mode text not null,
-  application_url text,
-  deadline timestamptz,
+  compensation text,               -- free text: stipend or CTC
+  apply_by timestamptz not null,
+  application_mode text not null,  -- internal | external
+  external_url text,               -- check: set exactly when external
+  status text not null,            -- draft | published | closed
   posted_by uuid not null references users(id),
-  status text not null,
+  published_at timestamptz,        -- check: set unless draft
+  closed_at timestamptz,           -- check: set when closed
+  closed_by uuid references users(id),
   created_at timestamptz not null,
   updated_at timestamptz not null
 )
@@ -569,7 +577,8 @@ create index idx_events_department_starts on events (department_id, starts_at);
 create index idx_event_reviews_event on event_reviews (event_id, created_at);
 create unique index idx_event_rsvps_event_user on event_rsvps (event_id, user_id);
 create index idx_event_rsvps_event_status on event_rsvps (event_id, status);
-create index idx_opportunities_status_deadline on opportunities (status, deadline);
+create index idx_opportunities_status_created on opportunities (status, created_at desc, id desc);
+create index idx_opportunities_published_apply_by on opportunities (apply_by, id) where status in ('published', 'closed');
 create index idx_opportunity_applications_opportunity on opportunity_applications (opportunity_id, status);
 create index idx_opportunity_applications_student on opportunity_applications (student_id, status);
 create index idx_audit_logs_resource on audit_logs (resource_type, resource_id, created_at desc);

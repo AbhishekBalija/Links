@@ -660,18 +660,88 @@ newest first, cursor-paginated (`limit` up to 50, `meta.next_cursor`).
 
 ## Opportunities and Applications
 
+The placement workflow is ADR 0024. Built so far: drafts.
+
 ```text
-GET   /api/v1/opportunities
 POST  /api/v1/opportunities
+GET   /api/v1/opportunities/manage
 GET   /api/v1/opportunities/:id
 PATCH /api/v1/opportunities/:id
-POST  /api/v1/opportunities/:id/apply
-GET   /api/v1/opportunities/:id/applications
-PATCH /api/v1/opportunity-applications/:id/status
-POST  /api/v1/opportunities/:id/save
-DELETE /api/v1/opportunities/:id/save
-GET   /api/v1/opportunities/:id/export
 ```
+
+Planned in the same workflow: publishing and the Student feed, Applications
+(internal and "I applied" for external), the applicant list with status
+updates, and the applicant export.
+
+### Opportunities
+
+Placement staff (the placement officer, the principal and admins,
+`post_opportunity`) work as one office: any of them can create, edit and list
+any Opportunity, drafts included. Their roles are read from the database.
+Anyone else gets `403` on these routes.
+
+`POST /api/v1/opportunities` saves a draft (`201`):
+
+```json
+{
+  "opportunity_type": "job",
+  "title": "Graduate Engineer Trainee",
+  "company": "Acme Systems",
+  "description": "...",
+  "location": "Mysuru",
+  "compensation": "4.5 LPA",
+  "apply_by": "2026-10-15T18:30:00Z",
+  "application_mode": "internal",
+  "external_url": null,
+  "eligibility": [{ "department_id": "<uuid>", "batch_year": 2023, "role": "student" }]
+}
+```
+
+- `opportunity_type`: `job`, `internship` or `training`.
+- `title` (the role) 3 to 200 characters; `company` 1 to 200; `description`
+  up to 10,000; `location` and `compensation` optional, up to 200.
+  `compensation` is free text for a stipend or CTC.
+- `apply_by` is required.
+- `application_mode`: `internal` (Students apply in LINKS) or `external`
+  (Students apply on the company's site). `external_url` is required for
+  `external`, must be an `http` or `https` link, and is refused for
+  `internal`.
+- `eligibility` is an Audience, matched as for Announcements (a rule's fields
+  must all match; any rule is enough; empty means everyone), up to 20 rules.
+  An unknown Department is `400`.
+
+`PATCH /api/v1/opportunities/:id` changes only the fields sent; `location`,
+`compensation` and `external_url` can be cleared with `null`, and
+`eligibility` replaces the whole list. The result is checked as on create
+(`400`); an unknown ID is `404`.
+
+`GET /api/v1/opportunities/manage` lists every Opportunity for placement
+staff, newest first: `status` (`draft`, `published`, `closed`), `cursor` and
+`limit` (1 to 50, default 20); the next page is `meta.next_cursor`.
+
+`GET /api/v1/opportunities/:id` returns one Opportunity. For now only
+placement staff can open one; anyone else gets `404`.
+
+Each Opportunity:
+
+```json
+{
+  "id": "uuid",
+  "opportunity_type": "job",
+  "title": "...", "company": "...", "description": "...",
+  "location": "Mysuru", "compensation": "4.5 LPA",
+  "apply_by": "...",
+  "application_mode": "internal", "external_url": null,
+  "eligibility": [{ "department_id": "<uuid>", "department_code": "CS", "batch_year": 2023, "role": "student" }],
+  "status": "draft",
+  "posted_by": { "user_id": "uuid", "full_name": "..." },
+  "published_at": null, "closed_at": null,
+  "created_at": "...", "updated_at": "..."
+}
+```
+
+Creating and editing are audited (`opportunity_created`,
+`opportunity_updated`) in the same transaction.
 
 ## Departments
 

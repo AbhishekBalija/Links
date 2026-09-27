@@ -14,6 +14,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Placement Opportunities (Phase 4, ADR 0024): the placement officer, the
+  principal and admins save jobs, internships and training posts as drafts,
+  with company, role, description, location, stipend or CTC, apply-by date,
+  an internal application or an external link, and Eligibility by
+  Department, Batch and role. Any of them can edit any draft, and they list
+  every Opportunity by status.
 - Events screens: an Events tab listing what's coming up for you by week
   (Upcoming, Going and Past, and by type), each with your answer and the
   seats left; an event page with one Going / Interested / Can't go control
