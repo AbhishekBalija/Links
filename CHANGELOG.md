@@ -14,6 +14,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Member directory (#12): signed-in members can list active members
+  alphabetically, filtered by Department, role and Batch, with roles,
+  Department, Batch for students, and contact details only where the member
+  opted in. Hidden, suspended, pending and former members never appear.
 - Role management (#22): the principal and admins can list, grant and end a
   user's staff roles, with Department scopes, start and end dates, one HOD per
   Department, and an audit log. Only an admin can grant or end the admin role,
