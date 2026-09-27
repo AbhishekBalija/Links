@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -175,6 +176,7 @@ func (f *fakeUserRepo) LockDepartmentForUpdate(context.Context, string) (bool, e
 func (f *fakeUserRepo) LockAdminAssignmentsInEffect(context.Context) ([]RoleAssignment, error) {
 	return nil, nil
 }
+func (f *fakeUserRepo) USNExists(context.Context, string) (bool, error)            { return false, nil }
 func (f *fakeUserRepo) EndRoleAssignment(context.Context, string, time.Time) error { return nil }
 func (f *fakeUserRepo) ClearDepartmentHOD(context.Context, string, string) error   { return nil }
 
@@ -329,11 +331,20 @@ type sentMail struct {
 type fakeMailer struct {
 	err  error
 	sent []sentMail
+	// batches holds each SendActivationEmails call; batchErr fails the
+	// batch at that index.
+	batches  [][]mailer.ActivationEmail
+	batchErr map[int]error
 }
 
 func (f *fakeMailer) SendActivationEmail(to, name, activationLink string) error {
 	f.sent = append(f.sent, sentMail{to: to, name: name, link: activationLink})
 	return f.err
+}
+
+func (f *fakeMailer) SendActivationEmails(emails []mailer.ActivationEmail) error {
+	f.batches = append(f.batches, emails)
+	return f.batchErr[len(f.batches)-1]
 }
 
 type authHarness struct {

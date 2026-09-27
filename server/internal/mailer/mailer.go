@@ -18,13 +18,27 @@ type sendRequest struct {
 	HTML    string `json:"html"`
 }
 
+// MaxBatchSize is the most emails Resend's batch endpoint takes in one call.
+const MaxBatchSize = 100
+
+// ActivationEmail is one Activation email in a batch.
+type ActivationEmail struct {
+	To   string
+	Name string
+	Link string
+}
+
 type Mailer interface {
 	SendActivationEmail(to string, name string, activationLink string) error
+	// SendActivationEmails sends up to MaxBatchSize emails in one request.
+	// The batch succeeds or fails as a whole.
+	SendActivationEmails(emails []ActivationEmail) error
 }
 
 type ResendMailer struct {
 	apiKey    string
 	fromEmail string
+	baseURL   string
 	client    *http.Client
 }
 
@@ -32,6 +46,7 @@ func NewResendMailer(apiKey, fromEmail string) *ResendMailer {
 	return &ResendMailer{
 		apiKey:    apiKey,
 		fromEmail: fromEmail,
+		baseURL:   resendBaseURL,
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -46,12 +61,34 @@ func (m *ResendMailer) SendActivationEmail(to, name, activationLink string) erro
 		HTML:    activationEmailHTML(name, activationLink),
 	}
 
+	return m.post("/emails", body)
+}
+
+// SendActivationEmails uses Resend's batch endpoint, which validates the
+// whole batch and sends all of it or none of it.
+func (m *ResendMailer) SendActivationEmails(emails []ActivationEmail) error {
+	if len(emails) > MaxBatchSize {
+		return fmt.Errorf("batch of %d emails is over the limit of %d", len(emails), MaxBatchSize)
+	}
+	body := make([]sendRequest, len(emails))
+	for i, email := range emails {
+		body[i] = sendRequest{
+			From:    m.fromEmail,
+			To:      email.To,
+			Subject: "Activate your LINKS account",
+			HTML:    activationEmailHTML(email.Name, email.Link),
+		}
+	}
+	return m.post("/emails/batch", body)
+}
+
+func (m *ResendMailer) post(path string, body any) error {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return fmt.Errorf("marshal email: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, resendBaseURL+"/emails", bytes.NewReader(payload))
+	req, err := http.NewRequest(http.MethodPost, m.baseURL+path, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -75,6 +112,10 @@ func (m *ResendMailer) SendActivationEmail(to, name, activationLink string) erro
 type NoopMailer struct{}
 
 func (NoopMailer) SendActivationEmail(_ string, _ string, _ string) error {
+	return nil
+}
+
+func (NoopMailer) SendActivationEmails(_ []ActivationEmail) error {
 	return nil
 }
 

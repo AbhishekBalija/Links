@@ -227,6 +227,52 @@ Moving a user to `suspended` or `rejected` also revokes all their refresh
 tokens in the same transaction, so every signed-in device is signed out at its
 next refresh.
 
+### Student import
+
+`POST /api/v1/admin/users/import` (admin, principal, or an HOD for their own
+Department) takes a multipart upload with the CSV in the field `file`:
+
+```csv
+email,full_name,usn
+asha.rao@gmail.com,Asha Rao,4MN23CS101
+ravi.k@gmail.com,"Kumar, Ravi",4MN24EC102
+```
+
+- The header must have exactly `email`, `full_name` and `usn`, in any order.
+  Excel's UTF-8 byte order mark and CRLF line ends are fine.
+- At most 200 rows and 1 MB. An empty file, a wrong header, a malformed CSV,
+  too many rows or too large a file is `400` and nothing is imported.
+- Each row is its own transaction, so rows succeed or fail on their own. A
+  created row is a `pending`, verified user with a Student identity (Department
+  and Batch from the USN), the `student` role and an Activation email.
+- The Activation emails go out after every row is saved, in batches of up to
+  100 through Resend's batch endpoint. A batch that fails leaves its rows
+  created, with the note below, and their links invalidated.
+- A row fails for: an invalid email, an empty or overlong name, a missing or
+  malformed USN, a Department code with no Department, an email or USN
+  already registered or earlier in the same file, or (for an HOD) a
+  Department other than theirs.
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "created": 1,
+    "failed": 1,
+    "rows": [
+      { "row": 2, "email": "asha.rao@gmail.com", "status": "created", "user_id": "uuid" },
+      { "row": 3, "email": "ravi.k@gmail.com", "status": "failed", "error": "the USN is already registered" }
+    ]
+  }
+}
+```
+
+`row` is the spreadsheet row (the header is row 1). A created row whose
+Activation email couldn't be sent carries an `error` saying so; the student can
+use Resend activation. The import writes one `students_imported` audit log
+with the counts and one `user_imported` per created user.
+
 ### Role management
 
 Principal and admin (`manage_users_and_roles`). Only an admin may grant or end

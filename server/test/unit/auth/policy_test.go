@@ -94,3 +94,18 @@ func TestPolicy_OnlyAdminCanManageDepartments(t *testing.T) {
 		}
 	}
 }
+
+func TestPolicy_HODPrincipalAndAdminCanImportStudents(t *testing.T) {
+	p := auth.NewPolicy()
+	allowed := map[auth.Role]bool{auth.RoleHOD: true, auth.RolePrincipal: true, auth.RoleAdmin: true}
+	for _, role := range []auth.Role{
+		auth.RoleStudent, auth.RoleStudentCoordinator, auth.RoleFaculty, auth.RoleHOD,
+		auth.RolePlacementOfficer, auth.RolePrincipal, auth.RoleAlumni,
+		auth.RoleClubOrganizer, auth.RoleAdmin,
+	} {
+		err := p.Authorize(&auth.Actor{UserID: "test", Roles: []string{string(role)}}, auth.PermissionImportStudents)
+		if allowed[role] != (err == nil) {
+			t.Errorf("role %s: allowed = %v, got error %v", role, allowed[role], err)
+		}
+	}
+}

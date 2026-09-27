@@ -28,6 +28,11 @@
 - `FROM_EMAIL` — sender address (onboarding@resend.dev local, verified domain prod)
 - `FRONTEND_URL` — base URL for building activation links (already existed for CORS)
 
+**Notes (2026-09-27), bulk student import (#17):**
+- The import sends its Activation emails after every row is saved, in batches of up to 100 through Resend's batch endpoint (`POST /emails/batch`, all or nothing per batch), instead of one request per row. A failed batch leaves its rows created with a note, and their tokens invalidated, so the student uses Resend activation.
+- A file holds at most 200 rows, so a whole import fits inside the API's 30 second `WriteTimeout`.
+- Expected time per row: each row is one transaction of about 11 database round trips (begin, email and USN checks, Department lock, user, profile, Student identity, role, token, audit log, commit). Against a local Postgres that is about 3 ms per row, so 200 rows take under a second (`TestAFullImportFinishesWellInsideTheWriteTimeout` logs the figure). The email batches add two Resend requests. The cost grows with the round trip to the database: at the roughly 230 ms seen from Vercel to Neon in ap-southeast-1 (#77), a row is about 2.5 s and 200 rows would not fit. The deployed API has to sit next to its database for this limit to hold; otherwise the import needs fewer round trips per row or to move off the request.
+
 **Deferred (not MVP):**
 - Async email queue / worker
 - Delivery status tracking

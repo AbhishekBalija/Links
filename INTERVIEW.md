@@ -208,6 +208,15 @@ across pages even when two share a name, and new sign-ups don't shift pages
 the way an offset would.
 ## Role Management
 
+### Why give each CSV row its own transaction instead of importing all or nothing?
+
+Admins import class lists of hundreds of students, and a few rows are usually
+wrong: a typo in an email, a student who already signed up. With one
+transaction per row the good rows go in and the response lists exactly which
+rows failed and why, so the admin fixes those and uploads just them. Problems
+with the file itself (wrong header, not a CSV, too big) are still checked
+first and reject the whole upload before anything is written.
+
 ### Why end a role by setting `ends_at` instead of deleting the row?
 
 The row is the history of who held which role and who granted it, which an

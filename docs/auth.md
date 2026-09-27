@@ -148,6 +148,10 @@ Examples:
 | Shortlist applicants | No | No | No | View only | Yes | Yes | Yes |
 | Manage users and roles | No | No | No | Limited | No | Limited | Yes |
 
+Importing students from a CSV (`import_students`) is open to admins, the
+principal and HODs; an HOD can import only students whose USN is in their own
+Department.
+
 "Manage users and roles" for the principal means everything but the `admin`
 role, which only an admin grants or ends. HOD access is still limited to
 Access approval of their Department's students.

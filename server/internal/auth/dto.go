@@ -137,6 +137,28 @@ type UpdateUserStatusResponse struct {
 	Message string `json:"message"`
 }
 
+const (
+	ImportCreated = "created"
+	ImportFailed  = "failed"
+)
+
+// ImportRowResult is one CSV row's outcome. Row is its spreadsheet row number
+// (the header is row 1). Error is set when it failed, or when it was created
+// but its Activation email couldn't be sent.
+type ImportRowResult struct {
+	Row    int    `json:"row"`
+	Email  string `json:"email"`
+	Status string `json:"status"`
+	UserID string `json:"user_id,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+type ImportResponse struct {
+	Created int               `json:"created"`
+	Failed  int               `json:"failed"`
+	Rows    []ImportRowResult `json:"rows"`
+}
+
 type GrantRoleInput struct {
 	Role      string     `json:"role" binding:"required"`
 	ScopeType string     `json:"scope_type" binding:"required"`

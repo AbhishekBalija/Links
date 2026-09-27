@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -188,6 +189,7 @@ type AuthService interface {
 	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)
 	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
 	EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error)
+	ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error)
 }
 
 // AuditLog represents the audit_logs table per docs/database-design.md § audit_logs.
@@ -222,6 +224,7 @@ type UserRepository interface {
 	LockDepartmentForShare(ctx context.Context, id string) (bool, error)
 	CreateProfile(ctx context.Context, profile *Profile) error
 	CreateStudentIdentity(ctx context.Context, identity *StudentIdentity) error
+	USNExists(ctx context.Context, usn string) (bool, error)
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
 	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
