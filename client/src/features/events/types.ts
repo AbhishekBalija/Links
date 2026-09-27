@@ -20,9 +20,15 @@ export function isEventType(value: string | null): value is EventType {
 
 export type Answer = 'going' | 'interested' | 'not_going'
 
+export const answerLabels: Record<Answer, string> = { going: 'Going', interested: 'Interested', not_going: "Can't go" }
+
 export type AnswerCounts = { going: number; interested: number; not_going: number }
 
-export type AnswerSummary = { counts: AnswerCounts; my_status: Answer | null }
+// One person's answer, as an event's organisers see it.
+export type AnswerPerson = { user_id: string; full_name: string; username: string; status: Answer; responded_at: string }
+
+// Organisers also get the people who answered, earliest first.
+export type AnswerSummary = { counts: AnswerCounts; my_status: Answer | null; people?: AnswerPerson[] }
 
 export type EventAudienceRule = {
   department_id?: string

@@ -68,8 +68,8 @@ Deliverables:
 - HOD review (API built)
 - Principal/admin final approval (API built)
 - RSVP/interest tracking (API built; the Events list, event page and answering are built)
-- Participant export (API built)
-- Event cancellation flow (API built)
+- Participant export (API built; the organiser's event page exports it)
+- Event cancellation flow (API built; organisers cancel from the event page)
 
 ## Phase 4: Placement
 

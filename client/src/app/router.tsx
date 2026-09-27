@@ -22,6 +22,8 @@ const MyPosts = lazy(() => import('../features/posts/pages/MyPosts'))
 const EditProfile = lazy(() => import('../features/profiles/pages/EditProfile'))
 const Events = lazy(() => import('../features/events/pages/Events'))
 const EventDetail = lazy(() => import('../features/events/pages/EventDetail'))
+const EventEdit = lazy(() => import('../features/events/pages/EventEdit'))
+const EventPeople = lazy(() => import('../features/events/pages/EventPeople'))
 const MyEvent = lazy(() => import('../features/events/pages/MyEvent'))
 const Propose = lazy(() => import('../features/events/pages/Propose'))
 const People = lazy(() => import('../features/people/pages/People'))
@@ -61,6 +63,8 @@ export function AppRouter() {
           </Route>
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/events/:id/people" element={<EventPeople />} />
+          <Route path="/events/:id/edit" element={<EventEdit />} />
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
           <Route path="/departments/:code" element={<Department />} />
