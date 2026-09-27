@@ -57,7 +57,7 @@ test.describe('Approving announcements', () => {
     await expect(hodPage.getByRole('button', { name: 'Approve and publish' })).toBeFocused()
     await hodPage.keyboard.press('Enter')
     await expect(hodPage.getByRole('status').filter({ hasText: 'Published.' })).toBeVisible()
-    await expect(hodPage.getByRole('heading', { name: 'No announcements waiting for you' })).toBeVisible()
+    await expect(hodPage.getByRole('heading', { name: 'Nothing waiting for you' })).toBeVisible()
     await hodContext.close()
 
     const readerContext = await browser.newContext(desktop)

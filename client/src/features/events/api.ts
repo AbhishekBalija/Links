@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDownload, apiPage, apiRequest } from '../../shared/api/client'
-import type { Answer, AnswerPerson, AnswerSummary, CampusEvent, EventInput, EventType, FeedMeta, MineEventFilter, Show } from './types'
+import type { Answer, AnswerPerson, AnswerSummary, CampusEvent, EventInput, EventQueueItem, EventType, FeedMeta, MineEventFilter, Show } from './types'
 
 const PAGE_SIZE = 20
 
@@ -152,6 +152,41 @@ export function useExportAnswers(id: string, title: string) {
       link.download = file.name
       link.click()
       URL.revokeObjectURL(url)
+    },
+  })
+}
+
+// useEventReviews loads the event proposals waiting for the caller, oldest
+// submission first.
+export function useEventReviews() {
+  return useInfiniteQuery({
+    queryKey: ['events', 'reviews'],
+    initialPageParam: '',
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limit: '50' })
+      if (pageParam) params.set('cursor', pageParam)
+      return apiPage<EventQueueItem[], FeedMeta>(`/api/v1/events/reviews?${params}`, { signal })
+    },
+    getNextPageParam: (lastPage) => lastPage.meta?.next_cursor || undefined,
+  })
+}
+
+export type EventDecision = 'approve' | 'request_changes' | 'reject'
+
+// useEventDecision records a reviewer's decision at the event's stage.
+export function useEventDecision() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ item, decision, note }: { item: EventQueueItem; decision: EventDecision; note: string }) =>
+      apiRequest<CampusEvent>(`/api/v1/events/${encodeURIComponent(item.id)}/${item.stage === 'hod' ? 'hod-review' : 'final-approval'}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ decision, note }),
+      }),
+    // Whatever happened (including "someone else decided first"), the queue,
+    // Home counts and the feed may have changed.
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ['events'] })
+      client.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }

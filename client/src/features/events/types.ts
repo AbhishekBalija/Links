@@ -104,3 +104,7 @@ export type EventInput = {
   capacity: number | null
   audience: { department_id?: string; batch_year?: number; role?: string }[]
 }
+
+// An event waiting in the reviewer's queue, at the HOD stage or at final
+// approval (GET /events/reviews).
+export type EventQueueItem = CampusEvent & { stage: 'hod' | 'final' }
