@@ -112,6 +112,17 @@ func (r *GormRepository) IsReferenced(ctx context.Context, departmentID string) 
 		return true, nil
 	}
 
+	var eventCount int64
+	if err := r.db.WithContext(ctx).
+		Table("events").
+		Where("department_id = ?", departmentID).
+		Count(&eventCount).Error; err != nil {
+		return false, err
+	}
+	if eventCount > 0 {
+		return true, nil
+	}
+
 	var scopedRoleCount int64
 	if err := r.db.WithContext(ctx).
 		Table("role_assignments").

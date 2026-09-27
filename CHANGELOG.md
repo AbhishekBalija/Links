@@ -14,6 +14,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   locks and applies the missing ones.
 
 ### Added
+- Event proposals (Phase 3): staff and student coordinators save Event drafts
+  for their Department (the principal and admins for any or none, the
+  placement officer training only), with type, place, times, capacity,
+  faculty mentor and Audience, edit them, and list their own.
 - Member directory (#12): signed-in members can list active members
   alphabetically, filtered by Department, role and Batch, with roles,
   Department, Batch for students, and contact details only where the member

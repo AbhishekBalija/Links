@@ -217,7 +217,8 @@ announcement_revisions (
 
 ### audience_rules
 
-An Announcement's Audience is its audience rules (`target_type = 'announcement'`).
+An Announcement's Audience is its audience rules (`target_type = 'announcement'`),
+and an Event's is `target_type = 'event'`.
 Fields set in one rule must all match; matching any rule is enough; no rules
 means the whole college. Visibility comes from these rules, so announcements
 have no separate visibility column.
@@ -238,30 +239,49 @@ audience_rules (
 
 ### events
 
+One `status` column carries the whole workflow (ADR 0023): `draft`,
+`submitted`, `hod_changes_requested`, `hod_rejected`, `hod_approved`,
+`final_changes_requested`, `final_rejected`, `published`, `cancelled`. An
+Event's Audience is its `audience_rules` with `target_type = 'event'`.
+
 ```sql
 events (
   id uuid primary key,
   title text not null,
-  description text,
-  event_type text not null,
-  organizer_type text not null,
-  organizer_id uuid not null,
-  department_id uuid references departments(id),
-  club_id uuid,
+  description text not null default '',
+  event_type text not null,       -- talk | workshop | competition | cultural | sports | training | other
+  proposer_id uuid not null references users(id),
+  department_id uuid references departments(id),   -- null: college-wide
   faculty_mentor_id uuid references users(id),
-  location text,
+  location text not null,
   starts_at timestamptz not null,
-  ends_at timestamptz not null,
-  banner_url text,
+  ends_at timestamptz not null,   -- check: after starts_at
+  capacity int,                   -- check: null or > 0
   status text not null,
-  approval_status text not null,
-  submitted_by uuid references users(id),
-  hod_approved_by uuid references users(id),
-  final_approved_by uuid references users(id),
-  final_approved_at timestamptz,
-  rejection_reason text,
+  submitted_at timestamptz,
+  published_at timestamptz,       -- check: set when published
+  cancelled_at timestamptz,
+  cancelled_by uuid references users(id),
+  cancel_reason text,             -- check: set when cancelled
   created_at timestamptz not null,
   updated_at timestamptz not null
+)
+```
+
+### event_reviews
+
+Every HOD review and final approval decision, kept so reviewers see earlier
+notes.
+
+```sql
+event_reviews (
+  id uuid primary key,
+  event_id uuid not null references events(id),
+  stage text not null,            -- hod | final
+  reviewer_id uuid not null references users(id),
+  decision text not null,         -- approve | request_changes | reject
+  note text,                      -- check: required unless approve
+  created_at timestamptz not null
 )
 ```
 
@@ -272,7 +292,7 @@ event_rsvps (
   id uuid primary key,
   event_id uuid not null references events(id),
   user_id uuid not null references users(id),
-  status text not null,
+  status text not null,           -- going | interested | not_going
   created_at timestamptz not null,
   updated_at timestamptz not null,
   unique (event_id, user_id)
@@ -542,9 +562,13 @@ create index idx_role_assignments_user on role_assignments (user_id);
 create index idx_role_assignments_role_scope on role_assignments (role, scope_type, scope_id);
 create index idx_announcements_status_published on announcements (status, published_at desc);
 create index idx_audience_rules_target on audience_rules (target_type, target_id);
+create index idx_events_published_starts on events (starts_at, id) where status = 'published';
+create index idx_events_status_submitted on events (status, submitted_at);
+create index idx_events_proposer on events (proposer_id, created_at desc);
 create index idx_events_department_starts on events (department_id, starts_at);
-create index idx_events_approval_status on events (approval_status);
-create index idx_event_rsvps_event on event_rsvps (event_id);
+create index idx_event_reviews_event on event_reviews (event_id, created_at);
+create unique index idx_event_rsvps_event_user on event_rsvps (event_id, user_id);
+create index idx_event_rsvps_event_status on event_rsvps (event_id, status);
 create index idx_opportunities_status_deadline on opportunities (status, deadline);
 create index idx_opportunity_applications_opportunity on opportunity_applications (opportunity_id, status);
 create index idx_opportunity_applications_student on opportunity_applications (student_id, status);
