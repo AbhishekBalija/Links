@@ -60,6 +60,8 @@ type Cursor struct {
 
 type Repository interface {
 	List(ctx context.Context, filter Filter, after *Cursor, limit int) ([]Member, error)
+	Count(ctx context.Context, filter Filter) (int, error)
+	MemberByID(ctx context.Context, userID string) (*Member, error)
 	Search(ctx context.Context, filter Filter, q string, limit int) ([]Member, error)
 	Grants(ctx context.Context, userIDs []string) ([]Grant, error)
 	DepartmentByCode(ctx context.Context, code string) (*Department, error)

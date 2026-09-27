@@ -30,6 +30,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   audited). After publishing, organisers can change the description, place,
   times and capacity (each change audited), or cancel with a reason; answers
   are kept.
+- The directory says how many members match (`meta.total`), and a signed-in
+  member opening a profile sees that member's roles, Department and Batch.
+  Anonymous visitors still see only the profile itself.
 - Member directory (#12): signed-in members can list active members
   alphabetically, filtered by Department, role and Batch, with roles,
   Department, Batch for students, and contact details only where the member

@@ -68,7 +68,11 @@ func (s *Service) List(ctx context.Context, viewerID string, query ListQuery) ([
 	if err != nil {
 		return nil, nil, fmt.Errorf("list members: %w", err)
 	}
-	meta := &ListMeta{}
+	total, err := s.repo.Count(ctx, filter)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count members: %w", err)
+	}
+	meta := &ListMeta{Total: total}
 	if len(members) > limit {
 		members = members[:limit]
 		last := members[len(members)-1]
@@ -89,7 +93,7 @@ func (s *Service) search(ctx context.Context, viewerID string, filter Filter, q,
 		return nil, nil, fmt.Errorf("search members: %w", err)
 	}
 	entries, err := s.entries(ctx, viewerID, members)
-	return entries, &ListMeta{}, err
+	return entries, &ListMeta{Total: len(members)}, err
 }
 
 // parseQuery lower-cases and trims q, and drops one too short to mean anything.
@@ -165,30 +169,15 @@ func (s *Service) entries(ctx context.Context, viewerID string, members []Member
 }
 
 func entryFor(member Member, grants []Grant, viewerID string) Entry {
-	sort.SliceStable(grants, func(i, j int) bool { return rank(grants[i].Role) < rank(grants[j].Role) })
+	roles, department, batchYear := membershipOf(member, grants)
 	entry := Entry{
-		Username:  member.Username,
-		FullName:  member.FullName,
-		Headline:  member.Headline,
-		AvatarURL: member.AvatarURL,
-		Roles:     []string{},
-	}
-	seen := map[auth.Role]bool{}
-	for _, grant := range grants {
-		if !seen[grant.Role] {
-			seen[grant.Role] = true
-			entry.Roles = append(entry.Roles, string(grant.Role))
-		}
-		// The most senior Department-scoped role names the Department.
-		if entry.Department == nil && grant.DepartmentCode != nil {
-			entry.Department = &DepartmentRef{Code: *grant.DepartmentCode, Name: stringValue(grant.DepartmentName)}
-		}
-	}
-	if entry.Department == nil && member.StudentDepartmentCode != nil {
-		entry.Department = &DepartmentRef{Code: *member.StudentDepartmentCode, Name: stringValue(member.StudentDepartmentName)}
-	}
-	if seen[auth.RoleStudent] {
-		entry.BatchYear = member.StudentBatchYear
+		Username:   member.Username,
+		FullName:   member.FullName,
+		Headline:   member.Headline,
+		AvatarURL:  member.AvatarURL,
+		Roles:      roles,
+		Department: department,
+		BatchYear:  batchYear,
 	}
 
 	privacy := profiles.Privacy{
@@ -204,6 +193,56 @@ func entryFor(member Member, grants []Grant, viewerID string) Entry {
 		entry.Phone = member.Phone
 	}
 	return entry
+}
+
+// membershipOf is who a member is at the college: their roles in effect, most
+// senior first, their Department and, for students, their Batch.
+func membershipOf(member Member, grants []Grant) ([]string, *DepartmentRef, *int) {
+	sort.SliceStable(grants, func(i, j int) bool { return rank(grants[i].Role) < rank(grants[j].Role) })
+	roles := []string{}
+	var department *DepartmentRef
+	seen := map[auth.Role]bool{}
+	for _, grant := range grants {
+		if !seen[grant.Role] {
+			seen[grant.Role] = true
+			roles = append(roles, string(grant.Role))
+		}
+		// The most senior Department-scoped role names the Department.
+		if department == nil && grant.DepartmentCode != nil {
+			department = &DepartmentRef{Code: *grant.DepartmentCode, Name: stringValue(grant.DepartmentName)}
+		}
+	}
+	if department == nil && member.StudentDepartmentCode != nil {
+		department = &DepartmentRef{Code: *member.StudentDepartmentCode, Name: stringValue(member.StudentDepartmentName)}
+	}
+	var batchYear *int
+	if seen[auth.RoleStudent] {
+		batchYear = member.StudentBatchYear
+	}
+	return roles, department, batchYear
+}
+
+// Membership is the member's roles, Department and Batch for their profile
+// page. It reads them whether or not the profile is listed; the profiles
+// service decides who may see them.
+func (s *Service) Membership(ctx context.Context, userID string) (*profiles.Membership, error) {
+	member, err := s.repo.MemberByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("find member: %w", err)
+	}
+	if member == nil {
+		return &profiles.Membership{Roles: []string{}}, nil
+	}
+	grants, err := s.repo.Grants(ctx, []string{userID})
+	if err != nil {
+		return nil, fmt.Errorf("list roles: %w", err)
+	}
+	roles, department, batchYear := membershipOf(*member, grants)
+	membership := &profiles.Membership{Roles: roles, BatchYear: batchYear}
+	if department != nil {
+		membership.Department = &profiles.MembershipDepartment{Code: department.Code, Name: department.Name}
+	}
+	return membership, nil
 }
 
 func rank(role auth.Role) int {

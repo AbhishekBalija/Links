@@ -26,8 +26,12 @@ type ProfileResponse struct {
 	LinkedInURL          *string `json:"linkedin_url,omitempty"`
 	GitHubURL            *string `json:"github_url,omitempty"`
 	PortfolioURL         *string `json:"portfolio_url,omitempty"`
-	CreatedAt            string  `json:"created_at"`
-	UpdatedAt            string  `json:"updated_at"`
+	// Who they are at the college. Only signed-in viewers get these.
+	Roles      []string              `json:"roles,omitempty"`
+	Department *MembershipDepartment `json:"department,omitempty"`
+	BatchYear  *int                  `json:"batch_year,omitempty"`
+	CreatedAt  string                `json:"created_at"`
+	UpdatedAt  string                `json:"updated_at"`
 }
 
 type ErrorResponse struct {

@@ -249,6 +249,16 @@ in Batch 2023 shows no one. Leaving hidden members out of the counts would make
 the numbers wrong for no privacy gain. The lists (HOD, staff) name people, so
 they go through the same rules as the directory.
 
+### How does the profile page show roles without profiles importing the directory?
+
+The directory package already imports profiles (for the privacy rules), so
+profiles can't import the directory back: Go forbids import cycles. Instead
+profiles declares the small interface it needs, `MembershipReader`, and the
+directory's service happens to satisfy it. `app/server.go` passes one to the
+other. This is dependency inversion: the package that uses a capability owns
+its interface, and the wiring code connects them. It also keeps one copy of
+the rule for "which Department does this member belong to".
+
 ## Web Security
 
 ### How does LINKS stop CSRF when the refresh token is a cookie?
