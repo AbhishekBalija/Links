@@ -220,12 +220,22 @@ sections without changing these:
 {
   "user": { "full_name": "...", "roles": ["faculty"], "department": { "id": "...", "code": "CS", "name": "..." } },
   "notices": { "items": [/* newest five from the feed */], "has_more": true },
-  "approvals": { "pending_count": 2, "oldest_submitted_at": "..." },
+  "approvals": {
+    "pending_count": 2, "oldest_submitted_at": "...",
+    "events_pending_count": 1, "oldest_event_submitted_at": "..."
+  },
   "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 }
 }
 ```
 
 - `approvals` appears only for HODs, the principal and admins.
+  `pending_count` and `oldest_submitted_at` count Announcements and edits
+  waiting for Announcement approval; `events_pending_count` and
+  `oldest_event_submitted_at` count Event proposals waiting for the caller,
+  with the same scope as `GET /api/v1/events/reviews` (the HOD stage of their
+  Departments, and for the principal and admins the HOD stage of Departments
+  without an HOD and every final approval; never the caller's own). An
+  `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
 - `department` is the Student identity's Department, otherwise the first
   Department-scoped role, otherwise `null`.
