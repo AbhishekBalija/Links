@@ -80,8 +80,8 @@ Deliverables:
 - Placement officer dashboard
 - Job/internship/training posts (drafts, publishing and closing API built; ADR 0024)
 - Eligibility targeting (API built: the feed matches Eligibility like an Audience)
-- Internal application flow
-- External application tracking
+- Internal application flow (API built: apply once while open, withdraw before shortlisting)
+- External application tracking (API built: "I applied" records an external Application)
 - Applicant list
 - Shortlisting
 - Status updates

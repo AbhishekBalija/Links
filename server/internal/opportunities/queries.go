@@ -35,17 +35,28 @@ func eligibilityMatch(reader Reader) (string, []any) {
 	return condition, args
 }
 
-// Feed returns one page of published or closed Opportunities the reader is
-// eligible for. Open ones come soonest deadline first; closed ones (closed
-// early or past apply_by) latest deadline first.
-func (r *GormRepository) Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error) {
+// appliedBy is the condition that the reader has an Application to
+// Opportunity o, in any status.
+const appliedBy = `EXISTS (SELECT 1 FROM opportunity_applications a WHERE a.opportunity_id = o.id AND a.student_id = ?)`
+
+// Feed returns one page of published or closed Opportunities. Open ones the
+// reader is eligible for come soonest deadline first; closed ones (closed
+// early or past apply_by) latest deadline first. The applied view is what
+// the reader applied to, eligible now or not, latest deadline first.
+func (r *GormRepository) Feed(ctx context.Context, readerID string, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error) {
 	condition, args := eligibilityMatch(reader)
+	if filter.State == StateApplied {
+		condition, args = appliedBy, []any{readerID}
+	}
 	query := `SELECT ` + viewColumns + ` ` + viewFrom + ` WHERE o.status IN ('published', 'closed') AND ` + condition
 	order, compare := `o.apply_by, o.id`, `>`
-	if filter.State == StateClosed {
+	switch filter.State {
+	case StateClosed:
 		query += ` AND (o.status = 'closed' OR o.apply_by <= now())`
 		order, compare = `o.apply_by DESC, o.id DESC`, `<`
-	} else {
+	case StateApplied:
+		order, compare = `o.apply_by DESC, o.id DESC`, `<`
+	default:
 		query += ` AND o.status = 'published' AND o.apply_by > now()`
 	}
 	if filter.Type != nil {
@@ -68,8 +79,20 @@ func (r *GormRepository) Feed(ctx context.Context, reader Reader, filter FeedFil
 }
 
 // VisibleTo reports whether the reader may open the Opportunity: it was
-// published (it may since have closed) and they are in its Eligibility.
-func (r *GormRepository) VisibleTo(ctx context.Context, reader Reader, id string) (bool, error) {
+// published (it may since have closed) and they are in its Eligibility or
+// applied to it.
+func (r *GormRepository) VisibleTo(ctx context.Context, readerID string, reader Reader, id string) (bool, error) {
+	condition, args := eligibilityMatch(reader)
+	query := `SELECT count(*) FROM opportunities o WHERE o.id = ? AND o.status IN ('published', 'closed') AND (` + condition + ` OR ` + appliedBy + `)`
+	args = append(append([]any{id}, args...), readerID)
+	var count int64
+	err := r.db.WithContext(ctx).Raw(query, args...).Scan(&count).Error
+	return count > 0, err
+}
+
+// Eligible reports whether the reader is in the published or closed
+// Opportunity's Eligibility now.
+func (r *GormRepository) Eligible(ctx context.Context, reader Reader, id string) (bool, error) {
 	condition, args := eligibilityMatch(reader)
 	query := `SELECT count(*) FROM opportunities o WHERE o.id = ? AND o.status IN ('published', 'closed') AND ` + condition
 	var count int64

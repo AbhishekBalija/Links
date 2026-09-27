@@ -153,8 +153,12 @@ the directory would show.
 Opportunities (ADR 0024): drafts are visible only to placement staff (the
 placement officer, the principal and admins), who are checked against their
 roles in the database. A published or closed Opportunity is visible to
-members in its Eligibility and `404` to everyone else. Creating, editing,
-publishing and closing are audited.
+members in its Eligibility (or who applied to it) and `404` to everyone
+else. Creating, editing, publishing and closing are audited.
+
+Applications: a Student sees only their own (`my_application`); nothing on the
+Opportunity routes reveals who else applied or how many did. Only an eligible
+Student applies, and applying and withdrawing are audited.
 
 ## Applicant Data
 

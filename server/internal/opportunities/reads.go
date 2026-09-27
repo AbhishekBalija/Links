@@ -29,7 +29,7 @@ func (s *Service) Feed(ctx context.Context, actorID string, query FeedQuery) ([]
 	if err != nil {
 		return nil, nil, err
 	}
-	views, err := s.repository.Feed(ctx, reader, filter, after, limit+1)
+	views, err := s.repository.Feed(ctx, actorID, reader, filter, after, limit+1)
 	if err != nil {
 		return nil, nil, fmt.Errorf("list feed: %w", err)
 	}
@@ -39,7 +39,7 @@ func (s *Service) Feed(ctx context.Context, actorID string, query FeedQuery) ([]
 		last := views[len(views)-1]
 		meta.NextCursor = encodeCursor(Cursor{At: last.ApplyBy, ID: last.ID})
 	}
-	responses, err := s.toResponses(ctx, views)
+	responses, err := s.toResponses(ctx, views, actorID)
 	return responses, meta, err
 }
 
@@ -49,10 +49,10 @@ func (s *Service) feedFilter(ctx context.Context, query FeedQuery) (FeedFilter, 
 	switch state := State(strings.TrimSpace(query.State)); state {
 	case "", StateOpen:
 		filter.State = StateOpen
-	case StateClosed:
-		filter.State = StateClosed
+	case StateClosed, StateApplied:
+		filter.State = state
 	default:
-		details["state"] = "use open or closed"
+		details["state"] = "use open, closed or applied"
 	}
 	if value := strings.TrimSpace(query.Type); value != "" {
 		opportunityType := Type(value)
@@ -78,8 +78,8 @@ func (s *Service) feedFilter(ctx context.Context, query FeedQuery) (FeedFilter, 
 }
 
 // Get returns one Opportunity. Placement staff see every one; a member sees
-// a published or closed one they are eligible for. Anyone else gets not
-// found, so drafts stay private.
+// a published or closed one they are eligible for or applied to. Anyone else
+// gets not found, so drafts stay private.
 func (s *Service) Get(ctx context.Context, actorID, id string) (*OpportunityResponse, error) {
 	notFound := apperrors.NewNotFound("opportunity not found")
 	if _, err := uuid.Parse(id); err != nil {
@@ -94,7 +94,7 @@ func (s *Service) Get(ctx context.Context, actorID, id string) (*OpportunityResp
 		if err != nil {
 			return nil, err
 		}
-		visible, err := s.repository.VisibleTo(ctx, reader, id)
+		visible, err := s.repository.VisibleTo(ctx, actorID, reader, id)
 		if err != nil {
 			return nil, fmt.Errorf("check eligibility: %w", err)
 		}
@@ -102,7 +102,7 @@ func (s *Service) Get(ctx context.Context, actorID, id string) (*OpportunityResp
 			return nil, notFound
 		}
 	}
-	return s.response(ctx, id)
+	return s.response(ctx, id, actorID)
 }
 
 // reader describes a member. Each role is paired with the Department it

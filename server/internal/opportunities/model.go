@@ -126,8 +126,14 @@ type Repository interface {
 	EligibilityRules(ctx context.Context, opportunityIDs []string) ([]EligibilityRuleView, error)
 	Managed(ctx context.Context, status *Status, after *Cursor, limit int) ([]View, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)
-	Feed(ctx context.Context, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
-	VisibleTo(ctx context.Context, reader Reader, id string) (bool, error)
+	Feed(ctx context.Context, readerID string, reader Reader, filter FeedFilter, after *Cursor, limit int) ([]View, error)
+	VisibleTo(ctx context.Context, readerID string, reader Reader, id string) (bool, error)
+	Eligible(ctx context.Context, reader Reader, id string) (bool, error)
+	LockForShare(ctx context.Context, id string) (*Opportunity, error)
+	CreateApplication(ctx context.Context, application *Application) error
+	UpdateApplication(ctx context.Context, application *Application) error
+	FindApplicationForUpdate(ctx context.Context, opportunityID, studentID string) (*Application, error)
+	ApplicationsOf(ctx context.Context, studentID string, opportunityIDs []string) ([]Application, error)
 	StudentPlacement(ctx context.Context, userID string) (*string, *int, error)
 	DepartmentIDByCode(ctx context.Context, code string) (*string, error)
 }
@@ -155,6 +161,9 @@ const (
 	StateOpen State = "open"
 	// StateClosed is closed early or past apply_by, latest deadline first.
 	StateClosed State = "closed"
+	// StateApplied is what the reader applied to, open or not, latest
+	// deadline first.
+	StateApplied State = "applied"
 )
 
 // FeedFilter narrows the Opportunity feed.
@@ -173,3 +182,34 @@ type Repositories struct {
 type UnitOfWork interface {
 	WithinTransaction(ctx context.Context, fn func(Repositories) error) error
 }
+
+// ApplicationStatus is where an Application is. Only the Student sets
+// withdrawn; placement staff move it among the others.
+type ApplicationStatus string
+
+const (
+	ApplicationApplied     ApplicationStatus = "applied"
+	ApplicationShortlisted ApplicationStatus = "shortlisted"
+	ApplicationRejected    ApplicationStatus = "rejected"
+	ApplicationSelected    ApplicationStatus = "selected"
+	ApplicationWithdrawn   ApplicationStatus = "withdrawn"
+)
+
+// Application is a Student's Application to an Opportunity: made in LINKS
+// (internal) or their record that they applied on the company's site
+// (external). One per Student per Opportunity.
+type Application struct {
+	ID              string            `gorm:"column:id;primaryKey"`
+	OpportunityID   string            `gorm:"column:opportunity_id"`
+	StudentID       string            `gorm:"column:student_id"`
+	Mode            Mode              `gorm:"column:mode"`
+	Status          ApplicationStatus `gorm:"column:status"`
+	AppliedAt       time.Time         `gorm:"column:applied_at"`
+	WithdrawnAt     *time.Time        `gorm:"column:withdrawn_at"`
+	StatusChangedAt *time.Time        `gorm:"column:status_changed_at"`
+	StatusChangedBy *string           `gorm:"column:status_changed_by"`
+	CreatedAt       time.Time         `gorm:"column:created_at"`
+	UpdatedAt       time.Time         `gorm:"column:updated_at"`
+}
+
+func (Application) TableName() string { return "opportunity_applications" }
