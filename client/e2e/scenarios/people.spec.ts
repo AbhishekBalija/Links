@@ -41,3 +41,31 @@ test.describe('People', () => {
     await page.waitForURL('**/people**')
   })
 })
+
+test.describe('People after editing a profile', () => {
+  test('a new headline shows in People straight away, without reloading', async ({ page, request }) => {
+    // CV batch 2021 is used by no other People spec.
+    const student = await seedMember(request, { role: 'student', fullName: 'Kavya Headline', department: 'CV', batch: 2021 })
+    const client = await getSchemaClient()
+    try {
+      await client.query(`UPDATE users SET is_verified = true WHERE id = $1`, [student.userId])
+    } finally {
+      await client.end()
+    }
+
+    await page.setViewportSize({ width: 1440, height: 960 })
+    await loginViaUI(page, student.email, student.password)
+    const nav = page.getByRole('navigation', { name: 'Main' }).first()
+    await nav.getByRole('link', { name: 'People' }).click()
+    await expect(page.getByRole('link', { name: /Kavya Headline/ })).toBeVisible()
+
+    // Only in-app links from here: a reload would hide a stale cache.
+    await nav.getByRole('link', { name: 'Profile' }).click()
+    await page.getByRole('link', { name: 'Edit profile' }).click()
+    await page.locator('#headline').fill('Bridges and concrete')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await page.waitForURL('**/profile')
+    await nav.getByRole('link', { name: 'People' }).click()
+    await expect(page.getByRole('link', { name: /Kavya Headline/ })).toContainText('Bridges and concrete')
+  })
+})

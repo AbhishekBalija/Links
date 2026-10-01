@@ -11,6 +11,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   longer answered and logged as a server error (#115). It is logged as 499,
   "client closed request", and the cut-short database query is not printed
   as an error, so real server errors stand out.
+- After saving your profile, People and your Department page show the new
+  headline straight away instead of up to 30 seconds later (#109).
 
 ## [0.5.0] - 2026-10-01
 

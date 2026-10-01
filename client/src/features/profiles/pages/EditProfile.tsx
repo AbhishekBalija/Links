@@ -39,8 +39,11 @@ export default function EditProfile() {
         show_phone: showPhone,
       })
       await refreshUser()
-      // The profile page shows the saved version, not a cached one.
+      // The profile page, People and the Department page show the saved
+      // version, not a cached one.
       await queryClient.invalidateQueries({ queryKey: ['profile'] })
+      await queryClient.invalidateQueries({ queryKey: ['directory'] })
+      await queryClient.invalidateQueries({ queryKey: ['department-overview'] })
       navigate('/profile', { replace: true })
     } catch (err) {
       if (err instanceof ApiRequestError) {
