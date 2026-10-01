@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-01
+
+Events arrive end to end (proposing, review, answering and organiser
+tools), the campus directory and profiles get their screens, and the
+placement workflow is built on the API side.
+
 ### Fixed
 - Your own notices say "You" again, and signing in as someone else on the
   same tab clears the previous person's cached data. The client read the
@@ -250,7 +256,8 @@ records.
 - Audit logs for approvals and status changes.
 - Security tests for the auth surface and a Playwright e2e suite run in CI.
 
-[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/AbhishekBalija/Links/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AbhishekBalija/Links/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AbhishekBalija/Links/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AbhishekBalija/Links/releases/tag/v0.1.0

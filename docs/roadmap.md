@@ -50,16 +50,17 @@ Deliverables:
 
 - [x] Department management API (#10, v0.2.0); department pages come with #15
 - [ ] Role-based dashboard endpoints (#11); the Home summary is built (#39, v0.3.0) and counts waiting Event reviews
-- [x] Campus directory and search (#12): the People screen with filters and typo-tolerant search
+- [x] Campus directory and search (#12): the People screen with filters and typo-tolerant search (v0.4.0)
 - [x] Targeted announcements API with approval, editing and withdrawal (#13, spec #25, v0.2.0)
 - [x] Home and announcement screens: design system and app shell, reading notices, composer and My announcements, approval queue (spec #38: #39–#42, v0.3.0)
-- [x] Public profiles and department pages (#12): Profile, your own profile and the Department page
+- [x] Public profiles and department pages (#12): Profile, your own profile and the Department page (v0.4.0)
 - [ ] Frontend for all of the above (#15), then a manual UX pass (#16)
-- [x] Bulk CSV import endpoint for admin/HOD (#17)
+- [x] Bulk CSV import endpoint for admin/HOD (#17, v0.4.0)
 
 ## Phase 3: Events
 
 Goal: Support official event proposal, approval, and participation tracking.
+Everything below is built, API and screens, as of v0.4.0.
 
 Deliverables:
 
@@ -74,6 +75,7 @@ Deliverables:
 ## Phase 4: Placement
 
 Goal: Build the placement workflow end to end.
+The API below shipped in v0.4.0; the screens are next.
 
 Deliverables:
 
