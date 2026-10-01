@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { ProtectedRoute, GuestRoute, PendingRoute } from '../features/auth/components/ProtectedRoute'
 import { useAuthStore } from '../features/auth/store'
 import { AppShell } from './shell/AppShell'
-import { canApprove, canPost } from './shell/nav'
+import { canApprove, canPost, isPlacementStaff } from './shell/nav'
 import { PageLoading } from '../shared/ui/states'
 
 // Each page is its own chunk, so the first visit downloads only the screen
@@ -28,6 +28,9 @@ const MyEvent = lazy(() => import('../features/events/pages/MyEvent'))
 const Propose = lazy(() => import('../features/events/pages/Propose'))
 const Jobs = lazy(() => import('../features/jobs/pages/Jobs'))
 const JobDetail = lazy(() => import('../features/jobs/pages/JobDetail'))
+const Placement = lazy(() => import('../features/placement/pages/Placement'))
+const PlacementOpportunity = lazy(() => import('../features/placement/pages/PlacementOpportunity'))
+const OpportunityForm = lazy(() => import('../features/placement/pages/OpportunityForm'))
 const People = lazy(() => import('../features/people/pages/People'))
 const Profile = lazy(() => import('../features/people/pages/Profile'))
 const MyProfile = lazy(() => import('../features/people/pages/MyProfile'))
@@ -69,6 +72,12 @@ export function AppRouter() {
           <Route path="/events/:id/edit" element={<EventEdit />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route element={<PlacementRoute />}>
+            <Route path="/placement" element={<Placement />} />
+            <Route path="/placement/new" element={<OpportunityForm />} />
+            <Route path="/placement/:id" element={<PlacementOpportunity />} />
+            <Route path="/placement/:id/edit" element={<OpportunityForm />} />
+          </Route>
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
           <Route path="/departments/:code" element={<Department />} />
@@ -95,4 +104,11 @@ function PosterRoute() {
 function ApproverRoute() {
   const roles = useAuthStore((s) => s.user?.roles) ?? []
   return canApprove(roles) ? <Outlet /> : <Navigate to="/" replace />
+}
+
+// PlacementRoute keeps Placement to the placement officer, the principal and
+// admins. The server checks again on every request.
+function PlacementRoute() {
+  const roles = useAuthStore((s) => s.user?.roles) ?? []
+  return isPlacementStaff(roles) ? <Outlet /> : <Navigate to="/" replace />
 }

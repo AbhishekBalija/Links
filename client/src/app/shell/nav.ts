@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, CalendarDays, House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
+import { BriefcaseBusiness, CalendarDays, ClipboardList, House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -16,6 +16,10 @@ export type NavItem = {
 // are also the roles that propose events (propose_event).
 export const posterRoles = ['student_coordinator', 'faculty', 'hod', 'placement_officer', 'principal', 'admin']
 
+// Placement staff: the placement officer, the principal and admins work as
+// one office on Opportunities (auth policy: post_opportunity).
+export const placementRoles = ['placement_officer', 'principal', 'admin']
+
 // Roles that approve Announcements (auth policy: approve_announcement).
 export const approverRoles = ['hod', 'principal', 'admin']
 
@@ -24,6 +28,7 @@ const items: NavItem[] = [
   { to: '/notices', label: 'Notices', icon: Newspaper },
   { to: '/events', label: 'Events', icon: CalendarDays },
   { to: '/jobs', label: 'Jobs', icon: BriefcaseBusiness, roles: ['student'] },
+  { to: '/placement', label: 'Placement', icon: ClipboardList, roles: placementRoles },
   { to: '/people', label: 'People', icon: Users, also: ['/departments'] },
   { to: '/approvals', label: 'Approval queue', short: 'Approvals', icon: ListChecks, roles: approverRoles },
   { to: '/mine', label: 'My posts', short: 'Mine', icon: PenLine, roles: posterRoles },
@@ -32,6 +37,10 @@ const items: NavItem[] = [
 
 export function canApprove(roles: string[]): boolean {
   return roles.some((role) => approverRoles.includes(role))
+}
+
+export function isPlacementStaff(roles: string[]): boolean {
+  return roles.some((role) => placementRoles.includes(role))
 }
 
 export function canPost(roles: string[]): boolean {
@@ -45,14 +54,16 @@ export function navFor(roles: string[]): NavItem[] {
 // The phone's bottom bar fits five tabs. When a role has more, Profile steps
 // out first (it stays one tap away from the avatar on Home), then People
 // (reachable from Home's department link), so HODs keep their work tabs.
-// Students have no work tabs; for them Jobs takes People's place and they
-// keep Profile, which they edit more than staff do.
+// The principal and admins have more work tabs than fit, so Placement, which
+// is desktop work for them, steps out next. Students have no work tabs; for
+// them Jobs takes People's place and they keep Profile, which they edit more
+// than staff do.
 const maxTabs = 5
 
 export function tabsFor(roles: string[]): NavItem[] {
   let tabs = navFor(roles)
   const staff = canPost(roles) || canApprove(roles)
-  const leaveFirst = staff ? ['/profile', '/people'] : ['/people', '/profile']
+  const leaveFirst = staff ? ['/profile', '/people', '/placement'] : ['/people', '/profile']
   for (const path of leaveFirst) {
     if (tabs.length <= maxTabs) break
     tabs = tabs.filter((item) => item.to !== path)

@@ -13,6 +13,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
   either kind, each opening in the queue.
 
 ### Added
+- Placement for the placement office (#104): every Opportunity under Open,
+  Drafts and Closed with its applicant counts; a form for a job, internship
+  or training that says who will see it ("Shows in Jobs for AD and CS
+  students, batch 2023"), keeps drafts and asks before leaving with changes;
+  and each Opportunity's page, where a draft is published and an open one is
+  closed early, each after a confirmation. Who can apply now reads as one
+  sentence on students' job pages too.
 - Jobs for students (#103): a Jobs tab with the jobs, internships and
   training open to them, soonest deadline first, plus what they applied to
   and closed ones. Each opportunity's page applies in LINKS after one

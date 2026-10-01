@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { ApiRequestError } from '../../../shared/api/types'
 import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
-import { audienceLabel } from '../../notices/format'
+import { describeEligibility } from '../../placement/eligibility'
 import { dayMonth } from '../../events/standing'
 import { Tag } from '../../events/components/Tags'
 import { useJob } from '../api'
@@ -57,14 +57,7 @@ export default function JobDetail() {
 
 function JobArticle({ job }: { job: Opportunity }) {
   const due = deadlineLine(job.apply_by)
-  const eligibility = audienceLabel(
-    job.eligibility.map((rule) => ({
-      department_id: rule.department_id ?? null,
-      department_code: rule.department_code ?? null,
-      batch_year: rule.batch_year ?? null,
-      role: rule.role ?? null,
-    })),
-  )
+  const eligibility = describeEligibility(job.eligibility)
   return (
     <article className="flex flex-col gap-4 lg:gap-5 lg:rounded-xl lg:border lg:border-line lg:bg-surface lg:px-9 lg:pt-7 lg:pb-8">
       <header className="flex items-start gap-3.5 lg:gap-5">
@@ -84,7 +77,7 @@ function JobArticle({ job }: { job: Opportunity }) {
           <span className="font-mono text-[13px] lg:text-sm">{due.time}</span>
           {job.open && <span className={cn(isUrgent(job.apply_by) && 'font-semibold text-warning')}> · {daysLeft(job.apply_by)}</span>}
         </Fact>
-        <Fact label="Who can apply">{eligibility === 'Whole college' ? 'Every student' : eligibility}</Fact>
+        <Fact label="Who can apply">{eligibility}</Fact>
         <Fact label="How">{job.application_mode === 'internal' ? 'In LINKS' : `On ${job.company}'s site`}</Fact>
         {job.location && <Fact label="Location">{job.location}</Fact>}
         {job.compensation && <Fact label="Pay">{job.compensation}</Fact>}
