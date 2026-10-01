@@ -75,11 +75,16 @@ async function testSignIn(apiContext: APIRequestContext, email: string): Promise
   return (await res.json()).data.access_token
 }
 
-// loginViaUI signs the page's browser in and opens Home. The refresh cookie
-// the sign-in sets is what the app restores the session from.
+// loginViaUI signs the page's browser in and opens the app. The app restores
+// the session from the refresh cookie, and that refresh swaps the cookie for a
+// new one, so this waits for the refresh to answer: moving on before the new
+// cookie lands would leave the browser holding a retired one.
 export async function loginViaUI(page: Page, email: string) {
   await testSignIn(page.request, email)
+  const refreshed = page.waitForResponse((res) => res.url().includes('/api/v1/auth/refresh'))
   await page.goto('/')
+  const response = await refreshed
+  expect(response.ok(), 'the app could not restore the session').toBe(true)
   await page.waitForURL((url) => !url.pathname.includes('/login'))
 }
 
