@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, Download, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, CircleAlert, Download, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -337,11 +337,15 @@ function StatusControl({ applicant, busy, onMove, phone }: { applicant: Applican
   )
 }
 
+// Problem is the note under a row whose change was refused. The row turns
+// the neutral rail colour, not a status colour, so its status tag stays
+// readable whatever it is.
 function Problem({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   return (
-    <div role="alert" className="flex items-start gap-3 text-sm text-warning-ink">
+    <div role="alert" className="flex items-start gap-2 text-sm text-warning-ink">
+      <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <span className="flex-1">{text}</span>
-      <button type="button" onClick={onDismiss} className="min-h-8 shrink-0 rounded-md px-2 font-semibold hover:bg-[#efdcc0]">
+      <button type="button" onClick={onDismiss} className="min-h-8 shrink-0 rounded-md px-2 font-semibold hover:bg-well">
         OK
       </button>
     </div>
@@ -366,7 +370,7 @@ function Table({ rows, problem, busy, onMove, onDismiss }: RowsProps) {
           {rows.map((row, i) => {
             const flagged = problem?.id === row.id
             return [
-              <tr key={row.id} className={cn(i > 0 && 'shadow-[inset_0_1px_0_#efe9de]', flagged && 'bg-warning-soft')}>
+              <tr key={row.id} className={cn(i > 0 && 'shadow-[inset_0_1px_0_#efe9de]', flagged && 'bg-rail')}>
                 <td className="px-3.5 py-3">
                   <span className="flex flex-col gap-0.5">
                     <Link to={`/people/${row.student.username}`} className="font-semibold text-ink hover:text-rust">
@@ -384,7 +388,7 @@ function Table({ rows, problem, busy, onMove, onDismiss }: RowsProps) {
                 </td>
               </tr>,
               flagged ? (
-                <tr key={`${row.id}-problem`} className="bg-warning-soft">
+                <tr key={`${row.id}-problem`} className="bg-rail">
                   <td colSpan={6} className="px-3.5 pb-3">
                     <Problem text={problem.text} onDismiss={onDismiss} />
                   </td>
@@ -402,7 +406,7 @@ function PhoneList({ rows, problem, busy, onMove, onDismiss }: RowsProps) {
   return (
     <ul className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface lg:hidden [&>li+li]:shadow-[0_-1px_0_#efe9de]">
       {rows.map((row) => (
-        <li key={row.id} className={cn('flex flex-col gap-2 px-3.5 py-3', problem?.id === row.id && 'bg-warning-soft')}>
+        <li key={row.id} className={cn('flex flex-col gap-2 px-3.5 py-3', problem?.id === row.id && 'bg-rail')}>
           <div className="flex items-center gap-2.5">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-[15px] font-semibold">{row.student.full_name}</span>
