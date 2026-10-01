@@ -59,7 +59,7 @@ test.describe('Auth Guards', () => {
     expect(activationResponse.ok()).toBeTruthy()
 
     // Login
-	await loginViaUI(page, STUDENT.email, STUDENT.password)
+	await loginViaUI(page, STUDENT.email)
 	await expectHome(page)
 
 	// A role-bearing user cannot remain on the pending-account screen.
@@ -115,7 +115,7 @@ test.describe('Zero-Role User → /account-pending', () => {
     }
 
     // Login — should succeed (no permission gate on /me anymore per ADR-015)
-    await loginViaUI(page, ZERO_ROLE.email, ZERO_ROLE.password)
+    await loginViaUI(page, ZERO_ROLE.email)
 
     // Should land on /account-pending, not dashboard
     await page.waitForURL('**/account-pending')

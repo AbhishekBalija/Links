@@ -24,6 +24,9 @@ type Config struct {
 	Cookie           CookieConfig
 	CORS             CORSConfig
 	Mailer           MailerConfig
+	// EnableTestSignIn turns on POST /api/v1/test/sign-in, which signs anyone
+	// in by email alone, for the e2e suite. Only allowed with APP_ENV=local.
+	EnableTestSignIn bool
 }
 
 // DatabasePoolConfig controls the database/sql pool used by GORM.
@@ -74,6 +77,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		AppEnv:           valueOrDefault("APP_ENV", "local"),
+		EnableTestSignIn: os.Getenv("ENABLE_TEST_SIGN_IN") == "true",
 		Port:             firstSet("PORT", "APP_PORT"),
 		DatabaseURL:      databaseURL(),
 		GINMode:          valueOrDefault("GIN_MODE", "debug"),
@@ -182,6 +186,10 @@ func (c Config) Validate() error {
 	}
 	if c.AppEnv != "local" && !c.Cookie.Secure {
 		return fmt.Errorf("COOKIE_SECURE must be true outside APP_ENV=local")
+	}
+	// The test sign-in skips every check of who someone is.
+	if c.EnableTestSignIn && c.AppEnv != "local" {
+		return fmt.Errorf("ENABLE_TEST_SIGN_IN is only allowed with APP_ENV=local")
 	}
 
 	return nil

@@ -22,7 +22,7 @@ test.describe('Home and placement', () => {
     // AD batch 2022 is used by no other spec.
     const officer = await seedMember(request, { role: 'placement_officer', fullName: 'Nisha Officer' })
     const student = await seedMember(request, { role: 'student', fullName: 'Ravi Student', department: 'AD', batch: 2022 })
-    const token = await loginViaAPI(request, officer.email, officer.password)
+    const token = await loginViaAPI(request, officer.email)
     const ad = await departmentId('AD')
     const opportunity = await call(request, token, 'post', '/api/v1/opportunities', {
       opportunity_type: 'internship',
@@ -37,7 +37,7 @@ test.describe('Home and placement', () => {
 
     const studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
     const studentPage = await studentContext.newPage()
-    await loginViaUI(studentPage, student.email, student.password)
+    await loginViaUI(studentPage, student.email)
     const jobs = studentPage.getByRole('region', { name: 'Open jobs for you' })
     await expect(jobs.getByRole('link', { name: /Robotics intern/ })).toBeVisible()
     await jobs.getByRole('link', { name: /Robotics intern/ }).click()
@@ -47,7 +47,7 @@ test.describe('Home and placement', () => {
     await studentContext.close()
 
     await page.setViewportSize({ width: 1440, height: 960 })
-    await loginViaUI(page, officer.email, officer.password)
+    await loginViaUI(page, officer.email)
     const placement = page.getByRole('region', { name: 'Open drives' })
     await expect(placement.getByRole('link', { name: /Robotics intern/ })).toContainText('1 to review')
     await expect(page.getByText(/waiting for review/).first()).toBeVisible()

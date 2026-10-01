@@ -36,7 +36,7 @@ test.describe('Proposing events', () => {
 
   test('faculty propose an event, the HOD asks for changes, and they resubmit', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.getByRole('link', { name: 'My posts' }).click()
     await page.getByRole('button', { name: 'New' }).click()
     await page.getByRole('link', { name: /An event/ }).click()
@@ -65,7 +65,7 @@ test.describe('Proposing events', () => {
     await expect(page.getByText('With the EC HOD', { exact: true })).toBeVisible()
     const id = page.url().split('/').pop() ?? ''
 
-    const hodToken = await loginViaAPI(request, hod.email, hod.password)
+    const hodToken = await loginViaAPI(request, hod.email)
     const asked = await request.patch(`/api/v1/events/${id}/hod-review`, {
       data: { decision: 'request_changes', note: 'Please start at 3 pm; labs run until 2:45.' },
       headers: { Authorization: `Bearer ${hodToken}` },
@@ -89,7 +89,7 @@ test.describe('Proposing events', () => {
 
   test('a draft is saved on a phone, then deleted after asking', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.goto('/mine/events/new')
     await page.getByRole('button', { name: 'Workshop', exact: true }).click()
     await page.getByLabel('Title').fill('Soldering workshop')
@@ -111,7 +111,7 @@ test.describe('Proposing events', () => {
 
   test('cancelling a waiting proposal needs a reason', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    const token = await loginViaAPI(request, faculty.email, faculty.password)
+    const token = await loginViaAPI(request, faculty.email)
     const ec = await departmentId('EC')
     const starts = new Date(Date.now() + 6 * 24 * 3600 * 1000)
     const id = await propose(request, token, {
@@ -125,7 +125,7 @@ test.describe('Proposing events', () => {
       audience: [{ department_id: ec, role: 'student' }],
     })
 
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.goto(`/mine/events/${id}`)
     await page.getByRole('button', { name: 'Cancel proposal' }).click()
     const dialog = page.getByRole('dialog', { name: 'Cancel this proposal?' })
@@ -142,7 +142,7 @@ test.describe('Proposing events', () => {
 test.describe('My posts', () => {
   test('Ended says so when rejected proposals fail to load, instead of leaving them out', async ({ page, request }) => {
     const faculty = await seedMember(request, { role: 'faculty', fullName: 'Ravi Faculty', department: 'EC' })
-    const token = await loginViaAPI(request, faculty.email, faculty.password)
+    const token = await loginViaAPI(request, faculty.email)
     const starts = new Date(Date.now() + 6 * 24 * 3600 * 1000)
     await propose(request, token, {
       title: 'A draft so My posts is not empty',
@@ -154,7 +154,7 @@ test.describe('My posts', () => {
       audience: [],
       draft: true,
     })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.route('**/api/v1/events/mine?*status=attention*', (route) => route.fulfill({ status: 500, body: '{"error":{"code":"INTERNAL","message":"x"}}' }))
     await page.goto('/mine?status=ended')
     await expect(page.getByText('Your posts could not be loaded.')).toBeVisible()

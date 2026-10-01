@@ -64,12 +64,22 @@ export async function setupAdmin(
 }
 
 // ── UI helpers ──
-export async function loginViaUI(page: Page, email: string, password: string) {
-  await page.goto('/login')
-  await page.waitForURL('**/login')
-  await page.fill('#email', email)
-  await page.fill('#password', password)
-  await page.click('button[type="submit"]')
+// testSignIn signs a seeded member in through the test-only endpoint
+// (ENABLE_TEST_SIGN_IN, local only), so the suite doesn't depend on how
+// people really sign in. Specs about the sign-in screens drive those instead.
+async function testSignIn(apiContext: APIRequestContext, email: string): Promise<string> {
+  const res = await apiContext.post('/api/v1/test/sign-in', { data: { email } })
+  if (!res.ok()) {
+    throw new Error(`Test sign-in failed (${res.status()}): ${await res.text()}`)
+  }
+  return (await res.json()).data.access_token
+}
+
+// loginViaUI signs the page's browser in and opens Home. The refresh cookie
+// the sign-in sets is what the app restores the session from.
+export async function loginViaUI(page: Page, email: string) {
+  await testSignIn(page.request, email)
+  await page.goto('/')
   await page.waitForURL((url) => !url.pathname.includes('/login'))
 }
 
@@ -121,16 +131,9 @@ export async function activateUserViaAPI(apiContext: APIRequestContext, token: s
   }
 }
 
-export async function loginViaAPI(apiContext: APIRequestContext, email: string, password: string): Promise<string> {
-  const res = await apiContext.post('/api/v1/auth/login', {
-    data: { email, password },
-  })
-  if (!res.ok()) {
-    const body = await res.text()
-    throw new Error(`Login failed: ${body}`)
-  }
-  const body = await res.json()
-  return body.data.access_token
+// loginViaAPI returns an access token for API calls made outside the page.
+export async function loginViaAPI(apiContext: APIRequestContext, email: string): Promise<string> {
+  return testSignIn(apiContext, email)
 }
 
 // ── Cleanup ──

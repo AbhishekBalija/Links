@@ -176,3 +176,26 @@ func writeError(c *gin.Context, err error) {
 	}
 	response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
 }
+
+type testSignInInput struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// RegisterTestSignIn adds POST /api/v1/test/sign-in, which signs a member in
+// by email alone. The server registers it only when the config allows it.
+func (h *Handler) RegisterTestSignIn(rg *gin.RouterGroup) {
+	rg.POST("/v1/test/sign-in", func(c *gin.Context) {
+		var input testSignInInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+			return
+		}
+		resp, refreshRaw, err := h.service.TestSignIn(c.Request.Context(), input.Email)
+		if err != nil {
+			writeError(c, err)
+			return
+		}
+		h.setRefreshCookie(c, refreshRaw)
+		response.Success(c, http.StatusOK, resp, nil)
+	})
+}

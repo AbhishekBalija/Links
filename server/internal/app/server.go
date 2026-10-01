@@ -97,6 +97,10 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	// even when it isn't listed for CORS, as on a same-domain deployment.
 	cookieOrigins := append([]string{cfg.Mailer.FrontendURL}, cfg.CORS.AllowedOrigins...)
 	authHandler.RegisterRoutes(api, requireAllowedOrigin(cookieOrigins))
+	if cfg.EnableTestSignIn {
+		logger.Warn("ENABLE_TEST_SIGN_IN is on: anyone can sign in by email alone (e2e only)")
+		authHandler.RegisterTestSignIn(api)
+	}
 
 	v1 := api.Group("/v1")
 	v1.Use(auth.RequireAuth(tokenCfg))

@@ -80,13 +80,13 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
 		await page.click('button:has-text("Activate account")')
 		await expect(page.locator('h1')).toContainText('Account activated')
 
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await expectHome(page)
     await expect(page.getByRole('navigation', { name: 'Main' }).getByText('Student', { exact: true })).toBeVisible()
   })
 
   test('5. Edit Profile: save values', async ({ page }) => {
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await openEditProfile(page)
 
     await page.fill('#headline', 'Computer Science Student')
@@ -103,7 +103,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
   })
 
   test('6. Profile edits persist after navigation', async ({ page }) => {
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await openEditProfile(page)
 
     await expect(page.locator('#headline')).toHaveValue('Computer Science Student')
@@ -115,7 +115,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
   })
 
   test('7. Session persists on page refresh', async ({ page, context }) => {
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await expectHome(page)
 
     const refreshCookie = (await context.cookies()).find((cookie) => cookie.name === 'refresh_token')
@@ -140,7 +140,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
   })
 
 	test('8. Profile edits survive refresh and optional fields can be cleared', async ({ page }) => {
-		await loginViaUI(page, STUDENT.email, STUDENT.password)
+		await loginViaUI(page, STUDENT.email)
 		await openEditProfile(page)
 
 		await expect(page.locator('#headline')).toHaveValue('Computer Science Student')
