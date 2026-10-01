@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Download } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
@@ -11,9 +11,9 @@ import { Tag } from '../../events/components/Tags'
 import { ConfirmDialog } from '../../jobs/components/ConfirmDialog'
 import { DeadlineTile } from '../../jobs/components/DeadlineTile'
 import { daysLeft, deadlineLine } from '../../jobs/format'
-import { typeLabel, type ApplicantCounts, type Opportunity } from '../../jobs/types'
+import { typeLabel, type Opportunity } from '../../jobs/types'
 import { useDepartments } from '../../announcements/api'
-import { usePublishing, useManagedOne } from '../api'
+import { useExportApplicants, usePublishing, useManagedOne } from '../api'
 import { describeEligibility, eligibilitySummary, fromRules } from '../eligibility'
 import { staffStanding } from '../standing'
 
@@ -123,7 +123,7 @@ function Page({ item, departments }: { item: Opportunity; departments: { id: str
         </div>
         {item.status !== 'draft' && (
           <aside>
-            <Applicants counts={item.applicant_counts} />
+            <ApplicantsPanel item={item} />
           </aside>
         )}
       </div>
@@ -221,7 +221,9 @@ function Details({ item, who, standingLabel, standingTone }: { item: Opportunity
   )
 }
 
-function Applicants({ counts }: { counts: ApplicantCounts | undefined }) {
+function ApplicantsPanel({ item }: { item: Opportunity }) {
+  const counts = item.applicant_counts
+  const exporter = useExportApplicants(item)
   if (!counts) return null
   const cells: [number, string, boolean?][] = [
     [counts.applied, 'to review'],
@@ -246,6 +248,23 @@ function Applicants({ counts }: { counts: ApplicantCounts | undefined }) {
             </span>
           ))}
         </div>
+      )}
+      {(counts.total > 0 || counts.withdrawn > 0) && (
+        <>
+          <Link to={`/placement/${item.id}/applicants`} className={cn(buttonStyles.primary, 'min-h-12 w-full hover:text-paper lg:flex-none')}>
+            Open applicant list
+          </Link>
+          <button type="button" onClick={() => exporter.mutate(null)} disabled={exporter.isPending} className={cn(buttonStyles.secondary, 'self-start')}>
+            <Download aria-hidden="true" className="size-4" />
+            {exporter.isPending ? 'Downloading…' : 'Export CSV'}
+          </button>
+          <p className="text-xs text-ink-3">The CSV includes emails and USNs, never phone numbers, so each download is logged.</p>
+          {exporter.isError && (
+            <p role="alert" className="text-xs font-semibold text-danger">
+              The download didn't work. Try again.
+            </p>
+          )}
+        </>
       )}
     </section>
   )

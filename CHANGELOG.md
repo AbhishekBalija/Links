@@ -13,6 +13,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   either kind, each opening in the queue.
 
 ### Added
+- The applicant list for placement staff (#105): every applicant to an
+  Opportunity with their USN, department, batch and date, by status (To
+  review, Shortlisted, Selected, Rejected, Withdrawn) with counts, searchable
+  by name, USN or email and filtered by department and batch. Each row's
+  status changes in place with an Undo; if someone else changed it first, the
+  row reloads and says so instead of overwriting. Export CSV downloads
+  everyone or one status. The Opportunity page opens the list and exports
+  too.
 - Placement for the placement office (#104): every Opportunity under Open,
   Drafts and Closed with its applicant counts; a form for a job, internship
   or training that says who will see it ("Shows in Jobs for AD and CS

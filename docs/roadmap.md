@@ -80,7 +80,7 @@ The API below shipped in v0.4.0; the screens are next.
 Deliverables:
 
 - Placement officer dashboard (API built: the Home placement summary and applicant counts, #101)
-- Placement screens (spec #100: #101 to #106); students' Jobs screens and the office's Placement list and form are built (#103, #104)
+- Placement screens (spec #100: #101 to #106); students' Jobs screens and the office's Placement list, form and applicant table are built (#103 to #105)
 - Job/internship/training posts (drafts, publishing and closing API built; ADR 0024)
 - Eligibility targeting (API built: the feed matches Eligibility like an Audience)
 - Internal application flow (API built: apply once while open, withdraw before shortlisting)
