@@ -6,6 +6,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-01
+
+Two fixes: cancelled requests no longer show up as server errors, and a
+saved profile appears in People straight away.
+
 ### Fixed
 - A request the browser cancels (for example by navigating away) is no
   longer answered and logged as a server error (#115). It is logged as 499,
@@ -311,7 +316,8 @@ records.
 - Audit logs for approvals and status changes.
 - Security tests for the auth surface and a Playwright e2e suite run in CI.
 
-[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/AbhishekBalija/Links/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/AbhishekBalija/Links/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/AbhishekBalija/Links/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AbhishekBalija/Links/compare/v0.2.0...v0.3.0
