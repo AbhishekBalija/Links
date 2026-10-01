@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiRequest } from '../../shared/api/client'
 import type { Notice } from '../notices/types'
+import type { Opportunity } from '../jobs/types'
+import type { PlacementSummary } from './placement'
 
 export type Dashboard = {
   user: {
@@ -19,6 +21,10 @@ export type Dashboard = {
   }
   // Only for users who can post.
   my_announcements?: { draft: number; pending: number; rejected: number; edits_waiting: number }
+  // The next open Opportunities the user is eligible for, when there are any.
+  opportunities?: { items: Opportunity[]; has_more: boolean }
+  // Only for placement staff.
+  placement?: PlacementSummary
 }
 
 export function useDashboard(enabled = true) {

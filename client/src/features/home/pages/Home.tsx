@@ -14,6 +14,11 @@ import { EventRow } from '../../events/components/EventRow'
 import { useDashboard, type Dashboard } from '../api'
 import { waitingForReview } from '../review'
 import { mergeOldestFirst } from '../../posts/merge'
+import { buttonStyles } from '../../announcements/buttons'
+import { JobRow } from '../../jobs/components/JobRow'
+import { daysLeft, isUrgent } from '../../jobs/format'
+import { Pipeline } from '../../placement/components/Pipeline'
+import { placementLine, reviewFirst, showOpenJobs, type PlacementSummary } from '../placement'
 
 function greeting(now: Date) {
   const hour = now.getHours()
@@ -64,7 +69,7 @@ function PhoneBar() {
 }
 
 function HomeView({ data, now }: { data: Dashboard; now: Date }) {
-  const { user, notices, approvals, my_announcements: mine } = data
+  const { user, notices, approvals, my_announcements: mine, opportunities, placement } = data
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
@@ -89,8 +94,11 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
       {/* Phones stack review, your announcements, then notices. Desktop moves
           your announcements into a side column. */}
       <div className={cn('grid items-start gap-5 lg:gap-7', mine && 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]')}>
+        {placement && !approvals && <PlacementPanel summary={placement} now={now} />}
         {approvals && <ReviewPanel approvals={approvals} />}
+        {placement && approvals && <PlacementPanel summary={placement} now={now} />}
         {mine && <MinePanel mine={mine} />}
+        {opportunities && showOpenJobs(user.roles, opportunities) && <OpenJobs section={opportunities} />}
         <ComingUp />
         <LatestNotices notices={notices.items} />
       </div>
@@ -169,6 +177,81 @@ function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approval
 }
 
 type Waiting = { id: string; at: string; title: string; detail: string }
+
+// OpenJobs is the next Opportunities a student can apply to, soonest
+// deadline first, so a new drive is seen without opening Jobs.
+function OpenJobs({ section }: { section: NonNullable<Dashboard['opportunities']> }) {
+  return (
+    <section aria-labelledby="jobs-h" className="flex flex-col gap-3 lg:col-start-1">
+      <div className="flex items-baseline justify-between px-1 lg:px-0">
+        <h2 id="jobs-h" className="font-serif text-xl font-medium">
+          Open jobs for you
+        </h2>
+        <Link to="/jobs" className="text-sm font-semibold">
+          {section.has_more ? 'All open jobs →' : 'Jobs →'}
+        </Link>
+      </div>
+      <ul className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface lg:gap-0.5 lg:p-1.5 [&>li+li]:shadow-[0_-1px_0_#efe9de] lg:[&>li+li]:shadow-none">
+        {section.items.map((job) => (
+          <JobRow key={job.id} job={job} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// PlacementPanel is the placement office's work on Home: what waits for
+// review, where to start, and the open drives with their applicants.
+function PlacementPanel({ summary, now }: { summary: PlacementSummary; now: Date }) {
+  const first = reviewFirst(summary.drives)
+  return (
+    <section aria-labelledby="drives-h" className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-5 py-5 lg:col-start-1 lg:px-7 lg:py-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="flex items-baseline gap-3">
+          <h2 id="drives-h" className="font-serif text-xl font-medium lg:text-2xl">
+            Open drives
+          </h2>
+          <span className="font-mono text-sm text-rust">{summary.open_count}</span>
+        </div>
+        <Link to="/placement" className="shrink-0 text-sm font-semibold">
+          <span className="lg:hidden">Placement →</span>
+          <span className="hidden lg:inline">All of Placement →</span>
+        </Link>
+      </div>
+      <p className="text-[15px] text-ink-2">{placementLine(summary, now)}</p>
+      {first && (
+        <Link to={`/placement/${first.id}/applicants?status=applied`} className={cn(buttonStyles.secondary, 'self-start')}>
+          Review {first.company} first · {first.applicant_counts.applied} waiting
+        </Link>
+      )}
+      {summary.drives.length > 0 ? (
+        <ul className="-mx-3 flex flex-col">
+          {summary.drives.map((drive) => (
+            <li key={drive.id}>
+              <Link
+                to={`/placement/${drive.id}`}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 rounded-lg px-3 py-3 text-ink hover:bg-paper hover:text-ink lg:grid-cols-[minmax(0,1fr)_120px_220px]"
+              >
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-[15px] font-semibold lg:text-base">{drive.title}</span>
+                  <span className="text-[13px] text-ink-3">{drive.company}</span>
+                </span>
+                <span className={cn('font-mono text-xs whitespace-nowrap', isUrgent(drive.apply_by, now) ? 'text-warning' : 'text-ink-3')}>
+                  {daysLeft(drive.apply_by, now)}
+                </span>
+                <Pipeline counts={drive.applicant_counts} className="col-span-2 lg:col-span-1" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Link to="/placement/new" className={cn(buttonStyles.primary, 'self-start hover:text-paper')}>
+          New opportunity
+        </Link>
+      )}
+    </section>
+  )
+}
 
 // ComingUp shows the next two Events for the reader. Home stays quiet when
 // nothing is coming up, so the block only appears with something in it.
