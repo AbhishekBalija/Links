@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-01
+
+Placement works end to end: the placement office posts jobs, internships
+and training, students find and apply to the ones open to them, and the
+office shortlists and exports applicants, with both sides on Home.
+
 ### Fixed
 - Home and the Approval queue badge count waiting event proposals too
   (#108). An HOD or the principal with only proposals waiting was told
@@ -297,7 +303,8 @@ records.
 - Audit logs for approvals and status changes.
 - Security tests for the auth surface and a Playwright e2e suite run in CI.
 
-[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/AbhishekBalija/Links/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/AbhishekBalija/Links/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/AbhishekBalija/Links/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/AbhishekBalija/Links/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AbhishekBalija/Links/compare/v0.1.0...v0.2.0
