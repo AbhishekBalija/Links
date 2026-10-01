@@ -23,15 +23,22 @@ The yearly step where an admin or HOD confirms which final-year students have th
 _Avoid_: pass-out (a student can finish the course without graduating)
 
 **Access request**:
-A person's request to join LINKS with their Gmail, USN and Department, waiting for Access approval or rejection by their Department's HOD, the principal or an admin.
+A request to join LINKS from someone whose email is on no list: they prove their email (Google or a Sign-in code) and give their USN, which names their Department. It waits for Access approval or rejection by their Department's HOD, the principal or an admin.
 _Avoid_: signup, registration
 
 **Access approval**:
-Their Department's HOD, the principal or an admin accepting an Access request: the user becomes verified, gets the student role, and is sent an Activation link.
+Their Department's HOD, the principal or an admin accepting an Access request: the user becomes verified, gets the student role, and waits for their First sign-in. (A request sent with a password, before #136, still gets an Activation link.)
 _Avoid_: verification (the `is_verified` flag is its result, not the step), plain "approval"
 
 **Activation**:
-The user setting their password through a single-use emailed link, which moves the account from `pending` to `active`.
+The user setting their password through a single-use emailed link, which moves the account from `pending` to `active`. Being replaced by the First sign-in (ADR 0026); removed in #136.
+
+**First sign-in**:
+The first time someone signs into an account waiting for it (a class list row, a staff invite or an approved Access request), by Google or a Sign-in code with its email. It makes the account `active` and shows who they signed in as, with "Not you?" to report a wrong row.
+_Avoid_: activation, onboarding
+
+**Staff invite**:
+An admin or the principal adding a staff member by email and role. The account waits for its First sign-in.
 
 **Sign-in code**:
 A 6-digit code emailed to someone signing in without Google. It works once, for 10 minutes, in the browser that asked for it. The principal and admins can't use one.

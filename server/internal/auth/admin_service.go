@@ -83,6 +83,9 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 	if err != nil {
 		return err
 	}
+	// A request sent without a password (spec #129) has nothing to
+	// activate: approval leaves it waiting for its first sign-in.
+	var passwordless bool
 	var email, fullName string
 	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
@@ -103,6 +106,7 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 			return fmt.Errorf("verified user has no email")
 		}
 		email = *user.Email
+		passwordless = user.PasswordHash == ""
 		if user.Profile != nil {
 			fullName = user.Profile.FullName
 		}
@@ -154,12 +158,18 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
 			return fmt.Errorf("create audit log: %w", err)
 		}
+		if passwordless {
+			return nil
+		}
 		if err := repos.Activations.Create(ctx, token); err != nil {
 			return fmt.Errorf("create activation token: %w", err)
 		}
 		return nil
 	}); err != nil {
 		return err
+	}
+	if passwordless {
+		return nil
 	}
 
 	if err := s.sendStoredActivationEmail(email, fullName, tokenRaw); err != nil {

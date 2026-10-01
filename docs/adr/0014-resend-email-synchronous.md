@@ -1,5 +1,7 @@
 # Email Delivery via Resend, Synchronous in MVP
 
+**Update (#133):** the import no longer sends Activation emails (ADR 0026), so no bulk email is sent. Sign-in codes go out one at a time through the same synchronous mailer.
+
 **Date:** 2026-07-21
 
 **Decision:** Use Resend's HTTP API for transactional email delivery, sending synchronously from the request handler. No queue, no worker, no Redis dependency.

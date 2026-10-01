@@ -87,8 +87,8 @@ func TestAdminImportCreatesPendingVerifiedStudents(t *testing.T) {
 	if student.USN != "4MN23CS101" || student.Code != "CS" || student.BatchYear != 2023 || student.Role != "student" {
 		t.Errorf("identity = %+v, want 4MN23CS101 in CS, Batch 2023, student role", student)
 	}
-	if student.Tokens != 1 {
-		t.Errorf("activation tokens = %d, want 1", student.Tokens)
+	if student.Tokens != 0 {
+		t.Errorf("activation tokens = %d, want none: the row waits for first sign-in", student.Tokens)
 	}
 
 	var audits struct{ Import, Users int }

@@ -72,6 +72,10 @@ func (f *fakeUserRepo) FindByGoogleSubjectForUpdate(context.Context, string) (*U
 
 func (f *fakeUserRepo) SetGoogleSubject(context.Context, string, string) error { return nil }
 
+func (f *fakeUserRepo) CompleteFirstSignIn(context.Context, string, time.Time) error { return nil }
+
+func (f *fakeUserRepo) ReturnToWaiting(context.Context, string) error { return nil }
+
 func (f *fakeUserRepo) FindByID(ctx context.Context, id string) (*User, error) {
 	if f.findByID != nil {
 		return f.findByID(ctx, id)
@@ -652,10 +656,11 @@ func TestVerifyUser_ApprovesPendingStudentAndIssuesActivation(t *testing.T) {
 
 	h.users.findByIDForUpdate = func(_ context.Context, id string) (*User, error) {
 		return &User{
-			ID:      id,
-			Email:   &email,
-			Status:  UserStatusPending,
-			Profile: &Profile{UserID: id, FullName: "Test Student"},
+			ID:           id,
+			Email:        &email,
+			PasswordHash: "a password from the request form",
+			Status:       UserStatusPending,
+			Profile:      &Profile{UserID: id, FullName: "Test Student"},
 		}, nil
 	}
 
@@ -736,7 +741,7 @@ func TestVerifyUser_InvalidatesTokenWhenEmailFails(t *testing.T) {
 	email := "student@example.com"
 
 	h.users.findByIDForUpdate = func(_ context.Context, id string) (*User, error) {
-		return &User{ID: id, Email: &email, Status: UserStatusPending}, nil
+		return &User{ID: id, Email: &email, PasswordHash: "a password from the request form", Status: UserStatusPending}, nil
 	}
 	h.mailer.err = errors.New("resend is down")
 

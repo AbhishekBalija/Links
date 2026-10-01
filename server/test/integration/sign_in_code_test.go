@@ -93,7 +93,7 @@ func TestAnEmailCodeSignsAnActiveMemberIn(t *testing.T) {
 	}
 }
 
-func TestTheCodeReplyIsTheSameForAnUnknownEmail(t *testing.T) {
+func TestTheCodeReplyIsTheSameForAnEmailOnNoList(t *testing.T) {
 	h := apitest.New(t)
 	member := studentOf(t, h, "CS", 2023)
 
@@ -108,12 +108,11 @@ func TestTheCodeReplyIsTheSameForAnUnknownEmail(t *testing.T) {
 	if knownReply.Data.Message != unknownReply.Data.Message || unknownReply.Data.ChallengeID == "" {
 		t.Errorf("replies differ: %s vs %s", known.Body, unknown.Body)
 	}
-	if codes := h.Outbox.CodesTo("nobody@apitest.local"); len(codes) != 0 {
-		t.Errorf("sent %d codes to an unknown email", len(codes))
-	}
-	for _, guess := range []string{"000000", "123456"} {
-		expectStatus(t, "a guess for an unknown email", enterCode(t, h, unknownReply.Data.ChallengeID, guess), http.StatusUnauthorized)
-	}
+	// Its owner gets a code to prove the email and send an Access request.
+	code := h.Outbox.LastCodeTo(t, "nobody@apitest.local")
+	expectStatus(t, "a wrong code", enterCode(t, h, unknownReply.Data.ChallengeID, wrongCode(code)), http.StatusUnauthorized)
+	// Without the email it asked for, the right code proves nothing.
+	expectStatus(t, "the right code without the email", enterCode(t, h, unknownReply.Data.ChallengeID, code), http.StatusUnauthorized)
 }
 
 func TestEmailMatchingIgnoresCaseAndSpaces(t *testing.T) {

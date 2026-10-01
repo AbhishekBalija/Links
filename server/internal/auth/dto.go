@@ -32,7 +32,30 @@ type RequestCodeResponse struct {
 
 type VerifyCodeInput struct {
 	ChallengeID string `json:"challenge_id" binding:"required,max=64"`
-	Code        string `json:"code" binding:"required,max=16"`
+	// Email is the address the code was asked for. It is needed only when
+	// the email is on no list, to offer an Access request.
+	Email string `json:"email" binding:"max=254"`
+	Code  string `json:"code" binding:"required,max=16"`
+}
+
+// ProvenAccessRequestInput is an Access request from someone who proved
+// their email (a request token from NOT_ON_LIST). The Department comes from
+// the USN.
+type ProvenAccessRequestInput struct {
+	RequestToken string `json:"request_token" binding:"required,max=2048"`
+	USN          string `json:"usn" binding:"required,max=20"`
+	FullName     string `json:"full_name" binding:"required,max=200"`
+}
+
+// InviteStaffInput adds a staff member by email and role; they wait for
+// their first sign-in.
+type InviteStaffInput struct {
+	Email     string `json:"email" binding:"required,max=254"`
+	FullName  string `json:"full_name" binding:"required,max=200"`
+	Role      string `json:"role" binding:"required"`
+	ScopeType string `json:"scope_type" binding:"required"`
+	ScopeID   string `json:"scope_id"`
+	Note      string `json:"note" binding:"max=500"`
 }
 
 type GoogleSignInInput struct {
@@ -51,6 +74,9 @@ type RequestAccessResponse struct {
 type LoginResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
+	// FirstSignIn is set only when this sign-in completed an account
+	// waiting for its first sign-in.
+	FirstSignIn *FirstSignInResponse `json:"first_sign_in,omitempty"`
 }
 
 type RefreshResponse struct {

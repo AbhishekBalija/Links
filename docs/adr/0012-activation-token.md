@@ -1,5 +1,7 @@
 # Account Activation via Cryptographically Random Token
 
+**Update (#133):** imported rows and Access requests sent without a password no longer use Activation. They wait for a first sign-in with Google or an email code (ADR 0026). Activation stays for requests sent with a password until #136 removes it.
+
 **Date:** 2026-07-18
 
 **Decision:** Account activation uses a cryptographically random, single-use token emailed to the user's Gmail, valid 7 days, used to set a password and move status from `pending` to `active`.

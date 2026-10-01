@@ -62,9 +62,11 @@ func errCodeRefused() error {
 	return apperrors.NewUnauthenticated("the code is wrong or has expired")
 }
 
-// RequestCode records a code request and, when the email belongs to an account
-// that may sign in this way, emails it a code. It returns the challenge ID the
-// browser keeps, the same way for every email.
+// RequestCode records a code request and emails a code, unless the email
+// belongs to an account that can't use one (the principal, an admin, or a
+// suspended or rejected account). An email on no list gets a code too, so its
+// owner can prove it and send an Access request. It returns the challenge ID
+// the browser keeps, the same way for every email.
 func (s *authService) RequestCode(ctx context.Context, email, ip string) (string, error) {
 	start := time.Now()
 	defer waitUntil(ctx, start.Add(s.codeSettings.MinReplyTime))
@@ -108,22 +110,24 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
 		}
+		sendTo = email
 		if user != nil {
 			allowed, err := mayUseEmailCode(ctx, repos.Users, user)
 			if err != nil {
 				return err
 			}
-			if allowed {
-				code, err = generateCode()
-				if err != nil {
-					return err
-				}
-				codeHash := s.codeHash(challenge.ID, code)
-				challenge.UserID = &user.ID
-				challenge.CodeHash = &codeHash
-				sendTo = *user.Email
+			if !allowed {
+				return repos.SignInCodes.Create(ctx, challenge)
 			}
+			challenge.UserID = &user.ID
+			sendTo = *user.Email
 		}
+		code, err = generateCode()
+		if err != nil {
+			return err
+		}
+		codeHash := s.codeHash(challenge.ID, code)
+		challenge.CodeHash = &codeHash
 		return repos.SignInCodes.Create(ctx, challenge)
 	}); err != nil {
 		return "", err
@@ -139,21 +143,25 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 
 // VerifyCode signs in whoever typed the right code for the challenge. A wrong,
 // used, expired or killed code, or an unknown challenge, all get the same
-// refusal.
-func (s *authService) VerifyCode(ctx context.Context, challengeID, code string) (*LoginResponse, string, error) {
+// refusal. The right code for an email on no list gets NOT_ON_LIST with a
+// request token; email must then be the address the code was asked for.
+func (s *authService) VerifyCode(ctx context.Context, challengeID, email, code string) (*LoginResponse, string, error) {
 	if _, err := uuid.Parse(challengeID); err != nil {
 		return nil, "", errCodeRefused()
 	}
 
 	var resp *LoginResponse
 	var refreshRaw string
+	// outcome is the refusal to give once the transaction has committed, so
+	// a used code or a wrong try is kept.
+	outcome := errCodeRefused()
 	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		challenge, err := repos.SignInCodes.FindForUpdate(ctx, challengeID)
 		if err != nil {
 			return fmt.Errorf("find challenge: %w", err)
 		}
 		now := time.Now()
-		if challenge == nil || challenge.CodeHash == nil || challenge.UserID == nil ||
+		if challenge == nil || challenge.CodeHash == nil ||
 			challenge.UsedAt != nil || !now.Before(challenge.ExpiresAt) ||
 			challenge.Attempts >= s.codeSettings.MaxAttempts {
 			return nil
@@ -166,11 +174,17 @@ func (s *authService) VerifyCode(ctx context.Context, challengeID, code string) 
 			return fmt.Errorf("use code: %w", err)
 		}
 
-		user, err := repos.Users.FindByID(ctx, *challenge.UserID)
+		user, err := s.codeOwner(ctx, repos.Users, challenge, email)
 		if err != nil {
-			return fmt.Errorf("find user: %w", err)
+			return err
 		}
 		if user == nil {
+			// The code proved an email on no list.
+			email = normalizeEmail(email)
+			if s.keyedHash("email", email) != challenge.EmailHash {
+				return nil
+			}
+			outcome = s.notOnList(email, "")
 			return nil
 		}
 		// The account may have changed since the code went out.
@@ -178,26 +192,63 @@ func (s *authService) VerifyCode(ctx context.Context, challengeID, code string) 
 		if err != nil || !allowed {
 			return err
 		}
-
-		resp, refreshRaw, err = s.issueSessionWith(ctx, repos.Users, repos.RefreshTokens, user)
-		if err != nil {
-			return err
+		if !user.CanSignIn() {
+			outcome = errAccountNotActive(user.Status)
+			return nil
 		}
-		return repos.AuditLogs.Create(ctx, signInAuditLog(user.ID, "email_code", now))
+		resp, refreshRaw, err = s.signIn(ctx, repos, user, "email_code", now)
+		return err
 	}); err != nil {
 		return nil, "", err
 	}
 	if resp == nil {
-		return nil, "", errCodeRefused()
+		return nil, "", outcome
 	}
 	return resp, refreshRaw, nil
 }
 
-// mayUseEmailCode reports whether the account can sign in with an email code:
-// an active member who isn't the principal or an admin, who sign in with
-// Google only (ADR 0026).
+// codeOwner finds the account the code was for: the one it was sent to, or,
+// for a code sent to an email on no list, an account created for that email
+// since.
+func (s *authService) codeOwner(ctx context.Context, users UserRepository, challenge *SignInCode, email string) (*User, error) {
+	// Locked, so two first sign-ins at once complete the account only once.
+	if challenge.UserID != nil {
+		user, err := users.FindByIDForUpdate(ctx, *challenge.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("find user: %w", err)
+		}
+		return user, nil
+	}
+	email = normalizeEmail(email)
+	if email == "" || s.keyedHash("email", email) != challenge.EmailHash {
+		return nil, nil
+	}
+	user, err := users.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
+		return nil, nil
+	}
+	// FindByEmail doesn't load the profile and identity a first sign-in shows.
+	return users.FindByIDForUpdate(ctx, user.ID)
+}
+
+// notOnList is the NOT_ON_LIST refusal for a proven email, carrying a request
+// token for an Access request.
+func (s *authService) notOnList(email, name string) error {
+	token, err := SignAccessRequestToken(s.tokenCfg, email, time.Now().Add(RequestTokenTTL))
+	if err != nil {
+		return err
+	}
+	return errNotOnList(email, name, token)
+}
+
+// mayUseEmailCode reports whether the account may be sent an email code:
+// not the principal or an admin, who sign in with Google only (ADR 0026), and
+// not a suspended or rejected account.
 func mayUseEmailCode(ctx context.Context, users UserRepository, user *User) (bool, error) {
-	if !user.Status.CanLogin() || user.Email == nil {
+	if user.Email == nil || user.Status == UserStatusSuspended || user.Status == UserStatusRejected {
 		return false, nil
 	}
 	roles, err := users.GetRoleAssignments(ctx, user.ID)

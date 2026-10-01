@@ -108,6 +108,33 @@ func (r *GormUserRepository) SetGoogleSubject(ctx context.Context, userID, subje
 	return nil
 }
 
+// CompleteFirstSignIn makes an account waiting for its first sign-in active.
+func (r *GormUserRepository) CompleteFirstSignIn(ctx context.Context, userID string, at time.Time) error {
+	result := r.db.WithContext(ctx).Model(&User{}).
+		Where("id = ? AND status = ? AND is_verified", userID, UserStatusPending).
+		Updates(map[string]any{"status": UserStatusActive, "first_signed_in_at": at, "updated_at": at})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("user %s is not waiting for a first sign-in", userID)
+	}
+	return nil
+}
+
+// ReturnToWaiting puts an account back to waiting for its first sign-in,
+// with no Google account linked.
+func (r *GormUserRepository) ReturnToWaiting(ctx context.Context, userID string) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
+		Updates(map[string]any{
+			"status":             UserStatusPending,
+			"is_verified":        true,
+			"google_subject":     nil,
+			"first_signed_in_at": nil,
+			"updated_at":         time.Now(),
+		}).Error
+}
+
 func (r *GormUserRepository) FindByID(ctx context.Context, id string) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).

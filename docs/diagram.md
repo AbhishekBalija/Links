@@ -17,15 +17,14 @@ flowchart TB
     Visitor([New user]) --> AccessPath{On college's<br/>Gmail/USN list?}
     AccessPath -->|Yes| BulkImport[Admin/HOD bulk imports CSV]
     AccessPath -->|No| SelfRequest[Student submits access request]
-    BulkImport --> Pending1[status: pending]
+    BulkImport --> Waiting[Waiting for first sign-in]
     SelfRequest --> Pending2[status: pending]
     Pending2 --> HODReview{HOD/Admin verifies USN}
     HODReview -->|Reject| Rejected([rejected])
-    HODReview -->|Approve| ActivationEmail
-    Pending1 --> ActivationEmail[Activation email sent]
-    ActivationEmail --> SetPassword[User sets password via token link]
-    SetPassword --> Active([status: active])
-    Active --> Login[Login: access token + refresh cookie]
+    HODReview -->|Approve| Waiting
+    Waiting --> FirstSignIn[First sign-in: Google or email code]
+    FirstSignIn --> Active([status: active])
+    Active --> Login[Signed in: access token + refresh cookie]
     Login --> RoleAssign[role_assignments: role + scope_type + scope_id]
     RoleAssign --> Router{Role-Based Dashboard Router}
 
@@ -152,23 +151,23 @@ flowchart TB
 flowchart TD
     Start([New user needs access]) --> OnList{On college's<br/>pre-loaded Gmail/USN list?}
 
-    OnList -->|Yes| BulkImport["Admin/HOD bulk-imports CSV:<br/>gmail, USN, dept, batch<br/>POST /admin/users/import"]
-    BulkImport --> CreatePending1["users row created,<br/>status=pending,<br/>student_identity linked"]
-    CreatePending1 --> SendInvite["Activation email sent"]
+    OnList -->|Yes| BulkImport["Admin/HOD bulk-imports CSV:<br/>email, name, USN<br/>POST /admin/users/import"]
+    BulkImport --> Waiting["users row created,<br/>pending + verified,<br/>waiting for first sign-in"]
+    Start --> Staff["Admin/principal invites staff<br/>POST /admin/users"] --> Waiting
 
-    OnList -->|No| SelfRequest["Student fills Access Request form:<br/>name, gmail, phone, USN, dept, batch<br/>POST /auth/request-access"]
-    SelfRequest --> CreatePending2["users row created, status=pending,<br/>approval_request row created"]
+    OnList -->|No| SignInFirst["Signs in with Google or an email code"]
+    SignInFirst --> NotOnList["403 NOT_ON_LIST<br/>+ request token"]
+    NotOnList --> SelfRequest["Access request: USN + name<br/>POST /auth/access-request"]
+    SelfRequest --> CreatePending2["users row created, pending,<br/>in the Department's review queue"]
     CreatePending2 --> HODReview{HOD/Admin reviews<br/>USN + details}
     HODReview -->|Reject| Rejected([status=rejected, audit logged])
-    HODReview -->|Approve| SendInvite
+    HODReview -->|Approve| Waiting
 
-    SendInvite --> Token["Token: opaque 32-byte random<br/>stored as SHA-256 hash in<br/>account_activation_tokens"]
-    Token --> Expiry{Opened within 7 days?}
-    Expiry -->|No| Expired[Token invalid] --> Resend["POST /api/v1/auth/resend-activation"] --> Token
-    Expiry -->|Yes| SetPassword["POST /api/v1/auth/activate<br/>(single transaction)<br/>consume token +<br/>set password +<br/>flip to active"]
-    SetPassword --> Active([status=active, audit logged])
-    Active --> Login["POST /auth/login"]
-    Login --> Tokens["Access token 10-15min +<br/>refresh cookie 7-30 days"]
+    Waiting --> FirstSignIn["Google (POST /auth/google)<br/>or email code (POST /auth/code/verify)"]
+    FirstSignIn --> Active([status=active, first sign-in audited])
+    Active --> NotMe{"Not you?"}
+    NotMe -->|Yes, within an hour| Waiting
+    NotMe -->|No| Tokens["Access token 15min +<br/>refresh cookie 7-30 days"]
     Tokens --> Use[Authenticated requests]
     Use --> RefreshCheck{Access token expired?}
     RefreshCheck -->|Yes| Refresh["POST /auth/refresh<br/>rotates refresh token"]

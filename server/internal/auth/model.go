@@ -14,6 +14,7 @@ type User struct {
 	Phone           *string          `gorm:"column:phone"`
 	PasswordHash    string           `gorm:"column:password_hash"`
 	GoogleSubject   *string          `gorm:"column:google_subject"`
+	FirstSignedInAt *time.Time       `gorm:"column:first_signed_in_at"`
 	Status          UserStatus       `gorm:"column:status"`
 	IsVerified      bool             `gorm:"column:is_verified"`
 	CreatedBy       *string          `gorm:"column:created_by"`
@@ -25,6 +26,19 @@ type User struct {
 
 // TableName returns the database table name.
 func (User) TableName() string { return "users" }
+
+// WaitsForFirstSignIn reports whether the account was let in by a list or a
+// person (an imported row, a staff invite or an approved Access request) and
+// nobody has signed into it yet. Signing in with its email completes it.
+func (u User) WaitsForFirstSignIn() bool {
+	return u.Status == UserStatusPending && u.IsVerified
+}
+
+// CanSignIn reports whether someone who proved the account's email may sign
+// into it now.
+func (u User) CanSignIn() bool {
+	return u.Status.CanLogin() || u.WaitsForFirstSignIn()
+}
 
 // UserStatus represents the user lifecycle states per docs/auth.md § User Statuses.
 //
@@ -198,8 +212,11 @@ type AuthService interface {
 	Login(ctx context.Context, input LoginInput) (*LoginResponse, string, error)
 	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
 	RequestCode(ctx context.Context, email, ip string) (string, error)
-	VerifyCode(ctx context.Context, challengeID, code string) (*LoginResponse, string, error)
+	VerifyCode(ctx context.Context, challengeID, email, code string) (*LoginResponse, string, error)
 	SignInWithGoogle(ctx context.Context, credential, expectedNonce string) (*LoginResponse, string, error)
+	NotMe(ctx context.Context, userID string) error
+	RequestAccessWithProof(ctx context.Context, input ProvenAccessRequestInput) (*RequestAccessResponse, error)
+	InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*RequestAccessResponse, error)
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	ActivateAccount(ctx context.Context, token, password string) error
@@ -238,6 +255,8 @@ type UserRepository interface {
 	FindByEmailForUpdate(ctx context.Context, email string) (*User, error)
 	FindByGoogleSubjectForUpdate(ctx context.Context, subject string) (*User, error)
 	SetGoogleSubject(ctx context.Context, userID, subject string) error
+	CompleteFirstSignIn(ctx context.Context, userID string, at time.Time) error
+	ReturnToWaiting(ctx context.Context, userID string) error
 	FindByID(ctx context.Context, id string) (*User, error)
 	FindByIDForUpdate(ctx context.Context, id string) (*User, error)
 	FindEmailByUserID(ctx context.Context, userID string) (*string, error)

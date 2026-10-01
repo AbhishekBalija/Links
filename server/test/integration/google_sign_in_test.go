@@ -194,7 +194,8 @@ func TestAnAccountThatIsNotActiveCantSignInWithGoogle(t *testing.T) {
 	for _, status := range []string{"suspended", "pending", "rejected"} {
 		t.Run(status, func(t *testing.T) {
 			member := studentOf(t, h, "CS", 2023)
-			h.DB().Exec(`UPDATE users SET status = ? WHERE id = ?`, status, member.ID)
+			// is_verified false: a pending Access request not yet approved.
+			h.DB().Exec(`UPDATE users SET status = ?, is_verified = false WHERE id = ?`, status, member.ID)
 			nonce, cookie := h.GoogleNonce(t)
 			response := googleSignIn(t, h, h.GoogleToken(t, apitest.GoogleClaims{Subject: "google-" + status, Email: member.Email, Nonce: nonce}), cookie)
 			expectStatus(t, status, response, http.StatusForbidden)
