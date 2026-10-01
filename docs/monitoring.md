@@ -26,6 +26,11 @@ Required fields:
 - `latency_ms`
 - `error_code`
 
+A `status_code` of **499** means the client gave up before the answer was
+ready (usually a browser navigating away). It is not a server error and is
+left out of the error rate and 5xx alerts; the cancelled database query is
+not logged either.
+
 Never log:
 
 - Passwords

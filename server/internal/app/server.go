@@ -48,6 +48,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		securityHeaders(cfg.AppEnv == "production"),
 		requestBodyLimit(cfg.RequestBodyLimit),
 		requestLogger(logger),
+		clientGone(),
 		recovery(logger),
 	)
 	if err := router.SetTrustedProxies(nil); err != nil {
