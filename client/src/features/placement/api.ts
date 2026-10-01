@@ -1,6 +1,7 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiPage, apiRequest } from '../../shared/api/client'
-import type { Opportunity } from '../jobs/types'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiDownload, apiPage, apiRequest } from '../../shared/api/client'
+import type { ApplicationStatus, Opportunity } from '../jobs/types'
+import { applicantParams, exportName, type Applicant, type ApplicantFilters } from './applicants'
 import type { OpportunityInput } from './opportunityForm'
 
 export type ManagedStatus = 'published' | 'draft' | 'closed'
@@ -69,5 +70,56 @@ export function usePublishing() {
       apiRequest<Opportunity>(`/api/v1/opportunities/${encodeURIComponent(id)}/${action}`, { method: 'POST' }),
     onSuccess: refresh,
     onError: () => refresh(),
+  })
+}
+
+// useApplicants pages through an Opportunity's applicants, in the order
+// they applied, with the filters applied on the server.
+export function useApplicants(id: string, filters: ApplicantFilters) {
+  return useInfiniteQuery({
+    queryKey: ['placement', 'applicants', id, filters],
+    initialPageParam: '',
+    queryFn: ({ pageParam, signal }) =>
+      apiPage<Applicant[], FeedMeta>(`/api/v1/opportunities/${encodeURIComponent(id)}/applications?${applicantParams(filters, pageParam)}`, { signal }),
+    getNextPageParam: (lastPage) => lastPage.meta?.next_cursor || undefined,
+    placeholderData: keepPreviousData,
+  })
+}
+
+// useApplicantStatus moves an Application. It sends the status the officer
+// saw, so the server refuses (409) rather than overwrite someone else's
+// change. Either way, the list, the counts and Home are refreshed.
+export function useApplicantStatus(opportunityId: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ applicant, to }: { applicant: Applicant; to: ApplicationStatus }) =>
+      apiRequest<Applicant>(`/api/v1/opportunity-applications/${encodeURIComponent(applicant.id)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ from: applicant.status, status: to }),
+      }),
+    onSettled: () => {
+      client.invalidateQueries({ queryKey: ['placement', 'applicants', opportunityId] })
+      client.invalidateQueries({ queryKey: ['placement', 'one', opportunityId] })
+      client.invalidateQueries({ queryKey: ['placement', 'list'] })
+      client.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+// useExportApplicants downloads the applicants as CSV, all or one status.
+// Each download is audited on the server.
+export function useExportApplicants(item: Pick<Opportunity, 'id' | 'title' | 'company'>) {
+  return useMutation({
+    mutationFn: async (status: ApplicationStatus | null) => {
+      const query = status ? `?status=${status}` : ''
+      const name = exportName(item.title, item.company, status)
+      const file = await apiDownload(`/api/v1/opportunities/${encodeURIComponent(item.id)}/export${query}`, name)
+      const url = URL.createObjectURL(file.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = name
+      link.click()
+      URL.revokeObjectURL(url)
+    },
   })
 }

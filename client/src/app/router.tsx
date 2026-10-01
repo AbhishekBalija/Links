@@ -30,6 +30,7 @@ const Jobs = lazy(() => import('../features/jobs/pages/Jobs'))
 const JobDetail = lazy(() => import('../features/jobs/pages/JobDetail'))
 const Placement = lazy(() => import('../features/placement/pages/Placement'))
 const PlacementOpportunity = lazy(() => import('../features/placement/pages/PlacementOpportunity'))
+const Applicants = lazy(() => import('../features/placement/pages/Applicants'))
 const OpportunityForm = lazy(() => import('../features/placement/pages/OpportunityForm'))
 const People = lazy(() => import('../features/people/pages/People'))
 const Profile = lazy(() => import('../features/people/pages/Profile'))
@@ -77,6 +78,7 @@ export function AppRouter() {
             <Route path="/placement/new" element={<OpportunityForm />} />
             <Route path="/placement/:id" element={<PlacementOpportunity />} />
             <Route path="/placement/:id/edit" element={<OpportunityForm />} />
+            <Route path="/placement/:id/applicants" element={<Applicants />} />
           </Route>
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
