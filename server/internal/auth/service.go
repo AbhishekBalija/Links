@@ -22,6 +22,7 @@ type authService struct {
 	passwordHasher PasswordHasher
 	mailer         mailer.Mailer
 	frontendURL    string
+	codeSettings   CodeSettings
 }
 
 func NewAuthService(
@@ -33,6 +34,7 @@ func NewAuthService(
 	passwordHasher PasswordHasher,
 	mailer mailer.Mailer,
 	frontendURL string,
+	codeSettings CodeSettings,
 ) AuthService {
 	return &authService{
 		userRepo:       userRepo,
@@ -43,6 +45,7 @@ func NewAuthService(
 		passwordHasher: passwordHasher,
 		mailer:         mailer,
 		frontendURL:    frontendURL,
+		codeSettings:   codeSettings,
 	}
 }
 

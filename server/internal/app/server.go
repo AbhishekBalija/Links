@@ -20,8 +20,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Option changes how NewServer wires the API, for tests.
+type Option func(*options)
+
+type options struct {
+	mailer       mailer.Mailer
+	codeSettings auth.CodeSettings
+}
+
+// WithMailer sends email through m instead of the configured mailer.
+func WithMailer(m mailer.Mailer) Option {
+	return func(o *options) { o.mailer = m }
+}
+
+// WithCodeSettings replaces the email code's default limits.
+func WithCodeSettings(settings auth.CodeSettings) Option {
+	return func(o *options) { o.codeSettings = settings }
+}
+
 // NewServer builds the API router and its foundation middleware.
-func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*gin.Engine, error) {
+func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, opts ...Option) (*gin.Engine, error) {
+	wiring := options{codeSettings: auth.DefaultCodeSettings()}
+	for _, opt := range opts {
+		opt(&wiring)
+	}
 	if database == nil {
 		return nil, errors.New("database is required")
 	}
@@ -54,6 +76,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 	if err := router.SetTrustedProxies(nil); err != nil {
 		return nil, err
 	}
+	// Behind a platform that sets the client's address itself, read it from
+	// that header; anywhere else the header could be forged.
+	router.TrustedPlatform = cfg.ClientIPHeader
 
 	api := router.Group("/api")
 	api.GET("/health", healthHandler)
@@ -72,11 +97,13 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		RefreshTTL:    cfg.Auth.RefreshTokenTTL,
 	}
 
-	var m mailer.Mailer
-	if cfg.Mailer.ResendAPIKey == "" {
+	m := wiring.mailer
+	switch {
+	case m != nil:
+	case cfg.Mailer.ResendAPIKey == "":
 		logger.Warn("RESEND_API_KEY not set, using NoopMailer — no emails will be sent")
 		m = mailer.NoopMailer{}
-	} else {
+	default:
 		m = mailer.NewResendMailer(cfg.Mailer.ResendAPIKey, cfg.Mailer.FromEmail)
 	}
 
@@ -89,6 +116,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger) (*
 		auth.NewArgon2PasswordHasher(),
 		m,
 		cfg.Mailer.FrontendURL,
+		wiring.codeSettings,
 	)
 
 	policy := auth.NewPolicy()

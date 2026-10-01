@@ -27,6 +27,9 @@ type Config struct {
 	// EnableTestSignIn turns on POST /api/v1/test/sign-in, which signs anyone
 	// in by email alone, for the e2e suite. Only allowed with APP_ENV=local.
 	EnableTestSignIn bool
+	// ClientIPHeader names the header that holds the client's real IP
+	// address, set only on a platform that writes it itself (Vercel).
+	ClientIPHeader string
 }
 
 // DatabasePoolConfig controls the database/sql pool used by GORM.
@@ -78,6 +81,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		AppEnv:           valueOrDefault("APP_ENV", "local"),
 		EnableTestSignIn: os.Getenv("ENABLE_TEST_SIGN_IN") == "true",
+		ClientIPHeader:   clientIPHeader(),
 		Port:             firstSet("PORT", "APP_PORT"),
 		DatabaseURL:      databaseURL(),
 		GINMode:          valueOrDefault("GIN_MODE", "debug"),
@@ -236,6 +240,15 @@ func frontendURL() string {
 		return "https://" + v
 	}
 	return "http://localhost:5173"
+}
+
+// clientIPHeader trusts X-Real-IP only on Vercel, which sets it to the
+// connecting client's address and drops any value the client sent.
+func clientIPHeader() string {
+	if os.Getenv("VERCEL") == "1" {
+		return "X-Real-IP"
+	}
+	return ""
 }
 
 func hasAny(keys ...string) bool {

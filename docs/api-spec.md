@@ -111,6 +111,8 @@ GET /api/v1/events?limit=20&cursor=...
 ```text
 POST /api/v1/auth/request-access
 POST /api/v1/auth/login
+POST /api/v1/auth/code
+POST /api/v1/auth/code/verify
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 POST /api/v1/auth/activate
@@ -122,6 +124,41 @@ POST /api/v1/auth/resend-activation
 Department an admin adds works straight away. `department_code`, when sent,
 must be the same Department. `400` for a malformed USN, a joining year out of
 range, a code with no Department, or a mismatch.
+
+### Email code
+
+Signing in with a one-time code sent by email (spec #129, ADR 0026).
+
+`POST /api/v1/auth/code` with `{"email": "..."}` always answers `200` the same
+way, whether or not the email belongs to anyone:
+
+```json
+{
+  "data": {
+    "challenge_id": "5f0c...",
+    "message": "If this email can use LINKS, a code is on its way."
+  }
+}
+```
+
+The browser keeps `challenge_id`; the code works only with it. A 6-digit
+code is emailed only when the email belongs to an active member who isn't
+the principal or an admin (they sign in with Google only). Spaces around the
+email and its case don't matter. `400` for something that isn't an email.
+`429 RATE_LIMITED` after 3 requests for one email, or 60 from one IP address,
+within 15 minutes; the limits count every request, known email or not. The
+reply takes at least a second, so its timing doesn't show whether a code was
+sent.
+
+`POST /api/v1/auth/code/verify` with `{"challenge_id": "...", "code": "123456"}`
+signs in like login: `200` with `access_token` and `expires_in`, and the
+refresh cookie. A code works once, for 10 minutes; 5 wrong tries kill it.
+A wrong, used, expired or killed code, an unknown challenge, or an account
+that can no longer sign in all get the same
+`401 UNAUTHENTICATED` ("the code is wrong or has expired"). Every sign-in is
+audited (`auth.signed_in`, method `email_code`). Both code endpoints check
+`Origin` like refresh and logout (ADR 0022), so another site can't sign a
+browser into someone's account.
 
 `GET /api/v1/public/departments` needs no token. It returns only what the
 Access request form shows, ordered by name, with

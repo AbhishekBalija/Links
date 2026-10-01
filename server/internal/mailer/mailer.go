@@ -33,6 +33,8 @@ type Mailer interface {
 	// SendActivationEmails sends up to MaxBatchSize emails in one request.
 	// The batch succeeds or fails as a whole.
 	SendActivationEmails(emails []ActivationEmail) error
+	// SendSignInCode emails a one-time sign-in code.
+	SendSignInCode(to string, code string) error
 }
 
 type ResendMailer struct {
@@ -82,6 +84,15 @@ func (m *ResendMailer) SendActivationEmails(emails []ActivationEmail) error {
 	return m.post("/emails/batch", body)
 }
 
+func (m *ResendMailer) SendSignInCode(to, code string) error {
+	return m.post("/emails", sendRequest{
+		From:    m.fromEmail,
+		To:      to,
+		Subject: "Your LINKS sign-in code: " + code,
+		HTML:    signInCodeHTML(code),
+	})
+}
+
 func (m *ResendMailer) post(path string, body any) error {
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -117,6 +128,24 @@ func (NoopMailer) SendActivationEmail(_ string, _ string, _ string) error {
 
 func (NoopMailer) SendActivationEmails(_ []ActivationEmail) error {
 	return nil
+}
+
+func (NoopMailer) SendSignInCode(_ string, _ string) error {
+	return nil
+}
+
+func signInCodeHTML(code string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:sans-serif;padding:24px;max-width:480px">
+<h2>Your LINKS sign-in code</h2>
+<p style="font-size:32px;letter-spacing:6px;font-weight:bold">%s</p>
+<p>Type it in the browser where you asked for it. It works once, for 10 minutes.</p>
+<p><strong>Never share this code.</strong> LINKS staff will never ask for it.</p>
+<p style="margin-top:24px;font-size:12px;color:#666">If you didn't ask for a code, ignore this email. Nobody can sign in without it.</p>
+</body>
+</html>`, html.EscapeString(code))
 }
 
 func activationEmailHTML(name, link string) string {
