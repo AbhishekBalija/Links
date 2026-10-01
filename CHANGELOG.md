@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Home and the Approval queue badge count waiting event proposals too
+  (#108). An HOD or the principal with only proposals waiting was told
+  "Nothing is waiting for you"; Home now lists the oldest waiting items of
+  either kind, each opening in the queue.
+
 ### Added
 - Jobs for students (#103): a Jobs tab with the jobs, internships and
   training open to them, soonest deadline first, plus what they applied to

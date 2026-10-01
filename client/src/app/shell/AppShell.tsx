@@ -6,6 +6,7 @@ import { useAuthStore } from '../../features/auth/store'
 import { Avatar } from './Avatar'
 import { LogoutButton } from './LogoutButton'
 import { useDashboard } from '../../features/home/api'
+import { waitingForReview } from '../../features/home/review'
 import { canApprove, mainRoleLabel, navFor, tabsFor, type NavItem } from './nav'
 
 // AppShell frames every signed-in screen: a sidebar on desktop and a bottom
@@ -19,10 +20,10 @@ export function AppShell() {
   // The composer, an opened announcement, an event and a job have their own action
   // bar at the bottom on phones, so the tab bar steps aside there.
   const focused = /^\/(mine|approvals|events|jobs)\/.+/.test(useLocation().pathname)
-  // Approvers see how many announcements are waiting for them.
+  // Approvers see how many announcements and event proposals wait for them.
   const approver = canApprove(roles)
   const dashboard = useDashboard(approver)
-  const waiting = approver ? dashboard.data?.approvals?.pending_count : undefined
+  const waiting = approver ? waitingForReview(dashboard.data?.approvals) : undefined
   const badges: Record<string, number | undefined> = { '/approvals': waiting || undefined }
 
   return (

@@ -78,3 +78,25 @@ test.describe('Reviewing events', () => {
     await context.close()
   })
 })
+
+test.describe('Home for reviewers', () => {
+  test('an HOD with only an event proposal waiting sees it on Home and in the sidebar', async ({ page, request }) => {
+    // AD has no other HOD or events in the e2e specs.
+    const faculty = await seedMember(request, { role: 'faculty', fullName: 'Ritu Faculty', department: 'AD' })
+    const hod = await seedMember(request, { role: 'hod', fullName: 'Sunil HOD', department: 'AD' })
+    const ad = await departmentId('AD')
+    await propose(request, await loginViaAPI(request, faculty.email, faculty.password), 'Data science bootcamp', ad)
+
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await loginViaUI(page, hod.email, hod.password)
+    await page.goto('/')
+    const panel = page.getByRole('region', { name: 'Waiting for your review' })
+    await expect(panel).toContainText('1')
+    await expect(panel).not.toContainText('Nothing is waiting for you')
+    await expect(page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: /Approval queue/ })).toContainText('1')
+
+    await panel.getByRole('link', { name: /Data science bootcamp/ }).click()
+    await page.waitForURL('**/approvals/*')
+    await expect(page.getByRole('heading', { name: 'Data science bootcamp' })).toBeVisible()
+  })
+})

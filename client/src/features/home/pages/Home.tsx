@@ -9,9 +9,11 @@ import { useRefetchAtExpiry } from '../../notices/useRefetchAtExpiry'
 import { useQueue } from '../../announcements/api'
 import { waited } from '../../announcements/status'
 import { audienceLabel } from '../../notices/format'
-import { useEventFeed } from '../../events/api'
+import { useEventFeed, useEventReviews } from '../../events/api'
 import { EventRow } from '../../events/components/EventRow'
 import { useDashboard, type Dashboard } from '../api'
+import { waitingForReview } from '../review'
+import { mergeOldestFirst } from '../../posts/merge'
 
 function greeting(now: Date) {
   const hour = now.getHours()
@@ -97,11 +99,32 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
 }
 
 // ReviewPanel comes first for approvers: reviewing is their main job here.
-// It shows the three oldest items; each opens straight in the queue.
+// It counts announcements and event proposals together and shows the three
+// oldest of either kind; each opens straight in the queue.
 function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approvals']> }) {
-  const count = approvals.pending_count
+  const count = waitingForReview(approvals)
   const queue = useQueue()
-  const oldest = (queue.data?.pages[0]?.data ?? []).slice(0, 3)
+  const events = useEventReviews()
+  const oldest = mergeOldestFirst<Waiting>([
+    {
+      items: (queue.data?.pages[0]?.data ?? []).map((item) => ({
+        id: item.id,
+        at: item.submitted_at,
+        title: item.title,
+        detail: `${item.publisher_name} · ${audienceLabel(item.audience)}${item.kind === 'edit' ? ' · edit to a live notice' : ''}`,
+      })),
+      complete: !queue.hasNextPage,
+    },
+    {
+      items: (events.data?.pages[0]?.data ?? []).map((item) => ({
+        id: item.id,
+        at: item.submitted_at ?? item.updated_at,
+        title: item.title,
+        detail: `${item.proposer_name} · event proposal${item.stage === 'final' ? ', final approval' : ''}`,
+      })),
+      complete: !events.hasNextPage,
+    },
+  ]).items.slice(0, 3)
   return (
     <section aria-labelledby="review-h" className="flex flex-col gap-1.5 rounded-xl border border-line bg-surface px-5 py-5 lg:col-start-1 lg:px-7 lg:py-6">
       <div className="flex items-baseline justify-between gap-3 pb-1">
@@ -123,7 +146,7 @@ function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approval
       ) : (
         <ul className="-mx-3 flex flex-col">
           {oldest.map((item) => {
-            const wait = waited(item.submitted_at)
+            const wait = waited(item.at)
             return (
               <li key={item.id}>
                 <Link
@@ -132,10 +155,7 @@ function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approval
                 >
                   <span className="flex flex-col gap-0.5">
                     <span className="text-[15px] font-semibold lg:text-base">{item.title}</span>
-                    <span className="text-[13px] text-ink-3">
-                      {item.publisher_name} · {audienceLabel(item.audience)}
-                      {item.kind === 'edit' && ' · edit to a live notice'}
-                    </span>
+                    <span className="text-[13px] text-ink-3">{item.detail}</span>
                   </span>
                   <span className={cn('font-mono text-xs whitespace-nowrap', wait.long ? 'text-warning' : 'text-ink-3')}>{wait.text}</span>
                 </Link>
@@ -147,6 +167,8 @@ function ReviewPanel({ approvals }: { approvals: NonNullable<Dashboard['approval
     </section>
   )
 }
+
+type Waiting = { id: string; at: string; title: string; detail: string }
 
 // ComingUp shows the next two Events for the reader. Home stays quiet when
 // nothing is coming up, so the block only appears with something in it.
