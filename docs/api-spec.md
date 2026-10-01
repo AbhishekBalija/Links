@@ -247,7 +247,13 @@ sections without changing these:
     "pending_count": 2, "oldest_submitted_at": "...",
     "events_pending_count": 1, "oldest_event_submitted_at": "..."
   },
-  "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 }
+  "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 },
+  "opportunities": { "items": [/* next three open ones, as in the feed */], "has_more": true },
+  "placement": {
+    "open_count": 4, "awaiting_review_count": 2,
+    "drives": [{ "id": "...", "opportunity_type": "job", "title": "...", "company": "...", "apply_by": "...",
+      "applicant_counts": { "total": 2, "applied": 1, "shortlisted": 1, "rejected": 0, "selected": 0, "withdrawn": 0 } }]
+  }
 }
 ```
 
@@ -260,6 +266,13 @@ sections without changing these:
   without an HOD and every final approval; never the caller's own). An
   `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
+- `opportunities` appears when the caller is eligible for an open
+  Opportunity: the first three from `GET /api/v1/opportunities`, soonest
+  deadline first, each with the caller's own Application.
+- `placement` appears only for placement staff: how many Opportunities are
+  open, how many Applications to published or closed ones are still
+  `applied`, and up to five open drives, soonest deadline first, with their
+  `applicant_counts` (as on the manage list).
 - `department` is the Student identity's Department, otherwise the first
   Department-scoped role, otherwise `null`.
 
@@ -779,7 +792,10 @@ An unknown `state`, `type` or `department`, or a bad cursor, is `400`.
 
 `GET /api/v1/opportunities/manage` lists every Opportunity for placement
 staff, newest first: `status` (`draft`, `published`, `closed`), `cursor` and
-`limit` (1 to 50, default 20); the next page is `meta.next_cursor`.
+`limit` (1 to 50, default 20); the next page is `meta.next_cursor`. Each
+carries `applicant_counts`: `total` and the count in each status, with
+`withdrawn` counted apart and left out of `total`. Placement staff also get
+`applicant_counts` on `GET /api/v1/opportunities/:id`; nobody else ever does.
 
 `GET /api/v1/opportunities/:id` returns one Opportunity: any of them to
 placement staff, a published or closed one to a member in its Eligibility or
@@ -856,9 +872,10 @@ Opportunity) lists its Applications in the order they were made:
 }
 ```
 
-- Filters: `status` (`applied`, `shortlisted`, `rejected`, `selected`,
-  `withdrawn`), `department` (a Department code, any case) and `batch` (the
-  Student's Batch); `cursor` and `limit` (1 to 50, default 20). A bad filter
+- Filters: `q` (part of the Student's name, username, email or USN, any
+  case, up to 100 characters), `status` (`applied`, `shortlisted`,
+  `rejected`, `selected`, `withdrawn`), `department` (a Department code, any
+  case) and `batch` (the Student's Batch); `cursor` and `limit` (1 to 50, default 20). A bad filter
   or cursor is `400`.
 - Never a phone number. Opening the list (a request without a cursor) is
   audited as `applicants_viewed` with the filters.

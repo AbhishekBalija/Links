@@ -11,21 +11,22 @@ import (
 )
 
 type opportunityItem struct {
-	ID              string         `json:"id"`
-	OpportunityType string         `json:"opportunity_type"`
-	Title           string         `json:"title"`
-	Company         string         `json:"company"`
-	Description     string         `json:"description"`
-	Location        *string        `json:"location"`
-	Compensation    *string        `json:"compensation"`
-	ApplyBy         string         `json:"apply_by"`
-	ApplicationMode string         `json:"application_mode"`
-	ExternalURL     *string        `json:"external_url"`
-	Status          string         `json:"status"`
-	Open            bool           `json:"open"`
-	MyApplication   *myApplication `json:"my_application"`
-	PublishedAt     *string        `json:"published_at"`
-	ClosedAt        *string        `json:"closed_at"`
+	ID              string           `json:"id"`
+	OpportunityType string           `json:"opportunity_type"`
+	Title           string           `json:"title"`
+	Company         string           `json:"company"`
+	Description     string           `json:"description"`
+	Location        *string          `json:"location"`
+	Compensation    *string          `json:"compensation"`
+	ApplyBy         string           `json:"apply_by"`
+	ApplicationMode string           `json:"application_mode"`
+	ExternalURL     *string          `json:"external_url"`
+	Status          string           `json:"status"`
+	Open            bool             `json:"open"`
+	MyApplication   *myApplication   `json:"my_application"`
+	ApplicantCounts *applicantCounts `json:"applicant_counts"`
+	PublishedAt     *string          `json:"published_at"`
+	ClosedAt        *string          `json:"closed_at"`
 	Eligibility     []struct {
 		DepartmentID   *string `json:"department_id"`
 		DepartmentCode *string `json:"department_code"`

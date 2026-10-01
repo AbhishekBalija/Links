@@ -6,6 +6,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Placement staff see each Opportunity's applicant counts by status on
+  their list and on the Opportunity, and search its applicants by name,
+  email or USN (#101). Home gains the next open Opportunities for members
+  who are eligible, and a placement summary (open drives, applicant counts,
+  Applications waiting for review) for placement staff.
+
 ### Fixed
 - Your own notices say "You" again, and signing in as someone else on the
   same tab clears the previous person's cached data. The client read the

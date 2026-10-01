@@ -180,7 +180,13 @@ func (s *Service) Managed(ctx context.Context, actorID, status, cursor string, l
 		meta.NextCursor = encodeCursor(Cursor{At: last.CreatedAt, ID: last.ID})
 	}
 	responses, err := s.toResponses(ctx, views, actorID)
-	return responses, meta, err
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := s.addApplicantCounts(ctx, responses); err != nil {
+		return nil, nil, err
+	}
+	return responses, meta, nil
 }
 
 // merge applies the fields a PATCH sent onto the Opportunity's current

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
@@ -32,6 +33,18 @@ type dashboard struct {
 			Rejected     int `json:"rejected"`
 			EditsWaiting int `json:"edits_waiting"`
 		} `json:"my_announcements"`
+		Opportunities *struct {
+			Items   []opportunityItem `json:"items"`
+			HasMore bool              `json:"has_more"`
+		} `json:"opportunities"`
+		Placement *struct {
+			OpenCount           int `json:"open_count"`
+			AwaitingReviewCount int `json:"awaiting_review_count"`
+			Drives              []struct {
+				Title           string          `json:"title"`
+				ApplicantCounts applicantCounts `json:"applicant_counts"`
+			} `json:"drives"`
+		} `json:"placement"`
 	} `json:"data"`
 }
 
@@ -146,5 +159,72 @@ func TestDashboardCountsTheEventsWaitingForEachReviewer(t *testing.T) {
 	}
 	if approvals := getDashboard(t, h, csFaculty.Token).Data.Approvals; approvals != nil {
 		t.Errorf("faculty has an approvals section: %+v", approvals)
+	}
+}
+
+func TestDashboardShowsOpenJobsToStudentsAndTheDrivesToPlacementStaff(t *testing.T) {
+	h := apitest.New(t)
+	officer := placementOfficer(t, h)
+	forCS := []map[string]any{{"department_id": h.DepartmentID(t, "CS")}}
+	soon := publishedOpportunity(t, h, officer, map[string]any{"title": "Soon", "apply_by": inDays(3), "eligibility": forCS})
+	publishedOpportunity(t, h, officer, map[string]any{"title": "Next week", "apply_by": inDays(10), "eligibility": forCS})
+	publishedOpportunity(t, h, officer, map[string]any{"title": "Later", "apply_by": inDays(20), "eligibility": forCS})
+	publishedOpportunity(t, h, officer, map[string]any{"title": "Much later", "apply_by": inDays(30), "eligibility": forCS})
+	closed := publishedOpportunity(t, h, officer, map[string]any{"title": "Closed early", "eligibility": forCS})
+	decodeOpportunity(t, closeOpportunity(t, h, officer.Token, closed), http.StatusOK)
+	createOpportunity(t, h, officer.Token, opportunityBody(map[string]any{"title": "Still a draft", "eligibility": forCS}))
+
+	reader := studentOf(t, h, "CS", 2023)
+	shortlisted := studentOf(t, h, "CS", 2023)
+	decodeApplication(t, applyTo(t, h, reader.Token, soon), http.StatusCreated)
+	application := decodeApplication(t, applyTo(t, h, shortlisted.Token, soon), http.StatusCreated).ID
+	expectStatus(t, "shortlist", setApplicationStatus(t, h, officer.Token, application, "applied", "shortlisted"), http.StatusOK)
+	// An applied Application to a closed drive still waits for review.
+	late := studentOf(t, h, "CS", 2023)
+	lateDrive := publishedOpportunity(t, h, officer, map[string]any{"title": "Closing now", "apply_by": inDays(40), "eligibility": forCS})
+	decodeApplication(t, applyTo(t, h, late.Token, lateDrive), http.StatusCreated)
+	decodeOpportunity(t, closeOpportunity(t, h, officer.Token, lateDrive), http.StatusOK)
+
+	student := getDashboard(t, h, reader.Token).Data
+	if student.Opportunities == nil {
+		t.Fatal("student dashboard has no opportunities section")
+	}
+	if got := opportunityTitles(student.Opportunities.Items); !slices.Equal(got, []string{"Soon", "Next week", "Later"}) || !student.Opportunities.HasMore {
+		t.Errorf("student opportunities = %v (has_more %v), want the three soonest with more to come", got, student.Opportunities.HasMore)
+	}
+	if mine := student.Opportunities.Items[0].MyApplication; mine == nil || mine.Status != "applied" {
+		t.Errorf("Soon on Home = %+v, want the student's own application", mine)
+	}
+	if student.Placement != nil {
+		t.Errorf("student dashboard has a placement section: %+v", student.Placement)
+	}
+	if other := getDashboard(t, h, studentOf(t, h, "EC", 2023).Token).Data; other.Opportunities != nil {
+		t.Errorf("EC student has an opportunities section with nothing open for them: %+v", other.Opportunities)
+	}
+
+	staff := getDashboard(t, h, officer.Token).Data
+	if staff.Placement == nil {
+		t.Fatal("placement officer dashboard has no placement section")
+	}
+	if staff.Placement.OpenCount != 4 || staff.Placement.AwaitingReviewCount != 2 {
+		t.Errorf("placement = open %d, awaiting review %d, want 4 and 2", staff.Placement.OpenCount, staff.Placement.AwaitingReviewCount)
+	}
+	drives := []string{}
+	for _, drive := range staff.Placement.Drives {
+		drives = append(drives, drive.Title)
+	}
+	if !slices.Equal(drives, []string{"Soon", "Next week", "Later", "Much later"}) {
+		t.Errorf("drives = %v, want the open ones, soonest deadline first", drives)
+	}
+	if got := staff.Placement.Drives[0].ApplicantCounts; got != (applicantCounts{Total: 2, Applied: 1, Shortlisted: 1}) {
+		t.Errorf("Soon counts = %+v, want 2 in total, 1 applied and 1 shortlisted", got)
+	}
+	if staff.Opportunities != nil {
+		t.Errorf("placement officer sees CS students' jobs on Home: %+v", staff.Opportunities)
+	}
+
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	if got := getDashboard(t, h, faculty.Token).Data; got.Placement != nil {
+		t.Errorf("faculty dashboard has a placement section: %+v", got.Placement)
 	}
 }

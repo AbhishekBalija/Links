@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -185,5 +186,104 @@ func TestTwoStaffMovingOneApplicationAtOnceCantBothWin(t *testing.T) {
 	slices.Sort(statuses)
 	if !slices.Equal(statuses, []int{http.StatusOK, http.StatusConflict}) {
 		t.Errorf("statuses = %v, want one 200 and one 409", statuses)
+	}
+}
+
+func TestPlacementStaffSearchApplicantsByNameEmailOrUSN(t *testing.T) {
+	h := apitest.New(t)
+	officer := placementOfficer(t, h)
+	id := publishedOpportunity(t, h, officer, nil)
+	asha := namedStudent(t, h, "Asha Rao", "CS", 2023)
+	bala := namedStudent(t, h, "Bala Kumar", "CS", 2023)
+	for _, student := range []apitest.User{asha, bala} {
+		decodeApplication(t, applyTo(t, h, student.Token, id), http.StatusCreated)
+	}
+	all, _ := applicants(t, h, officer.Token, id, nil)
+	balaUSN := *all[1].Student.USN
+
+	searches := map[string]struct {
+		q    string
+		want []string
+	}{
+		"part of a name, any case": {"RAO", []string{"Asha Rao"}},
+		"email":                    {bala.Email, []string{"Bala Kumar"}},
+		"USN, lower case":          {strings.ToLower(balaUSN), []string{"Bala Kumar"}},
+		"no match":                 {"nobody", []string{}},
+	}
+	for name, search := range searches {
+		items, _ := applicants(t, h, officer.Token, id, url.Values{"q": {search.q}})
+		if got := applicantNames(items); !slices.Equal(got, search.want) {
+			t.Errorf("%s: q=%q = %v, want %v", name, search.q, got, search.want)
+		}
+	}
+	// Search combines with the other filters.
+	if items, _ := applicants(t, h, officer.Token, id, url.Values{"q": {"asha"}, "department": {"EC"}}); len(items) != 0 {
+		t.Errorf("q=asha in EC = %v, want none", applicantNames(items))
+	}
+
+	expectStatus(t, "search too long", h.Do(t, http.MethodGet, "/api/v1/opportunities/"+id+"/applications?q="+strings.Repeat("a", 101), officer.Token, nil), http.StatusBadRequest)
+
+	var withSearch int
+	h.DB().Raw(`SELECT count(*) FROM audit_logs WHERE action = 'applicants_viewed' AND resource_id = ? AND metadata->>'q' = 'RAO'`, id).Scan(&withSearch)
+	if withSearch != 1 {
+		t.Errorf("applicants_viewed audits with q=RAO = %d, want 1", withSearch)
+	}
+}
+
+type applicantCounts struct {
+	Total       int `json:"total"`
+	Applied     int `json:"applied"`
+	Shortlisted int `json:"shortlisted"`
+	Rejected    int `json:"rejected"`
+	Selected    int `json:"selected"`
+	Withdrawn   int `json:"withdrawn"`
+}
+
+func TestPlacementStaffSeeApplicantCountsOnEachOpportunity(t *testing.T) {
+	h := apitest.New(t)
+	officer := placementOfficer(t, h)
+	busy := publishedOpportunity(t, h, officer, map[string]any{"title": "Busy drive"})
+	quiet := publishedOpportunity(t, h, officer, map[string]any{"title": "Quiet drive"})
+	ids := map[string]string{}
+	for _, name := range []string{"applied", "shortlisted", "rejected", "selected", "withdrawn"} {
+		student := studentOf(t, h, "CS", 2023)
+		ids[name] = decodeApplication(t, applyTo(t, h, student.Token, busy), http.StatusCreated).ID
+		switch name {
+		case "withdrawn":
+			decodeApplication(t, withdrawFrom(t, h, student.Token, busy), http.StatusOK)
+		case "applied":
+		default:
+			expectStatus(t, "move to "+name, setApplicationStatus(t, h, officer.Token, ids[name], "applied", name), http.StatusOK)
+		}
+	}
+	extra := studentOf(t, h, "CS", 2023)
+	decodeApplication(t, applyTo(t, h, extra.Token, busy), http.StatusCreated)
+
+	// Withdrawn Applications are counted apart, not in the total.
+	want := applicantCounts{Total: 5, Applied: 2, Shortlisted: 1, Rejected: 1, Selected: 1, Withdrawn: 1}
+	listed, _ := managedOpportunities(t, h, officer.Token, nil)
+	counts := map[string]*applicantCounts{}
+	for _, item := range listed {
+		counts[item.Title] = item.ApplicantCounts
+	}
+	if got := counts["Busy drive"]; got == nil || *got != want {
+		t.Errorf("Busy drive counts = %+v, want %+v", got, want)
+	}
+	if got := counts["Quiet drive"]; got == nil || *got != (applicantCounts{}) {
+		t.Errorf("Quiet drive counts = %+v, want all zero", got)
+	}
+	if got := openedBy(t, h, officer.Token, busy).ApplicantCounts; got == nil || *got != want {
+		t.Errorf("opened by staff counts = %+v, want %+v", got, want)
+	}
+
+	// Students never see how many others applied.
+	if got := openedBy(t, h, extra.Token, quiet).ApplicantCounts; got != nil {
+		t.Errorf("student sees applicant counts %+v, want none", got)
+	}
+	feed, _ := opportunityFeed(t, h, extra.Token, nil)
+	for _, item := range feed {
+		if item.ApplicantCounts != nil {
+			t.Errorf("feed item %q has applicant counts for a student", item.Title)
+		}
 	}
 }

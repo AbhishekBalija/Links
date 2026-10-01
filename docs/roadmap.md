@@ -77,7 +77,8 @@ Goal: Build the placement workflow end to end.
 
 Deliverables:
 
-- Placement officer dashboard
+- Placement officer dashboard (API built: the Home placement summary and applicant counts, #101)
+- Placement screens (spec #100: #101 to #106)
 - Job/internship/training posts (drafts, publishing and closing API built; ADR 0024)
 - Eligibility targeting (API built: the feed matches Eligibility like an Audience)
 - Internal application flow (API built: apply once while open, withdraw before shortlisting)
