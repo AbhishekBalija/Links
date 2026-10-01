@@ -6,6 +6,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- After saving your profile, People and your Department page show the new
+  headline straight away instead of up to 30 seconds later (#109).
+
 ## [0.5.0] - 2026-10-01
 
 Placement works end to end: the placement office posts jobs, internships
