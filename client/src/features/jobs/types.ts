@@ -25,6 +25,17 @@ export type MyApplication = {
   withdrawn_at: string | null
 }
 
+// ApplicantCounts is how many Applications an Opportunity has in each
+// status. Only placement staff get it; withdrawn ones are not in total.
+export type ApplicantCounts = {
+  total: number
+  applied: number
+  shortlisted: number
+  rejected: number
+  selected: number
+  withdrawn: number
+}
+
 export type Opportunity = {
   id: string
   opportunity_type: OpportunityType
@@ -44,6 +55,9 @@ export type Opportunity = {
   posted_by: { user_id: string; full_name: string }
   published_at: string | null
   closed_at: string | null
+  created_at: string
+  updated_at: string
+  applicant_counts?: ApplicantCounts
 }
 
 export const opportunityTypes: { value: OpportunityType; label: string }[] = [

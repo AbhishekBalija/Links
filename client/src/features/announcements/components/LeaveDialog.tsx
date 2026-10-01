@@ -9,12 +9,13 @@ type Props = {
   onKeepEditing: () => void
   onDiscard: () => void
   // What is being written, for the dialog's wording.
-  what?: 'announcement' | 'event'
+  what?: 'announcement' | 'event' | 'opportunity'
 }
 
 const words = {
   announcement: { started: "You've started writing.", lost: 'Your changes to this announcement will be lost.' },
   event: { started: "You've started proposing an event.", lost: 'Your changes to this event will be lost.' },
+  opportunity: { started: "You've started an opportunity.", lost: 'Your changes to this opportunity will be lost.' },
 }
 
 // LeaveDialog asks before unsaved writing is lost. The native <dialog> keeps

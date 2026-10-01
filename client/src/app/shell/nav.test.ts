@@ -21,4 +21,15 @@ describe('navigation', () => {
     expect(paths(navFor(['hod', 'faculty']))).toHaveLength(7)
     expect(paths(tabsFor(['hod', 'faculty']))).toEqual(['/', '/notices', '/events', '/approvals', '/mine'])
   })
+
+  it('gives placement staff Placement, and keeps it on the placement officer\'s phone tabs', () => {
+    expect(paths(navFor(['placement_officer']))).toContain('/placement')
+    expect(paths(tabsFor(['placement_officer']))).toEqual(['/', '/notices', '/events', '/placement', '/mine'])
+    expect(paths(navFor(['student']))).not.toContain('/placement')
+  })
+
+  it('keeps Placement in the principal\'s sidebar but off their five phone tabs', () => {
+    expect(paths(navFor(['principal']))).toContain('/placement')
+    expect(paths(tabsFor(['principal']))).toEqual(['/', '/notices', '/events', '/approvals', '/mine'])
+  })
 })
