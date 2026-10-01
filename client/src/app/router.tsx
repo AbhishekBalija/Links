@@ -26,6 +26,8 @@ const EventEdit = lazy(() => import('../features/events/pages/EventEdit'))
 const EventPeople = lazy(() => import('../features/events/pages/EventPeople'))
 const MyEvent = lazy(() => import('../features/events/pages/MyEvent'))
 const Propose = lazy(() => import('../features/events/pages/Propose'))
+const Jobs = lazy(() => import('../features/jobs/pages/Jobs'))
+const JobDetail = lazy(() => import('../features/jobs/pages/JobDetail'))
 const People = lazy(() => import('../features/people/pages/People'))
 const Profile = lazy(() => import('../features/people/pages/Profile'))
 const MyProfile = lazy(() => import('../features/people/pages/MyProfile'))
@@ -65,6 +67,8 @@ export function AppRouter() {
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/events/:id/people" element={<EventPeople />} />
           <Route path="/events/:id/edit" element={<EventEdit />} />
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
           <Route path="/departments/:code" element={<Department />} />

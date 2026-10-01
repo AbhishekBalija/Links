@@ -13,6 +13,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
   either kind, each opening in the queue.
 
 ### Added
+- Jobs for students (#103): a Jobs tab with the jobs, internships and
+  training open to them, soonest deadline first, plus what they applied to
+  and closed ones. Each opportunity's page applies in LINKS after one
+  confirmation, or opens the company's site and asks on return whether they
+  applied, so the placement office still counts it. Their status (applied,
+  shortlisted, selected, not selected, withdrawn) shows on the page and in
+  the list, and they can withdraw while it is still only applied. On phones
+  Jobs takes People's tab; People stays in the desktop sidebar.
 - Placement staff see each Opportunity's applicant counts by status on
   their list and on the Opportunity, and search its applicants by name,
   email or USN (#101). Home gains the next open Opportunities for members

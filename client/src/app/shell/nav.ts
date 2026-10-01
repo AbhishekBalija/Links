@@ -1,4 +1,4 @@
-import { CalendarDays, House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
+import { BriefcaseBusiness, CalendarDays, House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -23,6 +23,7 @@ const items: NavItem[] = [
   { to: '/', label: 'Home', icon: House },
   { to: '/notices', label: 'Notices', icon: Newspaper },
   { to: '/events', label: 'Events', icon: CalendarDays },
+  { to: '/jobs', label: 'Jobs', icon: BriefcaseBusiness, roles: ['student'] },
   { to: '/people', label: 'People', icon: Users, also: ['/departments'] },
   { to: '/approvals', label: 'Approval queue', short: 'Approvals', icon: ListChecks, roles: approverRoles },
   { to: '/mine', label: 'My posts', short: 'Mine', icon: PenLine, roles: posterRoles },
@@ -44,11 +45,14 @@ export function navFor(roles: string[]): NavItem[] {
 // The phone's bottom bar fits five tabs. When a role has more, Profile steps
 // out first (it stays one tap away from the avatar on Home), then People
 // (reachable from Home's department link), so HODs keep their work tabs.
+// Students have no work tabs; for them Jobs takes People's place and they
+// keep Profile, which they edit more than staff do.
 const maxTabs = 5
-const leaveFirst = ['/profile', '/people']
 
 export function tabsFor(roles: string[]): NavItem[] {
   let tabs = navFor(roles)
+  const staff = canPost(roles) || canApprove(roles)
+  const leaveFirst = staff ? ['/profile', '/people'] : ['/people', '/profile']
   for (const path of leaveFirst) {
     if (tabs.length <= maxTabs) break
     tabs = tabs.filter((item) => item.to !== path)

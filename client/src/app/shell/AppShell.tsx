@@ -17,9 +17,9 @@ export function AppShell() {
   const items = navFor(roles)
   const tabs = tabsFor(roles)
   const name = user?.profile.full_name ?? user?.email ?? ''
-  // The composer, an opened announcement and an event have their own action
+  // The composer, an opened announcement, an event and a job have their own action
   // bar at the bottom on phones, so the tab bar steps aside there.
-  const focused = /^\/(mine|approvals|events)\/.+/.test(useLocation().pathname)
+  const focused = /^\/(mine|approvals|events|jobs)\/.+/.test(useLocation().pathname)
   // Approvers see how many announcements and event proposals wait for them.
   const approver = canApprove(roles)
   const dashboard = useDashboard(approver)
