@@ -13,7 +13,7 @@ test.describe('Placement', () => {
     const student = await seedMember(request, { role: 'student', fullName: 'Tara Student', department: 'AD', batch: 2025 })
 
     await page.setViewportSize({ width: 1440, height: 960 })
-    await loginViaUI(page, officer.email, officer.password)
+    await loginViaUI(page, officer.email)
     await page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Placement' }).click()
     await page.waitForURL('**/placement')
     await page.getByRole('link', { name: 'New opportunity' }).first().click()
@@ -42,7 +42,7 @@ test.describe('Placement', () => {
 
     const studentContext = await browser.newContext({ viewport: { width: 1440, height: 960 } })
     const studentPage = await studentContext.newPage()
-    await loginViaUI(studentPage, student.email, student.password)
+    await loginViaUI(studentPage, student.email)
     await studentPage.goto('/jobs')
     await expect(studentPage.getByRole('link', { name: /Robotics trainee/ })).toContainText('Tessel Robotics')
     await studentContext.close()
@@ -60,7 +60,7 @@ test.describe('Placement', () => {
   test('on a phone, the officer has a Placement tab and is asked before losing a half-written opportunity', async ({ page, request }) => {
     const officer = await seedMember(request, { role: 'placement_officer', fullName: 'Nisha Officer' })
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, officer.email, officer.password)
+    await loginViaUI(page, officer.email)
     await page.getByRole('navigation', { name: 'Main' }).last().getByRole('link', { name: 'Placement' }).click()
     await page.getByRole('link', { name: 'New opportunity' }).first().click()
     await page.getByLabel('Role', { exact: true }).fill('Half-written role')

@@ -97,7 +97,7 @@ test.describe('Reading notices', () => {
 
   test('a student reads notices on desktop', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await expectHome(page)
 
     // Home shows the newest notices meant for this student, and nothing else.
@@ -137,7 +137,7 @@ test.describe('Reading notices', () => {
 
   test('a student reads notices on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await expectHome(page)
 
     // Phones get bottom navigation instead of the sidebar.
@@ -157,7 +157,7 @@ test.describe('Reading notices', () => {
   })
 
   test('a notice that is not for the reader is not shown', async ({ page }) => {
-    await loginViaUI(page, STUDENT.email, STUDENT.password)
+    await loginViaUI(page, STUDENT.email)
     await page.goto('/notices/00000000-0000-0000-0000-000000000000')
     await expect(page.getByRole('heading', { name: "This notice isn't available" })).toBeVisible()
   })

@@ -31,7 +31,25 @@ func (s *authService) Login(ctx context.Context, input LoginInput) (*LoginRespon
 	if !ok {
 		return nil, "", apperrors.NewUnauthenticated("invalid credentials")
 	}
+	return s.issueSession(ctx, user)
+}
 
+// TestSignIn signs an active member in by email alone, for the e2e suite.
+// Its route exists only when the config allows it (APP_ENV=local).
+func (s *authService) TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error) {
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, "", fmt.Errorf("find user: %w", err)
+	}
+	if user == nil || !user.Status.CanLogin() {
+		return nil, "", apperrors.NewUnauthenticated("no active member with this email")
+	}
+	return s.issueSession(ctx, user)
+}
+
+// issueSession gives a signed-in user an access token and a stored refresh
+// token, whichever way they proved who they are.
+func (s *authService) issueSession(ctx context.Context, user *User) (*LoginResponse, string, error) {
 	roles, err := s.userRepo.GetRoleAssignments(ctx, user.ID)
 	if err != nil {
 		return nil, "", fmt.Errorf("get roles: %w", err)

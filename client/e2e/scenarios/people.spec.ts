@@ -17,7 +17,7 @@ test.describe('People', () => {
       await client.end()
     }
 
-    await loginViaUI(page, student.email, student.password)
+    await loginViaUI(page, student.email)
     await page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'People' }).click()
     await page.waitForURL('**/people')
 
@@ -54,7 +54,7 @@ test.describe('People after editing a profile', () => {
     }
 
     await page.setViewportSize({ width: 1440, height: 960 })
-    await loginViaUI(page, student.email, student.password)
+    await loginViaUI(page, student.email)
     const nav = page.getByRole('navigation', { name: 'Main' }).first()
     await nav.getByRole('link', { name: 'People' }).click()
     await expect(page.getByRole('link', { name: /Kavya Headline/ })).toBeVisible()

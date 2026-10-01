@@ -33,7 +33,7 @@ test.describe('Approving announcements', () => {
 
     const facultyContext = await browser.newContext(desktop)
     const facultyPage = await facultyContext.newPage()
-    await loginViaUI(facultyPage, faculty.email, faculty.password)
+    await loginViaUI(facultyPage, faculty.email)
     await facultyPage.goto('/mine/new')
     await facultyPage.getByLabel('Title').fill('Lab 2 opens at 9 am')
     await facultyPage.getByLabel('Notice').fill('From Monday, Lab 2 opens at 9 am.')
@@ -43,7 +43,7 @@ test.describe('Approving announcements', () => {
 
     const hodContext = await browser.newContext(desktop)
     const hodPage = await hodContext.newPage()
-    await loginViaUI(hodPage, hod.email, hod.password)
+    await loginViaUI(hodPage, hod.email)
     await expectHome(hodPage)
     const review = hodPage.getByRole('region', { name: 'Waiting for your review' })
     await review.getByRole('link', { name: /Lab 2 opens at 9 am/ }).click()
@@ -62,7 +62,7 @@ test.describe('Approving announcements', () => {
 
     const readerContext = await browser.newContext(desktop)
     const readerPage = await readerContext.newPage()
-    await loginViaUI(readerPage, reader.email, reader.password)
+    await loginViaUI(readerPage, reader.email)
     await expect(readerPage.getByRole('region', { name: 'Latest notices' }).getByRole('link', { name: /Lab 2 opens at 9 am/ })).toBeVisible()
     await readerPage.getByRole('link', { name: 'Notices' }).first().click()
     await expect(readerPage.getByRole('link', { name: /Lab 2 opens at 9 am/ })).toBeVisible()
@@ -70,11 +70,11 @@ test.describe('Approving announcements', () => {
   })
 
   test('sending back needs a note, and the author sees it', async ({ page, request }) => {
-    const facultyToken = await loginViaAPI(request, faculty.email, faculty.password)
+    const facultyToken = await loginViaAPI(request, faculty.email)
     await submit(request, facultyToken, 'Coding club moved to Thursday')
 
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, hod.email, hod.password)
+    await loginViaUI(page, hod.email)
     const tabs = page.getByRole('navigation', { name: 'Main' })
     await tabs.getByRole('link', { name: /Approvals/ }).click()
     await page.getByRole('link', { name: /Coding club moved to Thursday/ }).click()
@@ -92,15 +92,15 @@ test.describe('Approving announcements', () => {
   })
 
   test('if someone else reviews it first, the queue says so and refreshes', async ({ page, request }) => {
-    const facultyToken = await loginViaAPI(request, faculty.email, faculty.password)
+    const facultyToken = await loginViaAPI(request, faculty.email)
     const id = await submit(request, facultyToken, 'Seminar hall booking')
 
     await page.setViewportSize({ width: 1280, height: 900 })
-    await loginViaUI(page, hod.email, hod.password)
+    await loginViaUI(page, hod.email)
     await page.goto(`/approvals/${id}`)
     await expect(page.getByRole('heading', { level: 2, name: 'Seminar hall booking' })).toBeVisible()
 
-    const principalToken = await loginViaAPI(request, principal.email, principal.password)
+    const principalToken = await loginViaAPI(request, principal.email)
     const approved = await request.patch(`/api/v1/announcements/${id}/approval`, {
       data: { decision: 'approve' },
       headers: { Authorization: `Bearer ${principalToken}` },
@@ -114,7 +114,7 @@ test.describe('Approving announcements', () => {
   })
 
   test('students cannot open the queue', async ({ page }) => {
-    await loginViaUI(page, reader.email, reader.password)
+    await loginViaUI(page, reader.email)
     await page.goto('/approvals')
     await page.waitForURL((url) => url.pathname === '/')
     await expectHome(page)

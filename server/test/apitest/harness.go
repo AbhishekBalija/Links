@@ -50,6 +50,13 @@ type Harness struct {
 // API router on top. The schema is dropped when the test finishes, pass or fail.
 func New(t *testing.T) *Harness {
 	t.Helper()
+	return NewWith(t, nil)
+}
+
+// NewWith is New with a chance to change the server's config first, for
+// tests about config-gated routes.
+func NewWith(t *testing.T, configure func(*config.Config)) *Harness {
+	t.Helper()
 	baseURL := os.Getenv("TEST_DATABASE_URL")
 	if baseURL == "" {
 		t.Skip("TEST_DATABASE_URL is not set; skipping API test against Postgres")
@@ -93,6 +100,9 @@ func New(t *testing.T) *Harness {
 			AccessTokenTTL:   15 * time.Minute,
 			RefreshTokenTTL:  24 * time.Hour,
 		},
+	}
+	if configure != nil {
+		configure(&cfg)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	router, err := app.NewServer(cfg, database, logger)

@@ -82,6 +82,8 @@ export default async function globalSetup(): Promise<SetupResult> {
         RESEND_API_KEY: '',
         ACCESS_TOKEN_TTL: '10s',
         CORS_ALLOWED_ORIGINS: 'http://localhost:5174',
+        // Specs sign in through the test-only endpoint (local only).
+        ENABLE_TEST_SIGN_IN: 'true',
       },
       detached: process.platform !== 'win32',
       stdio: 'pipe',

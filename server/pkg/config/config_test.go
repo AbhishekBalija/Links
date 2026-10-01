@@ -81,3 +81,35 @@ func TestConfigValidate(t *testing.T) {
 		t.Fatal("expected non-positive refresh token TTL to fail validation")
 	}
 }
+
+// The test-only sign-in issues a session for any email, so it must never be
+// switched on outside a developer's machine or the e2e suite.
+func TestTestSignInIsRefusedOutsideLocal(t *testing.T) {
+	t.Parallel()
+	base := Config{
+		AppEnv:      "local",
+		DatabaseURL: "postgres://example",
+		GINMode:     "debug",
+		Auth: AuthConfig{
+			JWTAccessSecret:  "local-access-secret",
+			JWTRefreshSecret: "local-refresh-secret",
+			AccessTokenTTL:   15 * time.Minute,
+			RefreshTokenTTL:  7 * 24 * time.Hour,
+		},
+		RequestBodyLimit: 1024,
+		DatabasePool:     DatabasePoolConfig{MaxOpenConns: 10, MaxIdleConns: 5, ConnMaxLifetime: time.Minute, ConnMaxIdleTime: time.Minute},
+		EnableTestSignIn: true,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("test sign-in on a local server: %v", err)
+	}
+	for _, env := range []string{"production", "preview", "staging"} {
+		other := base
+		other.AppEnv = env
+		other.GINMode = "release"
+		other.Cookie = CookieConfig{Secure: true}
+		if err := other.Validate(); err == nil {
+			t.Errorf("test sign-in accepted with APP_ENV=%s", env)
+		}
+	}
+}

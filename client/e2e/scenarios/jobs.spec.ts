@@ -30,7 +30,7 @@ test.describe('Jobs', () => {
   test('a student applies to a job in LINKS, sees it under Applied, and withdraws', async ({ page, request }) => {
     const student = await seedMember(request, { role: 'student', fullName: 'Meera Student', department: 'AD', batch: 2023 })
     const officer = await seedMember(request, { role: 'placement_officer', fullName: 'Nisha Officer' })
-    const token = await loginViaAPI(request, officer.email, officer.password)
+    const token = await loginViaAPI(request, officer.email)
     const ad = await departmentId('AD')
     await publishOpportunity(request, token, {
       opportunity_type: 'job',
@@ -45,7 +45,7 @@ test.describe('Jobs', () => {
     })
 
     await page.setViewportSize({ width: 1440, height: 960 })
-    await loginViaUI(page, student.email, student.password)
+    await loginViaUI(page, student.email)
     await page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Jobs' }).click()
     await page.waitForURL('**/jobs')
     const row = page.getByRole('link', { name: /Graduate Engineer Trainee/ })
@@ -75,7 +75,7 @@ test.describe('Jobs', () => {
   test('on a phone, a student records that they applied on the company site', async ({ page, request }) => {
     const student = await seedMember(request, { role: 'student', fullName: 'Kiran Student', department: 'AD', batch: 2024 })
     const officer = await seedMember(request, { role: 'placement_officer', fullName: 'Nisha Officer' })
-    const token = await loginViaAPI(request, officer.email, officer.password)
+    const token = await loginViaAPI(request, officer.email)
     const ad = await departmentId('AD')
     await publishOpportunity(request, token, {
       opportunity_type: 'internship',
@@ -89,7 +89,7 @@ test.describe('Jobs', () => {
     })
 
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, student.email, student.password)
+    await loginViaUI(page, student.email)
     const tabs = page.getByRole('navigation', { name: 'Main' }).last()
     await expect(tabs.getByRole('link', { name: 'People' })).toHaveCount(0)
     await tabs.getByRole('link', { name: 'Jobs' }).click()

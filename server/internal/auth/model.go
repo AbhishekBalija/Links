@@ -178,6 +178,7 @@ type PasswordHasher interface {
 type AuthService interface {
 	RequestAccess(ctx context.Context, input RequestAccessInput) (*RequestAccessResponse, error)
 	Login(ctx context.Context, input LoginInput) (*LoginResponse, string, error)
+	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	ActivateAccount(ctx context.Context, token, password string) error

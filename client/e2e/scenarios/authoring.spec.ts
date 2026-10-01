@@ -29,7 +29,7 @@ test.describe('Writing announcements', () => {
 
   test('an HOD posts to their own department and it publishes straight away', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    await loginViaUI(page, hod.email, hod.password)
+    await loginViaUI(page, hod.email)
     await expectHome(page)
 
     await page.getByRole('link', { name: 'Notices' }).first().click()
@@ -47,7 +47,7 @@ test.describe('Writing announcements', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'CS lab 3 closed on Monday' })).toBeVisible()
     await expect(page.getByRole('complementary').getByText('Live', { exact: true })).toBeVisible()
 
-    const readerToken = await loginViaAPI(request, reader.email, reader.password)
+    const readerToken = await loginViaAPI(request, reader.email)
     expect(await feedTitles(request, readerToken)).toContain('CS lab 3 closed on Monday')
 
     // On the notice itself, the author sees it as their own.
@@ -59,7 +59,7 @@ test.describe('Writing announcements', () => {
 
   test('faculty submit, get it sent back, fix it and resubmit', async ({ page, request }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.getByRole('link', { name: 'My posts' }).click()
     await expect(page.getByRole('heading', { name: 'Nothing posted yet' })).toBeVisible()
 
@@ -75,8 +75,8 @@ test.describe('Writing announcements', () => {
     await expect(page.getByRole('link', { name: 'Edit', exact: true })).toHaveCount(0)
 
     // The HOD sends it back with a note (the approval queue is #42).
-    const hodToken = await loginViaAPI(request, hod.email, hod.password)
-    const facultyToken = await loginViaAPI(request, faculty.email, faculty.password)
+    const hodToken = await loginViaAPI(request, hod.email)
+    const facultyToken = await loginViaAPI(request, faculty.email)
     const id = await mineByTitle(request, facultyToken, 'Lab 2 timings change')
     const rejected = await request.patch(`/api/v1/announcements/${id}/approval`, {
       data: { decision: 'reject', note: 'Add the Thursday timings too.' },
@@ -101,7 +101,7 @@ test.describe('Writing announcements', () => {
 
   test('a missing title is caught, and the text already written stays', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.goto('/mine/new')
     await page.getByLabel('Notice').fill('Bring your ID cards.')
     await page.getByRole('button', { name: 'Submit for approval' }).click()
@@ -113,7 +113,7 @@ test.describe('Writing announcements', () => {
 
   test('leaving with unsaved writing offers to keep it as a draft', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.goto('/mine/new')
     await page.getByLabel('Title').fill('Seminar on embedded systems')
     await page.getByLabel('Notice').fill('Details to follow.')
@@ -134,7 +134,7 @@ test.describe('Writing announcements', () => {
 
   test('withdrawing asks first, then takes the notice down', async ({ page, request }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, hod.email, hod.password)
+    await loginViaUI(page, hod.email)
     await page.goto('/mine?status=live')
     await page.getByRole('link', { name: /CS lab 3 closed on Monday/ }).click()
 
@@ -150,7 +150,7 @@ test.describe('Writing announcements', () => {
     // page can still be on screen for a moment with its own status badges.
     await expect(page.getByRole('link', { name: /CS lab 3 closed on Monday/ })).toContainText('Withdrawn')
 
-    const readerToken = await loginViaAPI(request, reader.email, reader.password)
+    const readerToken = await loginViaAPI(request, reader.email)
     expect(await feedTitles(request, readerToken)).not.toContain('CS lab 3 closed on Monday')
   })
 })

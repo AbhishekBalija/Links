@@ -21,7 +21,7 @@ test.describe('Applicants', () => {
   test('the placement officer searches applicants, shortlists one, is told when someone else changed a row first, and exports', async ({ page, request }) => {
     // AD batch 2026 is used by no other spec.
     const officer = await seedMember(request, { role: 'placement_officer', fullName: 'Nisha Officer' })
-    const token = await loginViaAPI(request, officer.email, officer.password)
+    const token = await loginViaAPI(request, officer.email)
     const ad = await departmentId('AD')
     const opportunity = await call(request, token, 'post', '/api/v1/opportunities', {
       opportunity_type: 'job',
@@ -36,12 +36,12 @@ test.describe('Applicants', () => {
     const applications: Record<string, string> = {}
     for (const name of ['Asha Applicant', 'Bala Applicant', 'Chitra Applicant']) {
       const student = await seedMember(request, { role: 'student', fullName: name, department: 'AD', batch: 2026 })
-      const studentToken = await loginViaAPI(request, student.email, student.password)
+      const studentToken = await loginViaAPI(request, student.email)
       applications[name] = (await call(request, studentToken, 'post', `/api/v1/opportunities/${opportunity.id}/apply`)).id
     }
 
     await page.setViewportSize({ width: 1440, height: 960 })
-    await loginViaUI(page, officer.email, officer.password)
+    await loginViaUI(page, officer.email)
     await page.goto(`/placement/${opportunity.id}`)
     await page.getByRole('link', { name: 'Open applicant list' }).click()
     await page.waitForURL('**/applicants')

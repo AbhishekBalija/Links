@@ -22,7 +22,7 @@ test.describe('Events', () => {
   test('a student finds an event, says they are going, and sees it in their list', async ({ page, request }) => {
     const student = await seedMember(request, { role: 'student', fullName: 'Ravi Student', department: 'ME', batch: 2024 })
     const principal = await seedMember(request, { role: 'principal', fullName: 'Principal Rao' })
-    const token = await loginViaAPI(request, principal.email, principal.password)
+    const token = await loginViaAPI(request, principal.email)
     const me = await departmentId('ME')
     const starts = new Date(Date.now() + 3 * 24 * 3600 * 1000)
     starts.setHours(14, 30, 0, 0)
@@ -39,7 +39,7 @@ test.describe('Events', () => {
       audience: [{ department_id: me }],
     })
 
-    await loginViaUI(page, student.email, student.password)
+    await loginViaUI(page, student.email)
     await page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: 'Events' }).click()
     await page.waitForURL('**/events')
     const row = page.getByRole('link', { name: /Guest talk on engines/ })

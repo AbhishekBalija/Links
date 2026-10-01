@@ -55,7 +55,7 @@ test.describe('Silent Token Refresh', () => {
     expect(activationResponse.ok()).toBeTruthy()
 
     // 2. Log in via UI — this sets refresh_token cookie in browser
-    await loginViaUI(page, USER.email, USER.password)
+    await loginViaUI(page, USER.email)
     await expectHome(page)
 
     // 3. Capture current refresh cookie value

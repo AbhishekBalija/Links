@@ -35,7 +35,7 @@ test.describe('Organising an event', () => {
     const ai = await departmentId('AI')
     const starts = new Date(Date.now() + 4 * 24 * 3600 * 1000)
     starts.setHours(11, 0, 0, 0)
-    const created = await call(request, 'post', '/api/v1/events', await loginViaAPI(request, faculty.email, faculty.password), {
+    const created = await call(request, 'post', '/api/v1/events', await loginViaAPI(request, faculty.email), {
       title: 'Intro to neural networks',
       description: 'A hands-on session.',
       event_type: 'workshop',
@@ -47,16 +47,16 @@ test.describe('Organising an event', () => {
       audience: [{ department_id: ai }],
     })
     eventId = created.id
-    await call(request, 'patch', `/api/v1/events/${eventId}/hod-review`, await loginViaAPI(request, hod.email, hod.password), { decision: 'approve', note: '' })
-    await call(request, 'patch', `/api/v1/events/${eventId}/final-approval`, await loginViaAPI(request, principal.email, principal.password), { decision: 'approve', note: '' })
+    await call(request, 'patch', `/api/v1/events/${eventId}/hod-review`, await loginViaAPI(request, hod.email), { decision: 'approve', note: '' })
+    await call(request, 'patch', `/api/v1/events/${eventId}/final-approval`, await loginViaAPI(request, principal.email), { decision: 'approve', note: '' })
     for (const student of students) {
-      await call(request, 'post', `/api/v1/events/${eventId}/rsvp`, await loginViaAPI(request, student.email, student.password), { status: 'going' })
+      await call(request, 'post', `/api/v1/events/${eventId}/rsvp`, await loginViaAPI(request, student.email), { status: 'going' })
     }
   })
 
   test('the proposer sees who is coming, exports them and edits the details', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.goto(`/events/${eventId}`)
 
     const coming = page.getByRole('complementary', { name: "Who's coming" })
@@ -88,7 +88,7 @@ test.describe('Organising an event', () => {
 
   test('cancelling needs a reason, and the page then says it is cancelled', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await loginViaUI(page, faculty.email, faculty.password)
+    await loginViaUI(page, faculty.email)
     await page.goto(`/events/${eventId}`)
     await page.getByRole('button', { name: 'Cancel event' }).click()
     const dialog = page.getByRole('dialog', { name: 'Cancel this event?' })
