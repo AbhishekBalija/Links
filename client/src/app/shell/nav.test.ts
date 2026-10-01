@@ -4,9 +4,13 @@ import { navFor, tabsFor } from './nav'
 const paths = (items: { to: string }[]) => items.map((item) => item.to)
 
 describe('navigation', () => {
-  it('gives students Home, Notices, Events, People and Profile everywhere', () => {
-    expect(paths(navFor(['student']))).toEqual(['/', '/notices', '/events', '/people', '/profile'])
-    expect(paths(tabsFor(['student']))).toEqual(['/', '/notices', '/events', '/people', '/profile'])
+  it('gives students Jobs, and on the phone Jobs takes People\'s tab so Profile stays', () => {
+    expect(paths(navFor(['student']))).toEqual(['/', '/notices', '/events', '/jobs', '/people', '/profile'])
+    expect(paths(tabsFor(['student']))).toEqual(['/', '/notices', '/events', '/jobs', '/profile'])
+  })
+
+  it('keeps Jobs to students', () => {
+    expect(paths(navFor(['faculty']))).not.toContain('/jobs')
   })
 
   it('swaps Profile for Mine on the phone tabs for faculty, who can post', () => {

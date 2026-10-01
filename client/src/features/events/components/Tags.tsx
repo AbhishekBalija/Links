@@ -6,6 +6,9 @@ const tones = {
   department: 'bg-tag-department text-tag-department-ink',
   going: 'bg-success-soft text-success-ink',
   cancelled: 'bg-danger-soft text-danger-ink',
+  warning: 'bg-warning-soft text-warning-ink',
+  placement: 'bg-tag-placement text-tag-placement-ink',
+  outline: 'text-ink-2 shadow-[inset_0_0_0_1px_#d6ccbb]',
 }
 
 export function Tag({ tone = 'plain', children }: { tone?: keyof typeof tones; children: ReactNode }) {
