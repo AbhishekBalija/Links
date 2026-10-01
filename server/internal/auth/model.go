@@ -183,7 +183,8 @@ type AuthService interface {
 	ActivateAccount(ctx context.Context, token, password string) error
 	ResendActivation(ctx context.Context, email string) error
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
-	ReviewQueue(ctx context.Context) (*ReviewQueueResponse, error)
+	ReviewQueue(ctx context.Context, actorID string) (*ReviewQueueResponse, error)
+	AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
 	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)

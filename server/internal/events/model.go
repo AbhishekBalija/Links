@@ -140,6 +140,7 @@ func validMineFilter(filter MineFilter) bool {
 
 // Repository is the Events data access used by the service.
 type Repository interface {
+	UpcomingInDepartment(ctx context.Context, departmentID string, limit int) ([]View, error)
 	Create(ctx context.Context, event *Event, audience []AudienceRule) error
 	Update(ctx context.Context, event *Event) error
 	DeleteDraft(ctx context.Context, eventID string) error

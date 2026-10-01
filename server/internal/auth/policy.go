@@ -22,6 +22,7 @@ const (
 	PermissionManageUsersAndRoles Permission = "manage_users_and_roles"
 	PermissionManageDepartments   Permission = "manage_departments"
 	PermissionImportStudents      Permission = "import_students"
+	PermissionApproveAccess       Permission = "approve_access"
 )
 
 type Policy struct {
@@ -51,6 +52,9 @@ func NewPolicy() *Policy {
 			// HODs import only their own Department's students; the service
 			// checks the Department (#17).
 			PermissionImportStudents: {RoleHOD, RolePrincipal, RoleAdmin},
+			// HODs decide Access requests for their own Department only; the
+			// service checks the Department (ADR 0025).
+			PermissionApproveAccess: {RoleHOD, RolePrincipal, RoleAdmin},
 		},
 	}
 }

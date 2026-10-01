@@ -184,6 +184,13 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 // importScope reads the actor's roles from the database: an admin or the
 // principal may import anyone, an HOD only students of their Departments.
 func (s *authService) importScope(ctx context.Context, actorID string) (bool, map[string]bool, error) {
+	return s.departmentScope(ctx, actorID, "only an admin, the principal or an HOD can import students")
+}
+
+// departmentScope says where the actor may act on students: anywhere for
+// the principal and admins, otherwise the Departments they are HOD of.
+// Anyone else is refused with the given message.
+func (s *authService) departmentScope(ctx context.Context, actorID, refusal string) (bool, map[string]bool, error) {
 	grants, err := s.userRepo.GetRoleAssignments(ctx, actorID)
 	if err != nil {
 		return false, nil, fmt.Errorf("get actor roles: %w", err)
@@ -200,7 +207,7 @@ func (s *authService) importScope(ctx context.Context, actorID string) (bool, ma
 		}
 	}
 	if len(departments) == 0 {
-		return false, nil, apperrors.NewForbidden("only an admin, the principal or an HOD can import students")
+		return false, nil, apperrors.NewForbidden(refusal)
 	}
 	return false, departments, nil
 }

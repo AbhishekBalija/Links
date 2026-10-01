@@ -33,6 +33,7 @@ type Announcements interface {
 // Events is what the dashboard needs from the events module.
 type Events interface {
 	ReviewSummary(ctx context.Context, actorID string) (*events.ReviewSummary, error)
+	UpcomingInDepartment(ctx context.Context, departmentID string, limit int) ([]events.DepartmentEvent, error)
 }
 
 // Opportunities is what the dashboard needs from the opportunities module.
@@ -83,6 +84,9 @@ type Response struct {
 	MyAnnouncements *announcements.AuthorSummary    `json:"my_announcements,omitempty"`
 	Opportunities   *OpportunitiesSection           `json:"opportunities,omitempty"`
 	Placement       *opportunities.PlacementSummary `json:"placement,omitempty"`
+	Department      *DepartmentSection              `json:"department,omitempty"`
+	College         *CollegeSection                 `json:"college,omitempty"`
+	AccessRequests  *auth.AccessSummary             `json:"access_requests,omitempty"`
 }
 
 // Repository reads the profile details Home shows.
@@ -96,10 +100,21 @@ type Service struct {
 	announcements Announcements
 	events        Events
 	opportunities Opportunities
+	directory     Directory
+	departments   Departments
+	access        Access
 }
 
-func NewService(repository Repository, announcements Announcements, events Events, opportunities Opportunities) *Service {
-	return &Service{repository: repository, announcements: announcements, events: events, opportunities: opportunities}
+func NewService(repository Repository, announcements Announcements, events Events, opportunities Opportunities, directory Directory, departments Departments, access Access) *Service {
+	return &Service{
+		repository:    repository,
+		announcements: announcements,
+		events:        events,
+		opportunities: opportunities,
+		directory:     directory,
+		departments:   departments,
+		access:        access,
+	}
 }
 
 func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
@@ -131,7 +146,22 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	department, err := s.department(ctx, userID, grants)
+	if err != nil {
+		return nil, err
+	}
+	college, err := s.college(ctx, userID, user.Roles)
+	if err != nil {
+		return nil, err
+	}
+	access, err := s.access.AccessSummary(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	return &Response{
+		Department:      department,
+		College:         college,
+		AccessRequests:  access,
 		User:            *user,
 		Notices:         NoticesSection{Items: notices, HasMore: meta.NextCursor != ""},
 		Approvals:       approvals,

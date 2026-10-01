@@ -146,6 +146,11 @@ func (f *fakeUserRepo) GetRoleAssignments(ctx context.Context, userID string) ([
 	if f.getRoleAssignments != nil {
 		return f.getRoleAssignments(ctx, userID)
 	}
+	// The admin the tests act as: deciding Access requests checks the actor's
+	// roles (ADR 0025).
+	if userID == "admin-1" {
+		return []RoleAssignment{{UserID: userID, Role: RoleAdmin, ScopeType: ScopeGlobal}}, nil
+	}
 	return nil, nil
 }
 
