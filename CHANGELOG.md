@@ -6,6 +6,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- HODs decide Access requests for their own Department (#122, ADR 0025):
+  their review queue holds only their Department's requests, and they approve
+  or reject them; the principal and admins still see every request. Home's
+  data gains an HOD's Department (students by batch, staff, upcoming events),
+  the college for the principal and admins (each Department with its HOD),
+  and the Access requests waiting.
+
+### Fixed
+- The Access request queue no longer lists students who were already
+  approved but haven't activated yet.
+
 ## [0.5.1] - 2026-10-01
 
 Two fixes: cancelled requests no longer show up as server errors, and a

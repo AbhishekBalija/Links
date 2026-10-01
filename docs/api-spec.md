@@ -266,6 +266,16 @@ sections without changing these:
   without an HOD and every final approval; never the caller's own). An
   `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
+- `department` appears for HODs: their Department's `code`, `name`, number of
+  `students` and `staff`, `students_by_batch` (`batch_year`, `count`) and
+  `upcoming_events`, the next three published Events of the Department
+  (`id`, `title`, `event_type`, `location`, `starts_at`), whoever they are for.
+- `college` appears for the principal and admins: `departments`, each with
+  `code`, `name`, `students`, `staff` and `hod` (`full_name`, `username`, or
+  `null` when there is none).
+- `access_requests` appears for whoever decides Access requests (the
+  principal, admins and HODs, scoped as the review queue): `pending_count` and
+  `oldest_requested_at`.
 - `opportunities` appears when the caller is eligible for an open
   Opportunity: the first three from `GET /api/v1/opportunities`, soonest
   deadline first, each with the caller's own Application.
@@ -287,6 +297,17 @@ PATCH  /api/v1/admin/users/:id/status
 POST   /api/v1/admin/users/:id/roles
 DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId
 ```
+
+`GET /api/v1/admin/users/review-queue` lists the Access requests still
+waiting for approval (pending and not yet approved), oldest first: every
+request for the principal and admins, and only their own Department's for an
+HOD (`approve_access`, ADR 0025). An approved student who hasn't activated yet
+is no longer in it.
+
+Approving (`verify`) and rejecting (`status` with `rejected`) follow the same
+scope: an HOD gets `404` for a request outside their Department. Suspending
+and reactivating need `manage_users_and_roles` (principal and admin); an HOD
+gets `403`.
 
 `PATCH /api/v1/admin/users/:id/verify` accepts an optional `scope_type` and
 `scope_id` for the student role (global when omitted). A `department` scope

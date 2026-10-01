@@ -4,7 +4,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,7 +14,14 @@ import (
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
-func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, error) {
+// ReviewQueue lists the Access requests waiting for the actor, oldest
+// first: every one for the principal and admins, their own Department's for
+// an HOD.
+func (s *authService) ReviewQueue(ctx context.Context, actorID string) (*ReviewQueueResponse, error) {
+	anywhere, departments, err := s.departmentScope(ctx, actorID, accessRefusal)
+	if err != nil {
+		return nil, err
+	}
 	users, err := s.userRepo.FindPendingUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("find pending users: %w", err)
@@ -20,6 +29,9 @@ func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, er
 
 	responses := make([]PendingUserResponse, 0, len(users))
 	for _, u := range users {
+		if !anywhere && !inScope(u, departments) {
+			continue
+		}
 		pur := PendingUserResponse{
 			ID:        u.ID,
 			Email:     u.Email,
@@ -48,7 +60,19 @@ func (s *authService) ReviewQueue(ctx context.Context) (*ReviewQueueResponse, er
 	return &ReviewQueueResponse{Users: responses, Total: len(responses)}, nil
 }
 
+const accessRefusal = "only an admin, the principal or an HOD can decide access requests"
+
+// inScope reports whether the user's Student identity is in one of the
+// Departments.
+func inScope(user User, departments map[string]bool) bool {
+	return user.StudentIdentity != nil && departments[user.StudentIdentity.DepartmentID]
+}
+
 func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error {
+	anywhere, departments, err := s.departmentScope(ctx, actorID, accessRefusal)
+	if err != nil {
+		return err
+	}
 	role := RoleStudent
 	now := time.Now()
 	st := ScopeType(scopeType)
@@ -65,7 +89,8 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
 		}
-		if user == nil {
+		// A request outside an HOD's Department is not theirs to see.
+		if user == nil || (!anywhere && !inScope(*user, departments)) {
 			return apperrors.NewNotFound("user not found")
 		}
 		if user.Status != UserStatusPending {
@@ -147,15 +172,25 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 	return nil
 }
 
+// UpdateUserStatus suspends, reactivates or rejects a user. The principal and
+// admins may do any of these; an HOD only rejects an Access request in their
+// Department (the handler lets nobody else through).
 func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error {
 	newStatus := UserStatus(status)
+	anywhere, departments, err := s.departmentScope(ctx, actorID, accessRefusal)
+	if err != nil {
+		return err
+	}
 	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
 		}
-		if user == nil {
+		if user == nil || (!anywhere && !inScope(*user, departments)) {
 			return apperrors.NewNotFound("user not found")
+		}
+		if !anywhere && (newStatus != UserStatusRejected || user.Status != UserStatusPending || user.IsVerified) {
+			return apperrors.NewForbidden("an HOD can only reject an access request")
 		}
 		if newStatus == user.Status {
 			return apperrors.NewConflict("user already has status " + status)
@@ -195,4 +230,28 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 
 		return nil
 	})
+}
+
+// AccessSummary is how many Access requests wait for the actor and since
+// when, for Home. It is nil for anyone who doesn't decide them.
+type AccessSummary struct {
+	PendingCount int        `json:"pending_count"`
+	Oldest       *time.Time `json:"oldest_requested_at"`
+}
+
+func (s *authService) AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error) {
+	queue, err := s.ReviewQueue(ctx, actorID)
+	var refused *apperrors.AppError
+	if errors.As(err, &refused) && refused.HTTPStatus == http.StatusForbidden {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	summary := &AccessSummary{PendingCount: len(queue.Users)}
+	if len(queue.Users) > 0 {
+		oldest := queue.Users[0].CreatedAt
+		summary.Oldest = &oldest
+	}
+	return summary, nil
 }

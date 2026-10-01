@@ -23,11 +23,11 @@ The yearly step where an admin or HOD confirms which final-year students have th
 _Avoid_: pass-out (a student can finish the course without graduating)
 
 **Access request**:
-A person's request to join LINKS with their Gmail, USN and Department, waiting for Access approval or rejection by an HOD or admin.
+A person's request to join LINKS with their Gmail, USN and Department, waiting for Access approval or rejection by their Department's HOD, the principal or an admin.
 _Avoid_: signup, registration
 
 **Access approval**:
-An HOD or admin accepting an Access request: the user becomes verified, gets the student role, and is sent an Activation link.
+Their Department's HOD, the principal or an admin accepting an Access request: the user becomes verified, gets the student role, and is sent an Activation link.
 _Avoid_: verification (the `is_verified` flag is its result, not the step), plain "approval"
 
 **Activation**:

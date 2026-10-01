@@ -164,7 +164,9 @@ func (r *GormUserRepository) FindPendingUsers(ctx context.Context) ([]User, erro
 	err := r.db.WithContext(ctx).
 		Preload("Profile").
 		Preload("StudentIdentity").
-		Where("status = ?", UserStatusPending).
+		// An approved student stays pending until they activate, but no
+		// longer waits for approval.
+		Where("status = ? AND is_verified = false", UserStatusPending).
 		Order("created_at asc").
 		Find(&users).Error
 	return users, err

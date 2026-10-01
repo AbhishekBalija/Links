@@ -30,17 +30,18 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *AdminHandler) ReviewQueue(c *gin.Context) {
-	if GetActor(c) == nil {
+	actor := GetActor(c)
+	if actor == nil {
 		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
 		return
 	}
 
-	if err := AuthorizeActor(c, h.policy, PermissionManageUsersAndRoles); err != nil {
+	if err := AuthorizeActor(c, h.policy, PermissionApproveAccess); err != nil {
 		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
 		return
 	}
 
-	resp, err := h.service.ReviewQueue(c.Request.Context())
+	resp, err := h.service.ReviewQueue(c.Request.Context(), actor.UserID)
 	if err != nil {
 		writeError(c, err)
 		return
@@ -56,7 +57,7 @@ func (h *AdminHandler) VerifyUser(c *gin.Context) {
 		return
 	}
 
-	if err := AuthorizeActor(c, h.policy, PermissionManageUsersAndRoles); err != nil {
+	if err := AuthorizeActor(c, h.policy, PermissionApproveAccess); err != nil {
 		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
 		return
 	}
@@ -88,11 +89,6 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	if err := AuthorizeActor(c, h.policy, PermissionManageUsersAndRoles); err != nil {
-		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
-		return
-	}
-
 	userID := c.Param("id")
 	if userID == "" {
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "user id is required", nil)
@@ -102,6 +98,18 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	var input UpdateUserStatusInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	// Rejecting an Access request is part of deciding it, which HODs do for
+	// their Department; suspending or reactivating is for the principal and
+	// admins.
+	permission := PermissionManageUsersAndRoles
+	if UserStatus(input.Status) == UserStatusRejected {
+		permission = PermissionApproveAccess
+	}
+	if err := AuthorizeActor(c, h.policy, permission); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
 		return
 	}
 
