@@ -72,10 +72,10 @@ Deliverables:
 - Participant export (API built; the organiser's event page exports it)
 - Event cancellation flow (API built; organisers cancel from the event page)
 
-## Phase 4: Placement
+## Phase 4: Placement (done)
 
 Goal: Build the placement workflow end to end.
-The API below shipped in v0.4.0; the screens (spec #100) are built.
+The API below shipped in v0.4.0 and the screens (spec #100) in v0.5.0.
 
 Deliverables:
 
