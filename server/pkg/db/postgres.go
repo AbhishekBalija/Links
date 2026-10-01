@@ -8,6 +8,7 @@ import (
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Database owns the application's database connection pool.
@@ -17,7 +18,7 @@ type Database struct {
 
 // New opens and configures a PostgreSQL connection.
 func New(cfg config.Config) (*Database, error) {
-	gormDB, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{})
+	gormDB, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{Logger: skipCancelled{Interface: logger.Default}})
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
