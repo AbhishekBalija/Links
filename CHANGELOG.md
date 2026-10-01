@@ -13,6 +13,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   either kind, each opening in the queue.
 
 ### Added
+- Placement on Home (#106): students see the next jobs open to them, with
+  their deadlines; placement staff see the open drives with their
+  applicants, how many applications wait for review, and a shortcut to the
+  drive with the most waiting. The principal sees approvals first, then
+  placement.
 - The applicant list for placement staff (#105): every applicant to an
   Opportunity with their USN, department, batch and date, by status (To
   review, Shortlisted, Selected, Rejected, Withdrawn) with counts, searchable
