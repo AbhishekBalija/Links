@@ -24,6 +24,7 @@ type Config struct {
 	Cookie           CookieConfig
 	CORS             CORSConfig
 	Mailer           MailerConfig
+	Google           GoogleConfig
 	// EnableTestSignIn turns on POST /api/v1/test/sign-in, which signs anyone
 	// in by email alone, for the e2e suite. Only allowed with APP_ENV=local.
 	EnableTestSignIn bool
@@ -72,6 +73,12 @@ type MailerConfig struct {
 	FrontendURL  string
 }
 
+// GoogleConfig holds the OAuth client for Google sign-in. Google sign-in is
+// off while ClientID is empty.
+type GoogleConfig struct {
+	ClientID string
+}
+
 // Load loads local environment variables when present and validates runtime settings.
 func Load() (Config, error) {
 	if err := loadLocalEnv(); err != nil {
@@ -104,6 +111,9 @@ func Load() (Config, error) {
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: csvValue("CORS_ALLOWED_ORIGINS"),
+		},
+		Google: GoogleConfig{
+			ClientID: strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
 		},
 		Mailer: MailerConfig{
 			ResendAPIKey: os.Getenv("RESEND_API_KEY"),

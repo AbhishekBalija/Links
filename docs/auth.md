@@ -85,6 +85,23 @@ JWT rules:
   itself; elsewhere the connection's address is used, since a header could
   be forged.
 
+**Google sign-in (spec #129):**
+
+- The ID token is verified with `google.golang.org/api/idtoken`: signature
+  against Google's published keys, audience `GOOGLE_CLIENT_ID`, expiry; then
+  the issuer (`accounts.google.com`) and `email_verified`. Never an email the
+  browser sends on its own.
+- A nonce from `GET /auth/google/nonce`, kept in an httpOnly cookie, must
+  match the token's nonce, so a token obtained in another browser can't sign
+  this one in (login CSRF). The cookie is cleared on every try.
+- Google's permanent account ID (`sub`) is stored on the first sign-in, which
+  matches by verified email, and matched on from then on. A member already
+  linked to one Google account can't be taken by another with the same email.
+- An email on no list gets `403 NOT_ON_LIST` and no account. Google's tokens
+  are not stored.
+- The principal and admins sign in with Google only: they get no email code.
+  Password login still works for everyone until #136 removes it.
+
 ## Cookie Strategy
 
 For web:

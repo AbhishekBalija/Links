@@ -58,6 +58,7 @@ users (
   email text unique,
   phone text,
   password_hash text,
+  google_subject text,          -- Google's permanent account ID (sub)
   status text not null,
   is_verified boolean not null default false,
   created_by uuid references users(id),
@@ -65,6 +66,10 @@ users (
   updated_at timestamptz not null
 )
 ```
+
+`google_subject` is unique where set (`idx_users_google_subject`). It is
+stored on the first Google sign-in, which matches by verified email, and
+matched on from then on.
 
 ### account_activation_tokens
 

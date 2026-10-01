@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,8 @@ import (
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/api/idtoken"
+	"google.golang.org/api/option"
 )
 
 // Option changes how NewServer wires the API, for tests.
@@ -26,6 +29,7 @@ type Option func(*options)
 type options struct {
 	mailer       mailer.Mailer
 	codeSettings auth.CodeSettings
+	googleCerts  *http.Client
 }
 
 // WithMailer sends email through m instead of the configured mailer.
@@ -36,6 +40,12 @@ func WithMailer(m mailer.Mailer) Option {
 // WithCodeSettings replaces the email code's default limits.
 func WithCodeSettings(settings auth.CodeSettings) Option {
 	return func(o *options) { o.codeSettings = settings }
+}
+
+// WithGoogleCertsClient fetches Google's signing keys through client, so
+// tests can sign their own tokens.
+func WithGoogleCertsClient(client *http.Client) Option {
+	return func(o *options) { o.googleCerts = client }
 }
 
 // NewServer builds the API router and its foundation middleware.
@@ -107,6 +117,19 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		m = mailer.NewResendMailer(cfg.Mailer.ResendAPIKey, cfg.Mailer.FromEmail)
 	}
 
+	var googleVerifier auth.GoogleVerifier
+	if cfg.Google.ClientID != "" {
+		var googleOpts []idtoken.ClientOption
+		if wiring.googleCerts != nil {
+			googleOpts = append(googleOpts, option.WithHTTPClient(wiring.googleCerts))
+		}
+		verifier, err := auth.NewIDTokenVerifier(context.Background(), cfg.Google.ClientID, googleOpts...)
+		if err != nil {
+			return nil, err
+		}
+		googleVerifier = verifier
+	}
+
 	authService := auth.NewAuthService(
 		userRepo,
 		refreshRepo,
@@ -117,6 +140,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		m,
 		cfg.Mailer.FrontendURL,
 		wiring.codeSettings,
+		googleVerifier,
 	)
 
 	policy := auth.NewPolicy()
@@ -125,6 +149,11 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	// even when it isn't listed for CORS, as on a same-domain deployment.
 	cookieOrigins := append([]string{cfg.Mailer.FrontendURL}, cfg.CORS.AllowedOrigins...)
 	authHandler.RegisterRoutes(api, requireAllowedOrigin(cookieOrigins))
+	if googleVerifier != nil {
+		authHandler.RegisterGoogleRoutes(api, requireAllowedOrigin(cookieOrigins))
+	} else {
+		logger.Warn("GOOGLE_CLIENT_ID not set: Google sign-in is off")
+	}
 	if cfg.EnableTestSignIn {
 		logger.Warn("ENABLE_TEST_SIGN_IN is on: anyone can sign in by email alone (e2e only)")
 		authHandler.RegisterTestSignIn(api)

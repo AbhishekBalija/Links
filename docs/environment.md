@@ -26,6 +26,7 @@ CORS_ALLOWED_ORIGINS
 COOKIE_SECURE      # must be true unless APP_ENV=local
 COOKIE_SAME_SITE   # lax (default) or strict; none is refused
 ENABLE_TEST_SIGN_IN # true only for the e2e suite; refused unless APP_ENV=local
+GOOGLE_CLIENT_ID   # Google sign-in's OAuth client ID (public); Google sign-in is off while empty
 STORAGE_PROVIDER
 STORAGE_BUCKET
 STORAGE_API_KEY
