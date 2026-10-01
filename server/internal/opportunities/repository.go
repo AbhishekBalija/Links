@@ -3,6 +3,7 @@ package opportunities
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -224,6 +225,56 @@ func (r *GormRepository) ApplicationsOf(ctx context.Context, studentID string, o
 	return applications, err
 }
 
+// OpenDrives returns the first published Opportunities whose apply_by is
+// ahead, soonest deadline first, and how many there are in all.
+func (r *GormRepository) OpenDrives(ctx context.Context, limit int) ([]View, int, error) {
+	const open = ` WHERE o.status = 'published' AND o.apply_by > now()`
+	var total int
+	if err := r.db.WithContext(ctx).Raw(`SELECT count(*) FROM opportunities o` + open).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var views []View
+	err := r.db.WithContext(ctx).Raw(`SELECT `+viewColumns+` `+viewFrom+open+` ORDER BY o.apply_by, o.id LIMIT ?`, limit).Scan(&views).Error
+	return views, total, err
+}
+
+// AwaitingReviewCount counts Applications still applied (not yet moved by
+// staff) to published or closed Opportunities.
+func (r *GormRepository) AwaitingReviewCount(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.WithContext(ctx).Raw(`SELECT count(*) FROM opportunity_applications a
+		JOIN opportunities o ON o.id = a.opportunity_id
+		WHERE a.status = 'applied' AND o.status IN ('published', 'closed')`).Scan(&count).Error
+	return count, err
+}
+
+// ApplicantCounts counts each Opportunity's Applications by status. An
+// Opportunity with none is missing from the map.
+func (r *GormRepository) ApplicantCounts(ctx context.Context, opportunityIDs []string) (map[string]ApplicantCounts, error) {
+	counts := map[string]ApplicantCounts{}
+	if len(opportunityIDs) == 0 {
+		return counts, nil
+	}
+	var rows []struct {
+		OpportunityID string
+		ApplicantCounts
+	}
+	err := r.db.WithContext(ctx).Raw(`SELECT opportunity_id,
+			count(*) FILTER (WHERE status <> 'withdrawn') AS total,
+			count(*) FILTER (WHERE status = 'applied') AS applied,
+			count(*) FILTER (WHERE status = 'shortlisted') AS shortlisted,
+			count(*) FILTER (WHERE status = 'rejected') AS rejected,
+			count(*) FILTER (WHERE status = 'selected') AS selected,
+			count(*) FILTER (WHERE status = 'withdrawn') AS withdrawn
+		FROM opportunity_applications
+		WHERE opportunity_id IN ?
+		GROUP BY opportunity_id`, opportunityIDs).Scan(&rows).Error
+	for _, row := range rows {
+		counts[row.OpportunityID] = row.ApplicantCounts
+	}
+	return counts, err
+}
+
 const applicantColumns = `SELECT a.id, a.opportunity_id, a.student_id, a.mode, a.status, a.applied_at, a.withdrawn_at,
 	a.status_changed_at, p.full_name, p.username, u.email, si.usn, d.code AS department_code, si.batch_year
 	FROM opportunity_applications a
@@ -249,7 +300,17 @@ func applicantQuery(opportunityID string, filter ApplicantFilter) (string, []any
 		query += ` AND si.batch_year = ?`
 		args = append(args, *filter.BatchYear)
 	}
+	if filter.Search != nil {
+		pattern := "%" + escapeLike(strings.ToLower(*filter.Search)) + "%"
+		query += ` AND (lower(p.full_name) LIKE ? OR lower(p.username) LIKE ? OR lower(u.email) LIKE ? OR lower(coalesce(si.usn, '')) LIKE ?)`
+		args = append(args, pattern, pattern, pattern, pattern)
+	}
 	return query, args
+}
+
+// escapeLike makes q match literally inside a LIKE pattern.
+func escapeLike(q string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
 }
 
 // Applicants lists one page of an Opportunity's Applications in the order

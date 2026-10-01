@@ -1,6 +1,6 @@
 // Package dashboard builds the signed-in user's Home summary from other
 // modules. It owns no data: each section comes from the module behind it, and
-// later features (placements, events) add sections without changing these.
+// later features add sections without changing these.
 package dashboard
 
 import (
@@ -12,11 +12,15 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/announcements"
 	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"github.com/AbhishekBalija/Links/server/internal/events"
+	"github.com/AbhishekBalija/Links/server/internal/opportunities"
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 
-const noticesOnHome = 5
+const (
+	noticesOnHome       = 5
+	opportunitiesOnHome = 3
+)
 
 // Announcements is what the dashboard needs from the announcements module.
 type Announcements interface {
@@ -29,6 +33,12 @@ type Announcements interface {
 // Events is what the dashboard needs from the events module.
 type Events interface {
 	ReviewSummary(ctx context.Context, actorID string) (*events.ReviewSummary, error)
+}
+
+// Opportunities is what the dashboard needs from the opportunities module.
+type Opportunities interface {
+	Feed(ctx context.Context, actorID string, query opportunities.FeedQuery) ([]opportunities.OpportunityResponse, *opportunities.ListMeta, error)
+	PlacementSummary(ctx context.Context, actorID string) (*opportunities.PlacementSummary, error)
 }
 
 // Department is the user's Department as shown on Home.
@@ -58,12 +68,21 @@ type ApprovalsSection struct {
 	OldestEventSubmittedAt *time.Time `json:"oldest_event_submitted_at"`
 }
 
+// OpportunitiesSection is the next open Opportunities the user is eligible
+// for, soonest deadline first.
+type OpportunitiesSection struct {
+	Items   []opportunities.OpportunityResponse `json:"items"`
+	HasMore bool                                `json:"has_more"`
+}
+
 // Response is the Home summary. Sections a user doesn't need are left out.
 type Response struct {
-	User            UserSection                  `json:"user"`
-	Notices         NoticesSection               `json:"notices"`
-	Approvals       *ApprovalsSection            `json:"approvals,omitempty"`
-	MyAnnouncements *announcements.AuthorSummary `json:"my_announcements,omitempty"`
+	User            UserSection                     `json:"user"`
+	Notices         NoticesSection                  `json:"notices"`
+	Approvals       *ApprovalsSection               `json:"approvals,omitempty"`
+	MyAnnouncements *announcements.AuthorSummary    `json:"my_announcements,omitempty"`
+	Opportunities   *OpportunitiesSection           `json:"opportunities,omitempty"`
+	Placement       *opportunities.PlacementSummary `json:"placement,omitempty"`
 }
 
 // Repository reads the profile details Home shows.
@@ -76,10 +95,11 @@ type Service struct {
 	repository    Repository
 	announcements Announcements
 	events        Events
+	opportunities Opportunities
 }
 
-func NewService(repository Repository, announcements Announcements, events Events) *Service {
-	return &Service{repository: repository, announcements: announcements, events: events}
+func NewService(repository Repository, announcements Announcements, events Events, opportunities Opportunities) *Service {
+	return &Service{repository: repository, announcements: announcements, events: events, opportunities: opportunities}
 }
 
 func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
@@ -103,12 +123,35 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	openings, err := s.openOpportunities(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	placement, err := s.opportunities.PlacementSummary(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	return &Response{
 		User:            *user,
 		Notices:         NoticesSection{Items: notices, HasMore: meta.NextCursor != ""},
 		Approvals:       approvals,
 		MyAnnouncements: mine,
+		Opportunities:   openings,
+		Placement:       placement,
 	}, nil
+}
+
+// openOpportunities returns the first open Opportunities the user is
+// eligible for, or nil when there are none.
+func (s *Service) openOpportunities(ctx context.Context, userID string) (*OpportunitiesSection, error) {
+	items, meta, err := s.opportunities.Feed(ctx, userID, opportunities.FeedQuery{Limit: opportunitiesOnHome})
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	return &OpportunitiesSection{Items: items, HasMore: meta.NextCursor != ""}, nil
 }
 
 // approvals combines both review queues, or returns nil for a user who

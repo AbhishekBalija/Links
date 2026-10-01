@@ -92,11 +92,13 @@ type OpportunityResponse struct {
 	Open bool `json:"open"`
 	// MyApplication is the caller's own Application, if they made one.
 	MyApplication *ApplicationResponse `json:"my_application"`
-	PostedBy      PosterRef            `json:"posted_by"`
-	PublishedAt   *time.Time           `json:"published_at"`
-	ClosedAt      *time.Time           `json:"closed_at"`
-	CreatedAt     time.Time            `json:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at"`
+	// ApplicantCounts is only for placement staff.
+	ApplicantCounts *ApplicantCounts `json:"applicant_counts,omitempty"`
+	PostedBy        PosterRef        `json:"posted_by"`
+	PublishedAt     *time.Time       `json:"published_at"`
+	ClosedAt        *time.Time       `json:"closed_at"`
+	CreatedAt       time.Time        `json:"created_at"`
+	UpdatedAt       time.Time        `json:"updated_at"`
 }
 
 type ListMeta struct {
@@ -135,6 +137,7 @@ func toApplicationResponse(application Application) *ApplicationResponse {
 
 // ApplicantQuery is the applicant list's query string, unchecked.
 type ApplicantQuery struct {
+	Q          string
 	Status     string
 	Department string
 	Batch      string

@@ -65,6 +65,7 @@ func (h *Handler) Applicants(c *gin.Context) {
 		return
 	}
 	items, meta, err := h.service.Applicants(c.Request.Context(), actor.UserID, c.Param("id"), ApplicantQuery{
+		Q:          c.Query("q"),
 		Status:     c.Query("status"),
 		Department: c.Query("department"),
 		Batch:      c.Query("batch"),

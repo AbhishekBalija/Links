@@ -43,7 +43,7 @@ func (s *Service) Applicants(ctx context.Context, actorID, opportunityID string,
 	if after == nil {
 		err := s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
 			return audit(ctx, repositories, actorID, "applicants_viewed", opportunityID, map[string]string{
-				"status": query.Status, "department": query.Department, "batch": query.Batch,
+				"q": strings.TrimSpace(query.Q), "status": query.Status, "department": query.Department, "batch": query.Batch,
 			}, s.now())
 		})
 		if err != nil {
@@ -63,9 +63,18 @@ func (s *Service) Applicants(ctx context.Context, actorID, opportunityID string,
 	return responses, meta, nil
 }
 
+// maxSearchLength caps the applicant search text.
+const maxSearchLength = 100
+
 func (s *Service) applicantFilter(ctx context.Context, query ApplicantQuery) (ApplicantFilter, error) {
 	var filter ApplicantFilter
 	details := map[string]string{}
+	if q := strings.TrimSpace(query.Q); q != "" {
+		if len([]rune(q)) > maxSearchLength {
+			details["q"] = fmt.Sprintf("use at most %d characters", maxSearchLength)
+		}
+		filter.Search = &q
+	}
 	if value := strings.TrimSpace(query.Status); value != "" {
 		status := ApplicationStatus(value)
 		if !validApplicationStatus(status) {
@@ -162,4 +171,22 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID, applicationID strin
 	}
 	response := toApplicantResponse(*row)
 	return &response, nil
+}
+
+// addApplicantCounts fills in each Opportunity's applicant counts, for
+// placement staff only.
+func (s *Service) addApplicantCounts(ctx context.Context, responses []OpportunityResponse) error {
+	ids := make([]string, 0, len(responses))
+	for _, response := range responses {
+		ids = append(ids, response.ID)
+	}
+	counts, err := s.repository.ApplicantCounts(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("count applicants: %w", err)
+	}
+	for i := range responses {
+		count := counts[responses[i].ID]
+		responses[i].ApplicantCounts = &count
+	}
+	return nil
 }

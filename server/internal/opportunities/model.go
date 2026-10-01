@@ -134,6 +134,9 @@ type Repository interface {
 	UpdateApplication(ctx context.Context, application *Application) error
 	FindApplicationForUpdate(ctx context.Context, opportunityID, studentID string) (*Application, error)
 	ApplicationsOf(ctx context.Context, studentID string, opportunityIDs []string) ([]Application, error)
+	ApplicantCounts(ctx context.Context, opportunityIDs []string) (map[string]ApplicantCounts, error)
+	OpenDrives(ctx context.Context, limit int) ([]View, int, error)
+	AwaitingReviewCount(ctx context.Context) (int, error)
 	Applicants(ctx context.Context, opportunityID string, filter ApplicantFilter, after *Cursor, limit int) ([]ApplicantRow, error)
 	Applicant(ctx context.Context, applicationID string) (*ApplicantRow, error)
 	AllApplicants(ctx context.Context, opportunityID string, filter ApplicantFilter) ([]ApplicantRow, error)
@@ -233,7 +236,20 @@ func validApplicationStatus(status ApplicationStatus) bool {
 }
 
 // ApplicantFilter narrows an Opportunity's applicant list.
+// ApplicantCounts is how many Applications an Opportunity has in each
+// status. Withdrawn ones are counted apart and left out of Total.
+type ApplicantCounts struct {
+	Total       int `json:"total"`
+	Applied     int `json:"applied"`
+	Shortlisted int `json:"shortlisted"`
+	Rejected    int `json:"rejected"`
+	Selected    int `json:"selected"`
+	Withdrawn   int `json:"withdrawn"`
+}
+
 type ApplicantFilter struct {
+	// Search matches part of the Student's name, username, email or USN.
+	Search       *string
 	Status       *ApplicationStatus
 	DepartmentID *string
 	BatchYear    *int

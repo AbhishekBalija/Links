@@ -89,18 +89,27 @@ func (s *Service) Get(ctx context.Context, actorID, id string) (*OpportunityResp
 	if err != nil {
 		return nil, err
 	}
-	if !staff {
-		reader, err := s.reader(ctx, actorID)
+	if staff {
+		response, err := s.response(ctx, id, actorID)
 		if err != nil {
 			return nil, err
 		}
-		visible, err := s.repository.VisibleTo(ctx, actorID, reader, id)
-		if err != nil {
-			return nil, fmt.Errorf("check eligibility: %w", err)
+		responses := []OpportunityResponse{*response}
+		if err := s.addApplicantCounts(ctx, responses); err != nil {
+			return nil, err
 		}
-		if !visible {
-			return nil, notFound
-		}
+		return &responses[0], nil
+	}
+	reader, err := s.reader(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	visible, err := s.repository.VisibleTo(ctx, actorID, reader, id)
+	if err != nil {
+		return nil, fmt.Errorf("check eligibility: %w", err)
+	}
+	if !visible {
+		return nil, notFound
 	}
 	return s.response(ctx, id, actorID)
 }
