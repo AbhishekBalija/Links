@@ -21,6 +21,7 @@ func NewAdminHandler(service AuthService, policy *Policy) *AdminHandler {
 func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin := rg.Group("/admin/users")
 	admin.GET("/review-queue", h.ReviewQueue)
+	admin.POST("", h.InviteStaff)
 	admin.PATCH("/:id/verify", h.VerifyUser)
 	admin.PATCH("/:id/status", h.UpdateUserStatus)
 	admin.POST("/import", h.ImportStudents)
@@ -174,6 +175,24 @@ func (h *AdminHandler) authorizeManager(c *gin.Context) bool {
 		return false
 	}
 	return true
+}
+
+// InviteStaff adds a staff member by email and role (principal and admin).
+func (h *AdminHandler) InviteStaff(c *gin.Context) {
+	if !h.authorizeManager(c) {
+		return
+	}
+	var input InviteStaffInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	resp, err := h.service.InviteStaff(c.Request.Context(), GetActor(c).UserID, input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusCreated, resp, nil)
 }
 
 func (h *AdminHandler) ImportStudents(c *gin.Context) {

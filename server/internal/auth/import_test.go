@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -58,17 +57,8 @@ func importFile(rows int) string {
 	return file.String()
 }
 
-func TestImportSendsActivationEmailsInBatchesAfterCreatingAccounts(t *testing.T) {
+func TestImportSendsNoEmail(t *testing.T) {
 	h := importHarness(t)
-	// Every account must exist before the first email goes out.
-	h.users.create = func(_ context.Context, user *User) error {
-		if len(h.mailer.batches) > 0 {
-			t.Fatalf("user %s created after an email batch was sent", *user.Email)
-		}
-		user.ID = "user-" + *user.Email
-		h.users.createdUsers = append(h.users.createdUsers, user)
-		return nil
-	}
 
 	result, err := h.service.ImportStudents(context.Background(), "admin-1", strings.NewReader(importFile(maxImportRows)))
 	if err != nil {
@@ -77,53 +67,15 @@ func TestImportSendsActivationEmailsInBatchesAfterCreatingAccounts(t *testing.T)
 	if result.Created != maxImportRows || result.Failed != 0 {
 		t.Fatalf("created %d, failed %d; want %d and 0", result.Created, result.Failed, maxImportRows)
 	}
-	if len(h.mailer.sent) != 0 {
-		t.Errorf("%d emails sent one at a time, want all in batches", len(h.mailer.sent))
+	if len(h.mailer.sent) != 0 || len(h.mailer.batches) != 0 {
+		t.Errorf("sent %d emails and %d batches; the class list waits for first sign-in instead", len(h.mailer.sent), len(h.mailer.batches))
 	}
-	var sizes []int
-	for _, batch := range h.mailer.batches {
-		sizes = append(sizes, len(batch))
-	}
-	if fmt.Sprint(sizes) != "[100 100]" {
-		t.Errorf("batch sizes = %v, want [100 100]", sizes)
-	}
-	first := h.mailer.batches[0][0]
-	if first.To != "s0@gmail.com" || first.Name != "Student 0" || !strings.HasPrefix(first.Link, "https://links.example.com/activate?token=") {
-		t.Errorf("first email = %+v", first)
+	if len(h.activations.created) != 0 {
+		t.Errorf("created %d activation tokens, want none", len(h.activations.created))
 	}
 	for _, row := range result.Rows {
 		if row.Error != "" {
 			t.Errorf("row %d error = %q, want none", row.Row, row.Error)
-		}
-	}
-}
-
-func TestImportKeepsRowsCreatedWhenTheirEmailBatchFails(t *testing.T) {
-	h := importHarness(t)
-	h.mailer.batchErr = map[int]error{1: errors.New("resend is down")}
-
-	result, err := h.service.ImportStudents(context.Background(), "admin-1", strings.NewReader(importFile(150)))
-	if err != nil {
-		t.Fatalf("import: %v", err)
-	}
-	if result.Created != 150 {
-		t.Fatalf("created = %d, want 150", result.Created)
-	}
-	for i, row := range result.Rows {
-		inFailedBatch := i >= 100
-		if row.Status != ImportCreated {
-			t.Errorf("row %d status = %q, want created", row.Row, row.Status)
-		}
-		if inFailedBatch != (row.Error != "") {
-			t.Errorf("row %d error = %q, want a note only for the failed batch", row.Row, row.Error)
-		}
-	}
-	if len(h.activations.markedUsed) != 50 {
-		t.Fatalf("invalidated %d tokens, want the 50 of the failed batch", len(h.activations.markedUsed))
-	}
-	for i, id := range h.activations.markedUsed {
-		if want := h.activations.created[100+i].ID; id != want {
-			t.Errorf("invalidated token %d = %q, want %q", i, id, want)
 		}
 	}
 }

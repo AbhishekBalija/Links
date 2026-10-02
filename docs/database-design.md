@@ -59,6 +59,7 @@ users (
   phone text,
   password_hash text,
   google_subject text,          -- Google's permanent account ID (sub)
+  first_signed_in_at timestamptz,
   status text not null,
   is_verified boolean not null default false,
   created_by uuid references users(id),
@@ -66,6 +67,11 @@ users (
   updated_at timestamptz not null
 )
 ```
+
+An account is waiting for its first sign-in while `status = 'pending'` and
+`is_verified` is true (an imported row, a staff invite, or an approved Access
+request). `first_signed_in_at` is set when that first sign-in makes it
+active, and cleared by "Not you?".
 
 `google_subject` is unique where set (`idx_users_google_subject`). It is
 stored on the first Google sign-in, which matches by verified email, and

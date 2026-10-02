@@ -108,6 +108,33 @@ func (r *GormUserRepository) SetGoogleSubject(ctx context.Context, userID, subje
 	return nil
 }
 
+// CompleteFirstSignIn makes an account waiting for its first sign-in active.
+func (r *GormUserRepository) CompleteFirstSignIn(ctx context.Context, userID string, at time.Time) error {
+	result := r.db.WithContext(ctx).Model(&User{}).
+		Where("id = ? AND status = ? AND is_verified", userID, UserStatusPending).
+		Updates(map[string]any{"status": UserStatusActive, "first_signed_in_at": at, "updated_at": at})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("user %s is not waiting for a first sign-in", userID)
+	}
+	return nil
+}
+
+// ReturnForReview puts an account back to undecided, with no Google account
+// linked, so nobody can sign into it until it is approved again.
+func (r *GormUserRepository) ReturnForReview(ctx context.Context, userID string) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
+		Updates(map[string]any{
+			"status":             UserStatusPending,
+			"is_verified":        false,
+			"google_subject":     nil,
+			"first_signed_in_at": nil,
+			"updated_at":         time.Now(),
+		}).Error
+}
+
 func (r *GormUserRepository) FindByID(ctx context.Context, id string) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).
@@ -472,6 +499,13 @@ func (r *GormSignInCodeRepository) SumWrongTriesByEmailSince(ctx context.Context
 	err := r.db.WithContext(ctx).Model(&SignInCode{}).Select("COALESCE(SUM(attempts), 0)").
 		Where("email_hash = ? AND created_at > ?", emailHash, since).Scan(&total).Error
 	return total, err
+}
+
+func (r *GormSignInCodeRepository) CountSentToNoListSince(ctx context.Context, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).
+		Where("user_id IS NULL AND code_hash IS NOT NULL AND created_at > ?", since).Count(&count).Error
+	return count, err
 }
 
 func (r *GormSignInCodeRepository) Create(ctx context.Context, code *SignInCode) error {

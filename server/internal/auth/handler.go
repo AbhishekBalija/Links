@@ -42,6 +42,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, cookieGuard gin.HandlerFun
 	// able to sign a browser into someone else's account (login CSRF).
 	v1.POST("/code", cookieGuard, h.RequestCode)
 	v1.POST("/code/verify", cookieGuard, h.VerifyCode)
+	v1.POST("/access-request", h.RequestAccessWithProof)
 	v1.POST("/refresh", cookieGuard, h.Refresh)
 	v1.POST("/logout", cookieGuard, h.Logout)
 	v1.POST("/activate", h.Activate)
@@ -110,7 +111,7 @@ func (h *Handler) VerifyCode(c *gin.Context) {
 		return
 	}
 
-	resp, refreshRaw, err := h.service.VerifyCode(c.Request.Context(), input.ChallengeID, input.Code)
+	resp, refreshRaw, err := h.service.VerifyCode(c.Request.Context(), input.ChallengeID, input.Email, input.Code)
 	if err != nil {
 		writeError(c, err)
 		return
@@ -160,6 +161,37 @@ func (h *Handler) GoogleSignIn(c *gin.Context) {
 
 	h.setRefreshCookie(c, refreshRaw)
 	response.Success(c, http.StatusOK, resp, nil)
+}
+
+// RequestAccessWithProof sends an Access request for an email proven by a
+// request token from NOT_ON_LIST.
+func (h *Handler) RequestAccessWithProof(c *gin.Context) {
+	var input ProvenAccessRequestInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	resp, err := h.service.RequestAccessWithProof(c.Request.Context(), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusCreated, resp, nil)
+}
+
+// NotMe is "Not you?" after a first sign-in.
+func (h *Handler) NotMe(c *gin.Context) {
+	actor := GetActor(c)
+	if actor == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return
+	}
+	if err := h.service.NotMe(c.Request.Context(), actor.UserID); err != nil {
+		writeError(c, err)
+		return
+	}
+	h.clearRefreshCookie(c)
+	response.Success(c, http.StatusOK, LogoutResponse{Message: "signed out; the account waits for an admin to fix it"}, nil)
 }
 
 func (h *Handler) Refresh(c *gin.Context) {

@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/AbhishekBalija/Links/server/internal/auth"
 )
 
 // GoogleClientID is the OAuth client ID the test API expects in a token's aud.
@@ -131,4 +133,15 @@ func (h *Harness) GoogleNonce(t *testing.T) (string, *http.Cookie) {
 	}
 	t.Fatal("the nonce endpoint set no google_nonce cookie")
 	return "", nil
+}
+
+// AccessRequestToken signs a proof of email the way the API does after a
+// NOT_ON_LIST reply, for tests about expired proofs.
+func (h *Harness) AccessRequestToken(t *testing.T, email string, expiresAt time.Time) string {
+	t.Helper()
+	token, err := auth.SignAccessRequestToken(h.tokenCfg, email, expiresAt)
+	if err != nil {
+		t.Fatalf("sign request token: %v", err)
+	}
+	return token
 }

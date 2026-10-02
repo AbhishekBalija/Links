@@ -115,6 +115,8 @@ POST /api/v1/auth/code
 POST /api/v1/auth/code/verify
 GET  /api/v1/auth/google/nonce
 POST /api/v1/auth/google
+POST /api/v1/auth/access-request
+POST /api/v1/auth/not-me
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 POST /api/v1/auth/activate
@@ -144,8 +146,11 @@ way, whether or not the email belongs to anyone:
 ```
 
 The browser keeps `challenge_id`; the code works only with it. A 6-digit
-code is emailed only when the email belongs to an active member who isn't
-the principal or an admin (they sign in with Google only). Spaces around the
+code is emailed to any email except one whose account is the principal's or
+an admin's (they sign in with Google only), or is suspended or rejected. An
+email on no list gets a code too, so its owner can prove it and send an
+Access request, up to 50 such codes a day for the whole site (past that the
+reply is the same but no code is sent). Spaces around the
 email and its case don't matter. `400` for something that isn't an email.
 `429 RATE_LIMITED` after 3 requests for one email, or 60 from one IP address,
 within 15 minutes, or after 10 requests for one email in a day; the limits
@@ -155,9 +160,38 @@ the day is over. The
 reply takes at least a second, so its timing doesn't show whether a code was
 sent.
 
-`POST /api/v1/auth/code/verify` with `{"challenge_id": "...", "code": "123456"}`
-signs in like login: `200` with `access_token` and `expires_in`, and the
-refresh cookie. A code works once, for 10 minutes; 5 wrong tries kill it.
+Both sign-in endpoints accept an account waiting for its first sign-in (an
+imported row, a staff invite, or an approved Access request) and make it
+active. That reply carries who the account is, for "Not you?":
+
+```json
+{
+  "data": {
+    "access_token": "...",
+    "expires_in": 900,
+    "first_sign_in": {
+      "full_name": "Asha Rao",
+      "email": "asha.rao@gmail.com",
+      "usn": "4MN23CS042",
+      "department_code": "CS",
+      "department_name": "Computer Science and Engineering",
+      "batch_year": 2023,
+      "roles": ["student"]
+    }
+  }
+}
+```
+
+Staff have no `usn` or `batch_year`; their Department is the first one a
+role is scoped to. Audited as `auth.first_sign_in`.
+
+`POST /api/v1/auth/code/verify` with
+`{"challenge_id": "...", "email": "...", "code": "123456"}` signs in like
+login: `200` with `access_token` and `expires_in`, and the refresh cookie
+(with `first_sign_in` on a first sign-in, see below). `email` is the address
+the code was asked for; it is needed only for an email on no list, which gets
+`403 NOT_ON_LIST` with a `request_token` (as for Google). A member whose
+Access request is waiting or was refused gets `403 ACCOUNT_NOT_ACTIVE`. A code works once, for 10 minutes; 5 wrong tries kill it.
 A wrong, used, expired or killed code, an unknown challenge, or an account
 that can no longer sign in all get the same
 `401 UNAUTHENTICATED` ("the code is wrong or has expired"). Every sign-in is
@@ -189,14 +223,19 @@ verified email (case-insensitive), and then stores the Google account ID.
   fails any check, a missing or different nonce, or an email whose member is
   already linked to a different Google account.
 - `403 NOT_ON_LIST`: the verified email isn't on any list. No account is
-  created. The details prefill an Access request:
+  created. The details prefill an Access request, and `request_token`
+  (30 minutes) sends it:
 
 ```json
 {
   "error": {
     "code": "NOT_ON_LIST",
     "message": "this email isn't on any list for LINKS yet",
-    "details": { "email": "asha.rao@gmail.com", "full_name": "Asha Rao" }
+    "details": {
+      "email": "asha.rao@gmail.com",
+      "full_name": "Asha Rao",
+      "request_token": "..."
+    }
   }
 }
 ```
@@ -206,6 +245,35 @@ verified email (case-insensitive), and then stores the Google account ID.
 
 The principal and admins sign in this way; they can't use email codes.
 The POST checks `Origin` like refresh and logout (ADR 0022).
+
+### Not on the list
+
+`POST /api/v1/auth/access-request` sends an Access request without a
+password, for an email proven by a Google sign-in or an email code:
+
+```json
+{ "request_token": "<from NOT_ON_LIST>", "usn": "4MN23CS077", "full_name": "Kiran S" }
+```
+
+The Department and Batch come from the USN. The request joins the
+Department's review queue (ADR 0025). `201` with
+`{"user_id": "...", "status": "pending"}`. `401` for a missing, expired or
+forged token; `400` for a malformed USN, a Department code with no
+Department, or an empty name; `409` for an email or USN already registered.
+Audited as `access_requested`. Once approved, the person signs in with Google
+or a code; there is nothing to activate, and no Activation email is sent.
+
+### Not you?
+
+`POST /api/v1/auth/not-me` (signed in) is "Not you?" on a first sign-in: the
+list row isn't the person who signed in. Within an hour of the first sign-in
+it signs the account out everywhere (every refresh token revoked, the cookie
+cleared), unlinks any Google account, and sends the account back to the
+review queue as an undecided Access request. Nobody can sign into it (`403
+ACCOUNT_NOT_ACTIVE`) until an admin or HOD approves it again, so the person
+who reported it can't land back in the wrong row. Audited as `auth.not_me`.
+`409` for an account not signed into for the first time in the last hour.
+An access token already issued keeps working until it expires (15 minutes).
 
 `GET /api/v1/public/departments` needs no token. It returns only what the
 Access request form shows, ordered by name, with
@@ -405,6 +473,30 @@ Moving a user to `suspended` or `rejected` also revokes all their refresh
 tokens in the same transaction, so every signed-in device is signed out at its
 next refresh.
 
+### Staff invites
+
+`POST /api/v1/admin/users` (principal and admin, `manage_users_and_roles`)
+adds a staff member by email and role:
+
+```json
+{
+  "email": "meera@college.example",
+  "full_name": "Meera Iyer",
+  "role": "faculty",
+  "scope_type": "department",
+  "scope_id": "<department id>",
+  "note": "optional"
+}
+```
+
+The account waits for its first sign-in, like an imported row. The role
+follows role management's rules (below): only an admin invites an admin,
+a Department has one HOD at a time, and the Scope must fit the role. `201`
+with `{"user_id": "...", "status": "pending"}`. `400` for an invalid email,
+an empty name or a role and Scope that don't fit; `409` for an email already
+registered or a role that clashes. Nothing is created on any error. Audited
+as `user_invited` and `role_granted`.
+
 ### Student import
 
 `POST /api/v1/admin/users/import` (admin, principal, or an HOD for their own
@@ -422,10 +514,9 @@ ravi.k@gmail.com,"Kumar, Ravi",4MN24EC102
   too many rows or too large a file is `400` and nothing is imported.
 - Each row is its own transaction, so rows succeed or fail on their own. A
   created row is a `pending`, verified user with a Student identity (Department
-  and Batch from the USN), the `student` role and an Activation email.
-- The Activation emails go out after every row is saved, in batches of up to
-  100 through Resend's batch endpoint. A batch that fails leaves its rows
-  created, with the note below, and their links invalidated.
+  and Batch from the USN) and the `student` role, waiting for its first
+  sign-in (#133). No email is sent: the student signs in with Google or an
+  email code, and that first sign-in makes the account active.
 - A row fails for: an invalid email, an empty or overlong name, a missing or
   malformed USN, a Department code with no Department, an email or USN
   already registered or earlier in the same file, or (for an HOD) a
@@ -446,9 +537,7 @@ Response `200`:
 }
 ```
 
-`row` is the spreadsheet row (the header is row 1). A created row whose
-Activation email couldn't be sent carries an `error` saying so; the student can
-use Resend activation. The import writes one `students_imported` audit log
+`row` is the spreadsheet row (the header is row 1). The import writes one `students_imported` audit log
 with the counts and one `user_imported` per created user.
 
 ### Role management

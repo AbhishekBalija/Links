@@ -83,9 +83,13 @@ JWT rules:
   stops someone guessing by asking for code after code: without it, about
   1,400 guesses a day would find a 6-digit code within a year.
 - The reply is the same for every email, and padded to at least a second.
-- Only active members who are not the principal or an admin get a code;
-  the principal and admins sign in with Google only (ADR 0026). The account
-  is checked again when the code is entered.
+- Any email gets a code except the principal's, an admin's (Google only,
+  ADR 0026) or a suspended or rejected account's. An email on no list gets
+  one too, so its owner can prove it and send an Access request. At most 50
+  codes a day go to emails on no list across the whole site; past that they
+  get the usual reply and no code, so LINKS can't be used to flood inboxes
+  or use up the email quota. Members are never caught by this cap. The
+  account is checked again when the code is entered.
 - On Vercel the client's address comes from `X-Real-IP`, which Vercel sets
   itself; elsewhere the connection's address is used, since a header could
   be forged.
@@ -106,6 +110,23 @@ JWT rules:
   are not stored.
 - The principal and admins sign in with Google only: they get no email code.
   Password login still works for everyone until #136 removes it.
+
+**First sign-in (spec #129, #133):**
+
+- An imported row, a staff invite or an approved Access request is an
+  account waiting for its first sign-in (`pending` and verified). No email
+  is sent. Signing in with its email, by Google or a code, makes it `active`
+  and returns who it is, so the screen can ask "Not you?".
+- "Not you?" (`POST /auth/not-me`), within an hour of the first sign-in,
+  revokes every refresh token, unlinks any Google account and sends the
+  account back to the review queue. Nobody can sign into it until an admin
+  or HOD approves it again, so the person who reported it can't land back in
+  the wrong row.
+- An email on no list gets `NOT_ON_LIST` with a request token: an HS256 JWT
+  for the proven email, with its own key derived from the server secret and
+  its own audience, valid 30 minutes. It sends one Access request with a USN
+  and name (`POST /auth/access-request`), no password.
+- Every first sign-in, "Not you?" and invite is audited.
 
 ## Cookie Strategy
 

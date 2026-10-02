@@ -1,9 +1,9 @@
 package auth
 
-// Bulk import: an admin, the principal or an HOD uploads a CSV of students,
-// and each valid row becomes a pending, verified student who gets an
-// Activation email (#17, ADR 0012). The emails go out after all the rows,
-// in batches, still inside the request (ADR 0014).
+// Bulk import: an admin, the principal or an HOD uploads a CSV of students
+// (the class list), and each valid row becomes a student waiting for their
+// first sign-in, with Google or an email code (#17, ADR 0026). No email is
+// sent.
 
 import (
 	"context"
@@ -17,7 +17,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -122,16 +121,6 @@ type importer struct {
 	byCode      map[string]*Department
 	emails      map[string]bool
 	usns        map[string]bool
-	// activations are the created rows whose email hasn't gone out yet.
-	activations []pendingActivation
-}
-
-// pendingActivation is a created row waiting for its Activation email.
-// Index is its position in the import's results.
-type pendingActivation struct {
-	Index   int
-	TokenID string
-	Email   mailer.ActivationEmail
 }
 
 func (s *authService) ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error) {
@@ -154,8 +143,8 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		usns:        map[string]bool{},
 	}
 	result := &ImportResponse{Rows: make([]ImportRowResult, 0, len(rows))}
-	for i, row := range rows {
-		outcome := run.importRow(ctx, i, row)
+	for _, row := range rows {
+		outcome := run.importRow(ctx, row)
 		if outcome.Status == ImportCreated {
 			result.Created++
 		} else {
@@ -163,7 +152,6 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		}
 		result.Rows = append(result.Rows, outcome)
 	}
-	run.sendActivations(ctx, result.Rows)
 
 	now := time.Now()
 	summary := &AuditLog{
@@ -212,7 +200,7 @@ func (s *authService) departmentScope(ctx context.Context, actorID, refusal stri
 	return false, departments, nil
 }
 
-func (run *importer) importRow(ctx context.Context, index int, row importRow) ImportRowResult {
+func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResult {
 	outcome := ImportRowResult{Row: row.Line, Email: row.Email, Status: ImportFailed}
 	department, problem := run.check(ctx, row)
 	if problem != "" {
@@ -220,7 +208,7 @@ func (run *importer) importRow(ctx context.Context, index int, row importRow) Im
 		return outcome
 	}
 
-	userID, token, tokenRaw, problem, err := run.create(ctx, row, department)
+	userID, problem, err := run.create(ctx, row, department)
 	if err != nil {
 		outcome.Error = "could not be saved; try this row again"
 		return outcome
@@ -231,32 +219,7 @@ func (run *importer) importRow(ctx context.Context, index int, row importRow) Im
 	}
 	outcome.Status = ImportCreated
 	outcome.UserID = userID
-	run.activations = append(run.activations, pendingActivation{
-		Index:   index,
-		TokenID: token.ID,
-		Email:   mailer.ActivationEmail{To: row.Email, Name: row.FullName, Link: run.service.activationLink(tokenRaw)},
-	})
 	return outcome
-}
-
-// sendActivations sends the created rows' emails, up to Resend's batch limit
-// per request. A failed batch leaves its accounts in place: their links are
-// invalidated and the student can use Resend activation from the sign-in page.
-func (run *importer) sendActivations(ctx context.Context, results []ImportRowResult) {
-	for start := 0; start < len(run.activations); start += mailer.MaxBatchSize {
-		batch := run.activations[start:min(start+mailer.MaxBatchSize, len(run.activations))]
-		emails := make([]mailer.ActivationEmail, len(batch))
-		for i, pending := range batch {
-			emails[i] = pending.Email
-		}
-		if err := run.service.mailer.SendActivationEmails(emails); err == nil {
-			continue
-		}
-		for _, pending := range batch {
-			_ = run.service.invalidateActivationToken(ctx, pending.TokenID)
-			results[pending.Index].Error = "created, but the activation email could not be sent; the student can use Resend activation"
-		}
-	}
 }
 
 // check applies the rules that need no transaction and returns why the row
@@ -317,15 +280,16 @@ func (run *importer) department(ctx context.Context, code string) (*Department, 
 
 // create writes one student in its own transaction, so one bad row never
 // undoes the others. problem is a row error to report; err is unexpected.
-func (run *importer) create(ctx context.Context, row importRow, department *Department) (string, *AccountActivationToken, string, string, error) {
+func (run *importer) create(ctx context.Context, row importRow, department *Department) (string, string, error) {
 	now := time.Now()
 	batchYear, err := BatchYearFromUSN(row.USN)
 	if err != nil {
-		return "", nil, "", "invalid USN: " + err.Error(), nil
+		return "", "invalid USN: " + err.Error(), nil
 	}
 	user := &User{
 		Email: &row.Email,
-		// No password until Activation; a pending account can't sign in.
+		// No password: pending and verified means waiting for the first
+		// sign-in, which makes the account active.
 		PasswordHash: "",
 		Status:       UserStatusPending,
 		IsVerified:   true,
@@ -333,8 +297,7 @@ func (run *importer) create(ctx context.Context, row importRow, department *Depa
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
-	var token *AccountActivationToken
-	var tokenRaw, problem string
+	var problem string
 	err = run.service.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		existing, err := repos.Users.FindByEmail(ctx, row.Email)
 		if err != nil {
@@ -376,13 +339,6 @@ func (run *importer) create(ctx context.Context, row importRow, department *Depa
 		if err := repos.Users.CreateRoleAssignment(ctx, role); err != nil {
 			return fmt.Errorf("create role assignment: %w", err)
 		}
-		token, tokenRaw, err = newActivationToken(user.ID)
-		if err != nil {
-			return err
-		}
-		if err := repos.Activations.Create(ctx, token); err != nil {
-			return fmt.Errorf("create activation token: %w", err)
-		}
 		userID := user.ID
 		return repos.AuditLogs.Create(ctx, &AuditLog{
 			ActorID:      &run.actorID,
@@ -394,7 +350,7 @@ func (run *importer) create(ctx context.Context, row importRow, department *Depa
 		})
 	})
 	if errors.Is(err, errRowRejected) {
-		return "", nil, "", problem, nil
+		return "", problem, nil
 	}
 	// Another request can take the email or USN between the check and the
 	// insert; the unique index then decides.
@@ -402,15 +358,15 @@ func (run *importer) create(ctx context.Context, row importRow, department *Depa
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		switch pgErr.ConstraintName {
 		case "idx_users_email":
-			return "", nil, "", "the email is already registered", nil
+			return "", "the email is already registered", nil
 		case "idx_student_identities_usn":
-			return "", nil, "", "the USN is already registered", nil
+			return "", "the USN is already registered", nil
 		}
 	}
 	if err != nil {
-		return "", nil, "", "", err
+		return "", "", err
 	}
-	return user.ID, token, tokenRaw, "", nil
+	return user.ID, "", nil
 }
 
 // errRowRejected rolls back a row's transaction for a reason already put in

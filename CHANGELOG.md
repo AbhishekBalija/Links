@@ -7,6 +7,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The class list and staff invites wait for a first sign-in (#133): an
+  imported row gets no Activation email; signing in with its email, by Google
+  or a code, makes it active and shows who it is, with "Not you?" to report a
+  wrong row. Admins and the principal add staff by email and role. Someone
+  on no list proves their email and sends an Access request with just their
+  USN, no password.
 - Sign in with Google (#132): the API verifies a Google ID token (audience,
   issuer, expiry, verified email and a nonce against login CSRF), matches the
   member by email the first time and by Google account from then on, and

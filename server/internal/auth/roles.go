@@ -75,84 +75,93 @@ func (s *authService) GrantRole(ctx context.Context, actorID, userID string, inp
 
 	var created RoleAssignmentResponse
 	err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
-		if err := requireAdminFor(ctx, repos, actorID, role); err != nil {
-			return err
-		}
-		// Locking the user makes two identical grants run one after another,
-		// so the duplicate check below sees the first one.
-		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
-		if err != nil {
-			return fmt.Errorf("find user: %w", err)
-		}
-		if user == nil {
-			return apperrors.NewNotFound("user not found")
-		}
-		if user.Status == UserStatusRejected {
-			return apperrors.NewConflict("a rejected user can't be given a role")
-		}
-
-		var scopeID *string
-		var department *RoleDepartment
-		if scopeType == ScopeDepartment {
-			scopeID = &input.ScopeID
-			department, err = lockScopeDepartment(ctx, repos, role, input.ScopeID)
-			if err != nil {
-				return err
-			}
-		}
-		if role == RoleStudentCoordinator {
-			if err := requireStudentOf(ctx, repos, user, input.ScopeID); err != nil {
-				return err
-			}
-		}
-
-		overlap := OverlapFilter{UserID: userID, Role: role, ScopeType: scopeType, ScopeID: scopeID, StartsAt: startsAt, EndsAt: input.EndsAt}
-		duplicate, err := repos.Users.HasOverlappingAssignment(ctx, overlap)
-		if err != nil {
-			return fmt.Errorf("check duplicate role: %w", err)
-		}
-		if duplicate {
-			return apperrors.NewConflict("the user already has this role and scope for that time")
-		}
-		if role == RoleHOD {
-			// A Department has at most one HOD at a time (CONTEXT.md).
-			overlap.UserID = ""
-			taken, err := repos.Users.HasOverlappingAssignment(ctx, overlap)
-			if err != nil {
-				return fmt.Errorf("check existing HOD: %w", err)
-			}
-			if taken {
-				return apperrors.NewConflict("the department already has an HOD for that time")
-			}
-		}
-
-		assignment := &RoleAssignment{
-			UserID:     userID,
-			Role:       role,
-			ScopeType:  scopeType,
-			ScopeID:    scopeID,
-			AssignedBy: &actorID,
-			StartsAt:   startsAt,
-			EndsAt:     input.EndsAt,
-			CreatedAt:  now,
-		}
-		if err := repos.Users.CreateRoleAssignment(ctx, assignment); err != nil {
-			return fmt.Errorf("create role assignment: %w", err)
-		}
-		if err := repos.AuditLogs.Create(ctx, roleAuditLog("role_granted", actorID, *assignment, input.Note, now)); err != nil {
-			return fmt.Errorf("create audit log: %w", err)
-		}
-		view := RoleAssignmentView{RoleAssignment: *assignment}
-		if department != nil {
-			view.DepartmentCode, view.DepartmentName = &department.Code, &department.Name
-		}
-		created = roleAssignmentResponse(view, now)
-		return nil
+		var err error
+		created, err = grantRoleIn(ctx, repos, actorID, userID, input, startsAt, now)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &created, nil
+}
+
+// grantRoleIn grants a role inside the caller's transaction. The caller has
+// validated the role, Scope and dates.
+func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID string, input GrantRoleInput, startsAt, now time.Time) (RoleAssignmentResponse, error) {
+	role := Role(input.Role)
+	scopeType := ScopeType(input.ScopeType)
+	if err := requireAdminFor(ctx, repos, actorID, role); err != nil {
+		return RoleAssignmentResponse{}, err
+	}
+	// Locking the user makes two identical grants run one after another,
+	// so the duplicate check below sees the first one.
+	user, err := repos.Users.FindByIDForUpdate(ctx, userID)
+	if err != nil {
+		return RoleAssignmentResponse{}, fmt.Errorf("find user: %w", err)
+	}
+	if user == nil {
+		return RoleAssignmentResponse{}, apperrors.NewNotFound("user not found")
+	}
+	if user.Status == UserStatusRejected {
+		return RoleAssignmentResponse{}, apperrors.NewConflict("a rejected user can't be given a role")
+	}
+
+	var scopeID *string
+	var department *RoleDepartment
+	if scopeType == ScopeDepartment {
+		scopeID = &input.ScopeID
+		department, err = lockScopeDepartment(ctx, repos, role, input.ScopeID)
+		if err != nil {
+			return RoleAssignmentResponse{}, err
+		}
+	}
+	if role == RoleStudentCoordinator {
+		if err := requireStudentOf(ctx, repos, user, input.ScopeID); err != nil {
+			return RoleAssignmentResponse{}, err
+		}
+	}
+
+	overlap := OverlapFilter{UserID: userID, Role: role, ScopeType: scopeType, ScopeID: scopeID, StartsAt: startsAt, EndsAt: input.EndsAt}
+	duplicate, err := repos.Users.HasOverlappingAssignment(ctx, overlap)
+	if err != nil {
+		return RoleAssignmentResponse{}, fmt.Errorf("check duplicate role: %w", err)
+	}
+	if duplicate {
+		return RoleAssignmentResponse{}, apperrors.NewConflict("the user already has this role and scope for that time")
+	}
+	if role == RoleHOD {
+		// A Department has at most one HOD at a time (CONTEXT.md).
+		overlap.UserID = ""
+		taken, err := repos.Users.HasOverlappingAssignment(ctx, overlap)
+		if err != nil {
+			return RoleAssignmentResponse{}, fmt.Errorf("check existing HOD: %w", err)
+		}
+		if taken {
+			return RoleAssignmentResponse{}, apperrors.NewConflict("the department already has an HOD for that time")
+		}
+	}
+
+	assignment := &RoleAssignment{
+		UserID:     userID,
+		Role:       role,
+		ScopeType:  scopeType,
+		ScopeID:    scopeID,
+		AssignedBy: &actorID,
+		StartsAt:   startsAt,
+		EndsAt:     input.EndsAt,
+		CreatedAt:  now,
+	}
+	if err := repos.Users.CreateRoleAssignment(ctx, assignment); err != nil {
+		return RoleAssignmentResponse{}, fmt.Errorf("create role assignment: %w", err)
+	}
+	if err := repos.AuditLogs.Create(ctx, roleAuditLog("role_granted", actorID, *assignment, input.Note, now)); err != nil {
+		return RoleAssignmentResponse{}, fmt.Errorf("create audit log: %w", err)
+	}
+	view := RoleAssignmentView{RoleAssignment: *assignment}
+	if department != nil {
+		view.DepartmentCode, view.DepartmentName = &department.Code, &department.Name
+	}
+	return roleAssignmentResponse(view, now), nil
 }
 
 // EndRole ends a Role assignment now, keeping the row as history, and signs

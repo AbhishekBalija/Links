@@ -95,19 +95,20 @@ func errGoogleRefused() error {
 	return apperrors.NewUnauthenticated("Google sign-in failed; try again")
 }
 
-// NotOnListDetails let the screen prefill an Access request with what Google
-// verified.
+// NotOnListDetails let the screen prefill an Access request with what was
+// proven, and carry the request token that sends it.
 type NotOnListDetails struct {
-	Email    string `json:"email"`
-	FullName string `json:"full_name"`
+	Email        string `json:"email"`
+	FullName     string `json:"full_name"`
+	RequestToken string `json:"request_token"`
 }
 
-func errNotOnList(identity *GoogleIdentity) error {
+func errNotOnList(email, name, requestToken string) error {
 	return &apperrors.AppError{
 		Code:       "NOT_ON_LIST",
 		Message:    "this email isn't on any list for LINKS yet",
 		HTTPStatus: 403,
-		Details:    NotOnListDetails{Email: identity.Email, FullName: identity.Name},
+		Details:    NotOnListDetails{Email: email, FullName: name, RequestToken: requestToken},
 	}
 }
 
@@ -146,9 +147,9 @@ func (s *authService) SignInWithGoogle(ctx context.Context, credential, expected
 			return err
 		}
 		if user == nil {
-			return errNotOnList(identity)
+			return s.notOnList(identity.Email, identity.Name)
 		}
-		if !user.Status.CanLogin() {
+		if !user.CanSignIn() {
 			return errAccountNotActive(user.Status)
 		}
 
@@ -172,11 +173,8 @@ func (s *authService) SignInWithGoogle(ctx context.Context, credential, expected
 			}
 		}
 
-		resp, refreshRaw, err = s.issueSessionWith(ctx, repos.Users, repos.RefreshTokens, user)
-		if err != nil {
-			return err
-		}
-		return repos.AuditLogs.Create(ctx, signInAuditLog(user.ID, "google", now))
+		resp, refreshRaw, err = s.signIn(ctx, repos, user, "google", now)
+		return err
 	})
 	if err != nil {
 		return nil, "", err
