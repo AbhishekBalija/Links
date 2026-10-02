@@ -152,7 +152,10 @@ email on no list gets a code too, so its owner can prove it and send an
 Access request. Spaces around the
 email and its case don't matter. `400` for something that isn't an email.
 `429 RATE_LIMITED` after 3 requests for one email, or 60 from one IP address,
-within 15 minutes; the limits count every request, known email or not. The
+within 15 minutes, or after 10 requests for one email in a day; the limits
+count every request, known email or not. After 10 wrong guesses at an
+email's codes in a day, the reply stays the same but no code is sent until
+the day is over. The
 reply takes at least a second, so its timing doesn't show whether a code was
 sent.
 
