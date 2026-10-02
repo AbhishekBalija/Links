@@ -557,9 +557,18 @@ with the counts and one `user_imported` per created user.
 
 ### Role management
 
-Principal and admin (`manage_users_and_roles`). Only an admin may grant or end
-the `admin` role; the principal gets `403` for it. The caller's roles for that
-check are read from the database, not the token.
+HODs, the principal and admins (`manage_roles`), each for different roles
+(ADR 0027):
+
+- An HOD grants and ends `student_coordinator` only, and sees and manages only
+  the students of their own Department. Any other user answers `404`, as if
+  they didn't exist.
+- The principal grants and ends `faculty`, `hod` and `placement_officer`, and
+  sees everyone's roles.
+- An admin grants and ends every role, including `principal` and `admin`.
+
+Granting or ending a role the caller doesn't manage is `403`. The caller's
+roles for these checks are read from the database, not the token.
 
 `GET /api/v1/admin/users/:id/roles` lists all of a user's Role assignments,
 newest start first: in effect now (`active`), starting later (`scheduled`) and
