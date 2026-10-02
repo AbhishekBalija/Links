@@ -170,10 +170,10 @@ func (s *Service) Get(ctx context.Context, actorID, id string) (*EventResponse, 
 	return &responses[0], nil
 }
 
-// isOwnerOrReviewer is true for the proposer, and for the principal, admins
+// isOwnerOrReviewer is true for the proposer and the Organiser, and for the principal, admins
 // and the Department's HOD once the Event has left draft.
 func (s *Service) isOwnerOrReviewer(ctx context.Context, actorID string, event Event) (bool, error) {
-	if event.ProposerID == actorID {
+	if event.ProposerID == actorID || event.OrganiserID == actorID {
 		return true, nil
 	}
 	if event.Status == StatusDraft {
