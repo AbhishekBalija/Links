@@ -35,6 +35,8 @@ const People = lazy(() => import('../features/people/pages/People'))
 const Profile = lazy(() => import('../features/people/pages/Profile'))
 const MyProfile = lazy(() => import('../features/people/pages/MyProfile'))
 const Department = lazy(() => import('../features/people/pages/Department'))
+const HODAccessRequests = lazy(() => import('../features/access/pages/HODAccessRequests'))
+const AdminAccessRequests = lazy(() => import('../features/access/pages/AdminAccessRequests'))
 
 export function AppRouter() {
   return (
@@ -60,6 +62,8 @@ export function AppRouter() {
           <Route path="/mine/events/:id" element={<MyEvent />} />
           <Route element={<ApproverRoute />}>
             <Route path="/approvals" element={<ApprovalQueue />} />
+            <Route path="/approvals/access" element={<HODAccessRequests />} />
+            <Route path="/approvals/access/:id" element={<HODAccessRequests />} />
             <Route path="/approvals/:id" element={<ApprovalQueue />} />
           </Route>
           <Route element={<PosterRoute />}>
@@ -80,6 +84,11 @@ export function AppRouter() {
             <Route path="/placement/:id" element={<PlacementOpportunity />} />
             <Route path="/placement/:id/edit" element={<OpportunityForm />} />
             <Route path="/placement/:id/applicants" element={<Applicants />} />
+          </Route>
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<Navigate to="/admin/requests" replace />} />
+            <Route path="/admin/requests" element={<AdminAccessRequests />} />
+            <Route path="/admin/requests/:id" element={<AdminAccessRequests />} />
           </Route>
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
@@ -107,6 +116,13 @@ function PosterRoute() {
 function ApproverRoute() {
   const roles = useAuthStore((s) => s.user?.roles) ?? []
   return canApprove(roles) ? <Outlet /> : <Navigate to="/" replace />
+}
+
+// AdminRoute keeps the Admin workspace to admins. The server still checks
+// every request.
+function AdminRoute() {
+  const roles = useAuthStore((s) => s.user?.roles) ?? []
+  return roles.includes('admin') ? <Outlet /> : <Navigate to="/" replace />
 }
 
 // PlacementRoute keeps Placement to the placement officer, the principal and

@@ -158,9 +158,11 @@ export function useExportAnswers(id: string, title: string) {
 
 // useEventReviews loads the event proposals waiting for the caller, oldest
 // submission first.
-export function useEventReviews() {
+// retryOnMount: false is for a view that only shows counts (see useQueue).
+export function useEventReviews({ retryOnMount = true }: { retryOnMount?: boolean } = {}) {
   return useInfiniteQuery({
     queryKey: ['events', 'reviews'],
+    retryOnMount,
     initialPageParam: '',
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({ limit: '50' })
