@@ -161,6 +161,8 @@ Access tokens carry the user's roles and live 15 minutes, so a role change
 reaches the middleware permission checks (`AuthorizeActor`) only when the user
 gets a new access token:
 
+- Ending a Role assignment also withdraws or hands over the work the person
+  can no longer author, in the same transaction (ADR 0028).
 - Ending a Role assignment, suspending or rejecting a user revokes all their
   refresh tokens in the same transaction. Their next refresh fails and they
   must sign in again, which reads their roles fresh.
