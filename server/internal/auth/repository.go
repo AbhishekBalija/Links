@@ -62,6 +62,52 @@ func (r *GormUserRepository) FindByEmail(ctx context.Context, email string) (*Us
 	return &user, err
 }
 
+// FindByEmailForUpdate is FindByEmail with the row locked until the
+// transaction ends.
+func (r *GormUserRepository) FindByEmailForUpdate(ctx context.Context, email string) (*User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Profile").
+		Preload("StudentIdentity").
+		Where("lower(email) = lower(?)", email).
+		Limit(1).
+		Find(&users).Error
+	if err != nil || len(users) == 0 {
+		return nil, err
+	}
+	return &users[0], nil
+}
+
+func (r *GormUserRepository) FindByGoogleSubjectForUpdate(ctx context.Context, subject string) (*User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Profile").
+		Preload("StudentIdentity").
+		Where("google_subject = ?", subject).
+		Limit(1).
+		Find(&users).Error
+	if err != nil || len(users) == 0 {
+		return nil, err
+	}
+	return &users[0], nil
+}
+
+// SetGoogleSubject links a Google account to a user who has none yet.
+func (r *GormUserRepository) SetGoogleSubject(ctx context.Context, userID, subject string) error {
+	result := r.db.WithContext(ctx).Model(&User{}).
+		Where("id = ? AND google_subject IS NULL", userID).
+		Updates(map[string]any{"google_subject": subject, "updated_at": time.Now()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return fmt.Errorf("user %s already has a Google account linked", userID)
+	}
+	return nil
+}
+
 func (r *GormUserRepository) FindByID(ctx context.Context, id string) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).

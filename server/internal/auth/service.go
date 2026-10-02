@@ -23,6 +23,7 @@ type authService struct {
 	mailer         mailer.Mailer
 	frontendURL    string
 	codeSettings   CodeSettings
+	google         GoogleVerifier
 }
 
 func NewAuthService(
@@ -35,6 +36,7 @@ func NewAuthService(
 	mailer mailer.Mailer,
 	frontendURL string,
 	codeSettings CodeSettings,
+	google GoogleVerifier,
 ) AuthService {
 	return &authService{
 		userRepo:       userRepo,
@@ -46,6 +48,7 @@ func NewAuthService(
 		mailer:         mailer,
 		frontendURL:    frontendURL,
 		codeSettings:   codeSettings,
+		google:         google,
 	}
 }
 

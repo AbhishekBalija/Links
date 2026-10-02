@@ -46,6 +46,7 @@ type Harness struct {
 	nextRoll int
 	// Outbox holds the emails the API sent.
 	Outbox *Outbox
+	google *googleSigner
 }
 
 // New creates a fresh schema, applies every migration to it, and builds the
@@ -102,6 +103,7 @@ func NewWith(t *testing.T, configure func(*config.Config)) *Harness {
 			AccessTokenTTL:   15 * time.Minute,
 			RefreshTokenTTL:  24 * time.Hour,
 		},
+		Google: config.GoogleConfig{ClientID: GoogleClientID},
 	}
 	if configure != nil {
 		configure(&cfg)
@@ -111,7 +113,12 @@ func NewWith(t *testing.T, configure func(*config.Config)) *Harness {
 	codeSettings := auth.DefaultCodeSettings()
 	// Tests don't wait out the reply floor that hides whether a code was sent.
 	codeSettings.MinReplyTime = 0
-	router, err := app.NewServer(cfg, database, logger, app.WithMailer(outbox), app.WithCodeSettings(codeSettings))
+	google := newGoogleSigner(t)
+	router, err := app.NewServer(cfg, database, logger,
+		app.WithMailer(outbox),
+		app.WithCodeSettings(codeSettings),
+		app.WithGoogleCertsClient(google.certsClient()),
+	)
 	if err != nil {
 		t.Fatalf("build router: %v", err)
 	}
@@ -120,6 +127,7 @@ func NewWith(t *testing.T, configure func(*config.Config)) *Harness {
 		router:   router,
 		database: database,
 		Outbox:   outbox,
+		google:   google,
 		tokenCfg: auth.TokenConfig{
 			AccessSecret:  accessSecret,
 			RefreshSecret: refreshSecret,

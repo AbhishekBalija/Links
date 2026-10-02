@@ -62,6 +62,16 @@ func (f *fakeUserRepo) FindByEmail(ctx context.Context, email string) (*User, er
 	return nil, nil
 }
 
+func (f *fakeUserRepo) FindByEmailForUpdate(ctx context.Context, email string) (*User, error) {
+	return f.FindByEmail(ctx, email)
+}
+
+func (f *fakeUserRepo) FindByGoogleSubjectForUpdate(context.Context, string) (*User, error) {
+	return nil, nil
+}
+
+func (f *fakeUserRepo) SetGoogleSubject(context.Context, string, string) error { return nil }
+
 func (f *fakeUserRepo) FindByID(ctx context.Context, id string) (*User, error) {
 	if f.findByID != nil {
 		return f.findByID(ctx, id)
@@ -385,7 +395,7 @@ func newAuthHarness(t *testing.T) *authHarness {
 		AccessTTL:     15 * time.Minute,
 		RefreshTTL:    7 * 24 * time.Hour,
 	}
-	service := NewAuthService(users, refreshTokens, activations, uow, cfg, hasher, mailer, "https://links.example.com", DefaultCodeSettings())
+	service := NewAuthService(users, refreshTokens, activations, uow, cfg, hasher, mailer, "https://links.example.com", DefaultCodeSettings(), nil)
 	return &authHarness{
 		service:       service,
 		users:         users,

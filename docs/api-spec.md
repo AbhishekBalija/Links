@@ -113,6 +113,8 @@ POST /api/v1/auth/request-access
 POST /api/v1/auth/login
 POST /api/v1/auth/code
 POST /api/v1/auth/code/verify
+GET  /api/v1/auth/google/nonce
+POST /api/v1/auth/google
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 POST /api/v1/auth/activate
@@ -162,6 +164,48 @@ that can no longer sign in all get the same
 audited (`auth.signed_in`, method `email_code`). Both code endpoints check
 `Origin` like refresh and logout (ADR 0022), so another site can't sign a
 browser into someone's account.
+
+### Google sign-in
+
+Signing in with Google Identity Services (spec #129, ADR 0026). Both routes
+exist only when `GOOGLE_CLIENT_ID` is set.
+
+`GET /api/v1/auth/google/nonce` returns `{"nonce": "..."}` and sets the same
+value in an httpOnly `google_nonce` cookie (path `/api/v1/auth/google`, 10
+minutes). The screen passes the nonce to Google Identity Services, which puts
+it in the ID token.
+
+`POST /api/v1/auth/google` with `{"credential": "<Google ID token>"}` checks
+the token's signature (Google's keys), audience (`GOOGLE_CLIENT_ID`), issuer
+(`accounts.google.com`), expiry and `email_verified`, and that its `nonce`
+matches the cookie. The nonce cookie is cleared on every try. It finds the
+member by Google account ID (`sub`); on their first Google sign-in, by the
+verified email (case-insensitive), and then stores the Google account ID.
+
+- `200`: signed in like login, with `access_token`, `expires_in` and the
+  refresh cookie. Audited as `auth.signed_in` (method `google`), plus
+  `auth.google_linked` the first time.
+- `401 UNAUTHENTICATED` ("Google sign-in failed; try again"): a token that
+  fails any check, a missing or different nonce, or an email whose member is
+  already linked to a different Google account.
+- `403 NOT_ON_LIST`: the verified email isn't on any list. No account is
+  created. The details prefill an Access request:
+
+```json
+{
+  "error": {
+    "code": "NOT_ON_LIST",
+    "message": "this email isn't on any list for LINKS yet",
+    "details": { "email": "asha.rao@gmail.com", "full_name": "Asha Rao" }
+  }
+}
+```
+
+- `403 ACCOUNT_NOT_ACTIVE` with `details.status` (`pending`, `suspended` or
+  `rejected`): the member exists but can't sign in now.
+
+The principal and admins sign in this way; they can't use email codes.
+The POST checks `Origin` like refresh and logout (ADR 0022).
 
 `GET /api/v1/public/departments` needs no token. It returns only what the
 Access request form shows, ordered by name, with

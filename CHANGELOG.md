@@ -7,6 +7,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Sign in with Google (#132): the API verifies a Google ID token (audience,
+  issuer, expiry, verified email and a nonce against login CSRF), matches the
+  member by email the first time and by Google account from then on, and
+  answers an email on no list with `NOT_ON_LIST` so the screen can offer an
+  Access request. Set `GOOGLE_CLIENT_ID` to turn it on.
 - Sign in with a one-time email code (#131): the API emails a 6-digit code
   that works once, for 10 minutes, in the browser that asked for it, with
   limits on tries and requests. The reply is the same whether or not the

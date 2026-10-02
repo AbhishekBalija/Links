@@ -35,6 +35,14 @@ type VerifyCodeInput struct {
 	Code        string `json:"code" binding:"required,max=16"`
 }
 
+type GoogleSignInInput struct {
+	Credential string `json:"credential" binding:"required,max=8192"`
+}
+
+type GoogleNonceResponse struct {
+	Nonce string `json:"nonce"`
+}
+
 type RequestAccessResponse struct {
 	UserID string `json:"user_id"`
 	Status string `json:"status"`

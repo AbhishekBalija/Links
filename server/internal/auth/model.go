@@ -13,6 +13,7 @@ type User struct {
 	Email           *string          `gorm:"column:email"`
 	Phone           *string          `gorm:"column:phone"`
 	PasswordHash    string           `gorm:"column:password_hash"`
+	GoogleSubject   *string          `gorm:"column:google_subject"`
 	Status          UserStatus       `gorm:"column:status"`
 	IsVerified      bool             `gorm:"column:is_verified"`
 	CreatedBy       *string          `gorm:"column:created_by"`
@@ -198,6 +199,7 @@ type AuthService interface {
 	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
 	RequestCode(ctx context.Context, email, ip string) (string, error)
 	VerifyCode(ctx context.Context, challengeID, code string) (*LoginResponse, string, error)
+	SignInWithGoogle(ctx context.Context, credential, expectedNonce string) (*LoginResponse, string, error)
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	ActivateAccount(ctx context.Context, token, password string) error
@@ -233,6 +235,9 @@ func (AuditLog) TableName() string { return "audit_logs" }
 type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email string) (*User, error)
+	FindByEmailForUpdate(ctx context.Context, email string) (*User, error)
+	FindByGoogleSubjectForUpdate(ctx context.Context, subject string) (*User, error)
+	SetGoogleSubject(ctx context.Context, userID, subject string) error
 	FindByID(ctx context.Context, id string) (*User, error)
 	FindByIDForUpdate(ctx context.Context, id string) (*User, error)
 	FindEmailByUserID(ctx context.Context, userID string) (*string, error)
