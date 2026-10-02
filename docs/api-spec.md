@@ -267,8 +267,10 @@ or a code; there is nothing to activate, and no Activation email is sent.
 `POST /api/v1/auth/not-me` (signed in) is "Not you?" on a first sign-in: the
 list row isn't the person who signed in. Within an hour of the first sign-in
 it signs the account out everywhere (every refresh token revoked, the cookie
-cleared), unlinks any Google account, and returns the account to waiting for
-its first sign-in, so an admin can fix the row. Audited as `auth.not_me`.
+cleared), unlinks any Google account, and sends the account back to the
+review queue as an undecided Access request. Nobody can sign into it (`403
+ACCOUNT_NOT_ACTIVE`) until an admin or HOD approves it again, so the person
+who reported it can't land back in the wrong row. Audited as `auth.not_me`.
 `409` for an account not signed into for the first time in the last hour.
 An access token already issued keeps working until it expires (15 minutes).
 

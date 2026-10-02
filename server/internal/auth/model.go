@@ -256,7 +256,7 @@ type UserRepository interface {
 	FindByGoogleSubjectForUpdate(ctx context.Context, subject string) (*User, error)
 	SetGoogleSubject(ctx context.Context, userID, subject string) error
 	CompleteFirstSignIn(ctx context.Context, userID string, at time.Time) error
-	ReturnToWaiting(ctx context.Context, userID string) error
+	ReturnForReview(ctx context.Context, userID string) error
 	FindByID(ctx context.Context, id string) (*User, error)
 	FindByIDForUpdate(ctx context.Context, id string) (*User, error)
 	FindEmailByUserID(ctx context.Context, userID string) (*string, error)

@@ -115,8 +115,10 @@ JWT rules:
   is sent. Signing in with its email, by Google or a code, makes it `active`
   and returns who it is, so the screen can ask "Not you?".
 - "Not you?" (`POST /auth/not-me`), within an hour of the first sign-in,
-  revokes every refresh token, unlinks any Google account and returns the
-  account to waiting for an admin to fix the row.
+  revokes every refresh token, unlinks any Google account and sends the
+  account back to the review queue. Nobody can sign into it until an admin
+  or HOD approves it again, so the person who reported it can't land back in
+  the wrong row.
 - An email on no list gets `NOT_ON_LIST` with a request token: an HS256 JWT
   for the proven email, with its own key derived from the server secret and
   its own audience, valid 30 minutes. It sends one Access request with a USN

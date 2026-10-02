@@ -105,8 +105,8 @@ func firstSignInOf(ctx context.Context, users UserRepository, user *User) (*Firs
 
 // NotMe is "Not you?" on a first sign-in: the account isn't the person who
 // signed in, so a list row is wrong. It signs them out everywhere, unlinks
-// any Google account and returns the account to waiting, so an admin can fix
-// the row. Offered only within NotMeWindow of the first sign-in.
+// any Google account and sends the account back to the review queue, so
+// nobody can sign into it until an admin or HOD has looked at the row. Offered only within NotMeWindow of the first sign-in.
 func (s *authService) NotMe(ctx context.Context, userID string) error {
 	now := time.Now()
 	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
@@ -120,8 +120,8 @@ func (s *authService) NotMe(ctx context.Context, userID string) error {
 		if user.Status != UserStatusActive || user.FirstSignedInAt == nil || now.Sub(*user.FirstSignedInAt) > NotMeWindow {
 			return apperrors.NewConflict("\"Not you?\" is only offered right after a first sign-in")
 		}
-		if err := repos.Users.ReturnToWaiting(ctx, user.ID); err != nil {
-			return fmt.Errorf("return to waiting: %w", err)
+		if err := repos.Users.ReturnForReview(ctx, user.ID); err != nil {
+			return fmt.Errorf("return for review: %w", err)
 		}
 		if err := repos.RefreshTokens.RevokeAllByUserID(ctx, user.ID); err != nil {
 			return fmt.Errorf("sign out everywhere: %w", err)

@@ -122,13 +122,13 @@ func (r *GormUserRepository) CompleteFirstSignIn(ctx context.Context, userID str
 	return nil
 }
 
-// ReturnToWaiting puts an account back to waiting for its first sign-in,
-// with no Google account linked.
-func (r *GormUserRepository) ReturnToWaiting(ctx context.Context, userID string) error {
+// ReturnForReview puts an account back to undecided, with no Google account
+// linked, so nobody can sign into it until it is approved again.
+func (r *GormUserRepository) ReturnForReview(ctx context.Context, userID string) error {
 	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
 		Updates(map[string]any{
 			"status":             UserStatusPending,
-			"is_verified":        true,
+			"is_verified":        false,
 			"google_subject":     nil,
 			"first_signed_in_at": nil,
 			"updated_at":         time.Now(),

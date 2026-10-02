@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -176,7 +177,7 @@ func TestWhoCanInviteStaff(t *testing.T) {
 	}
 }
 
-func TestNotYouOnFirstSignInSignsOutAndReturnsTheRowToWaiting(t *testing.T) {
+func TestNotYouOnFirstSignInSignsOutAndReturnsTheRowForReview(t *testing.T) {
 	h := apitest.New(t)
 	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
 	imported(t, importCSV(h, admin.Token, "email,full_name,usn\nasha@gmail.com,Wrong Name,4MN23CS042\n"))
@@ -199,7 +200,7 @@ func TestNotYouOnFirstSignInSignsOutAndReturnsTheRowToWaiting(t *testing.T) {
 	expectStatus(t, "not you", notMe, http.StatusOK)
 
 	if got := userStatus(t, h, "asha@gmail.com"); got != "pending" {
-		t.Errorf("status = %q, want pending (waiting again)", got)
+		t.Errorf("status = %q, want pending (back for review)", got)
 	}
 	refreshRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
 	refreshRequest.AddCookie(refresh)
@@ -212,6 +213,27 @@ func TestNotYouOnFirstSignInSignsOutAndReturnsTheRowToWaiting(t *testing.T) {
 	h.DB().Raw(`SELECT google_subject FROM users WHERE id = ?`, id).Scan(&subject)
 	if subject != nil {
 		t.Errorf("Google account still linked (%q); the row must be fixed before anyone is linked to it", *subject)
+	}
+}
+
+func TestARowReportedWithNotYouCantBeSignedIntoUntilSomeoneReviewsIt(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	imported(t, importCSV(h, admin.Token, "email,full_name,usn\nasha@gmail.com,Wrong Name,4MN23CS042\n"))
+	session, response := signInWithCode(t, h, "asha@gmail.com")
+	expectStatus(t, "first sign-in", response, http.StatusOK)
+	expectStatus(t, "not you", h.Do(t, http.MethodPost, "/api/v1/auth/not-me", session.AccessToken, nil), http.StatusOK)
+
+	// The same person signing in again must not land in the wrong row.
+	_, again := signInWithCode(t, h, "asha@gmail.com")
+	expectStatus(t, "signing in again", again, http.StatusForbidden)
+	nonce, cookie := h.GoogleNonce(t)
+	google := googleSignIn(t, h, h.GoogleToken(t, apitest.GoogleClaims{Subject: "google-asha", Email: "asha@gmail.com", Nonce: nonce}), cookie)
+	expectStatus(t, "signing in again with Google", google, http.StatusForbidden)
+
+	// The row waits in the review queue for someone to look at it.
+	if emails := reviewQueueEmails(t, h, admin.Token); !slices.Contains(emails, "asha@gmail.com") {
+		t.Errorf("review queue = %v, want the reported row in it", emails)
 	}
 }
 

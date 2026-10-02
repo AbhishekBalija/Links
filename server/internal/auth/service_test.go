@@ -74,7 +74,7 @@ func (f *fakeUserRepo) SetGoogleSubject(context.Context, string, string) error {
 
 func (f *fakeUserRepo) CompleteFirstSignIn(context.Context, string, time.Time) error { return nil }
 
-func (f *fakeUserRepo) ReturnToWaiting(context.Context, string) error { return nil }
+func (f *fakeUserRepo) ReturnForReview(context.Context, string) error { return nil }
 
 func (f *fakeUserRepo) FindByID(ctx context.Context, id string) (*User, error) {
 	if f.findByID != nil {
