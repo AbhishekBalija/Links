@@ -6,6 +6,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The "Continue with Google" button was cut off on the sign-in screen.
+
 ### Added
 - New sign-in screens (#135): Continue with Google or get a 6-digit code by
   email, with no password. Someone on no class list sends a request to their

@@ -64,7 +64,7 @@ export function GoogleButton({ onCredential, onError }: { onCredential: (credent
   return (
     <div className="relative min-h-11">
       {!ready && <div aria-hidden="true" className="absolute inset-0 rounded-lg bg-ink/90" />}
-      <div ref={ref} className="flex justify-center [&_iframe]:!w-full" />
+      <div ref={ref} className="flex justify-center" />
     </div>
   )
 }
