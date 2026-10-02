@@ -70,6 +70,10 @@ func (r *fakeRepository) CanAssignHOD(_ context.Context, userID, departmentID st
 	return r.hodUsers[userID+":"+departmentID], nil
 }
 
+func (r *fakeRepository) ListForAdmin(context.Context) ([]AdminRow, error) {
+	return nil, nil
+}
+
 type fakeAuditRepository struct {
 	logs []*auth.AuditLog
 }

@@ -6,6 +6,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Departments API for the admin screen (#141): `GET /admin/departments` lists
+  each Department with its HOD (or none) and student and staff counts, and
+  `PATCH /admin/departments/:code` renames one without touching anything
+  else.
+
+### Fixed
+- Updating a Department with a different `code` in the body changed its name
+  and quietly kept the old code; it is now refused, since codes never change
+  (ADR 0021). A new Department's code must be two letters, as in a USN.
+
 ### Removed
 - Passwords and activation (#136): password login, the password Request
   access form, Activation emails and links, and Resend activation are gone,

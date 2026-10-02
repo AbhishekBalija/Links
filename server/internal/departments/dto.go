@@ -10,9 +10,19 @@ type CreateDepartmentInput struct {
 }
 
 type UpdateDepartmentInput struct {
+	// Code may repeat the Department's own code; any other code is refused,
+	// since codes never change (ADR 0021).
+	Code        *string `json:"code"`
 	Name        string  `json:"name" binding:"required"`
 	Description *string `json:"description"`
 	HODUserID   *string `json:"hodUserId"`
+}
+
+// RenameDepartmentInput changes only a Department's name. Code, as in
+// UpdateDepartmentInput, may only repeat the Department's own code.
+type RenameDepartmentInput struct {
+	Code *string `json:"code"`
+	Name string  `json:"name" binding:"required"`
 }
 
 type DepartmentResponse struct {
@@ -33,4 +43,28 @@ type PublicDepartment struct {
 
 type DepartmentListResponse struct {
 	Departments []DepartmentResponse `json:"departments"`
+}
+
+// AdminDepartment is one row of the admin's Departments screen. Students and
+// Staff count active members the way Home's college panel does: students
+// with the student role, staff with the faculty role in the Department.
+type AdminDepartment struct {
+	ID          string    `json:"id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	HOD         *AdminHOD `json:"hod"`
+	Students    int       `json:"students"`
+	Staff       int       `json:"staff"`
+}
+
+// AdminHOD is the Department's HOD, whether or not their profile is public.
+type AdminHOD struct {
+	UserID   string `json:"user_id"`
+	FullName string `json:"full_name"`
+	Username string `json:"username"`
+}
+
+type AdminDepartmentList struct {
+	Departments []AdminDepartment `json:"departments"`
 }

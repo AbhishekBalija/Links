@@ -13,6 +13,12 @@ import (
 
 var departmentCodePattern = regexp.MustCompile(`^[A-Z]{2,10}$`)
 
+// newDepartmentCodePattern is stricter than departmentCodePattern: a new
+// Department's code is the two letters a USN carries (auth.ValidateUSNFormat),
+// so a longer one could never hold a student. Existing longer codes can still
+// be read, renamed and deleted.
+var newDepartmentCodePattern = regexp.MustCompile(`^[A-Z]{2}$`)
+
 type Service struct {
 	repository Repository
 	unitOfWork UnitOfWork
@@ -33,6 +39,31 @@ func (s *Service) List(ctx context.Context) (*DepartmentListResponse, error) {
 		response = append(response, toResponse(&departments[i]))
 	}
 	return &DepartmentListResponse{Departments: response}, nil
+}
+
+// ListForAdmin returns every Department with its HOD and counts, for the
+// admin's Departments screen.
+func (s *Service) ListForAdmin(ctx context.Context) (*AdminDepartmentList, error) {
+	rows, err := s.repository.ListForAdmin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list departments: %w", err)
+	}
+	list := &AdminDepartmentList{Departments: make([]AdminDepartment, 0, len(rows))}
+	for _, row := range rows {
+		department := AdminDepartment{
+			ID:          row.ID,
+			Code:        row.Code,
+			Name:        row.Name,
+			Description: row.Description,
+			Students:    row.Students,
+			Staff:       row.Staff,
+		}
+		if row.HODUserID != nil {
+			department.HOD = &AdminHOD{UserID: *row.HODUserID, FullName: deref(row.HODFullName), Username: deref(row.HODUsername)}
+		}
+		list.Departments = append(list.Departments, department)
+	}
+	return list, nil
 }
 
 // ListPublic returns every Department's code and name for the Access request
@@ -63,6 +94,9 @@ func (s *Service) GetByCode(ctx context.Context, code string) (*DepartmentRespon
 
 func (s *Service) Create(ctx context.Context, actorID string, input CreateDepartmentInput) (*DepartmentResponse, error) {
 	code := normalizeCode(input.Code)
+	if !newDepartmentCodePattern.MatchString(code) {
+		return nil, apperrors.NewValidation("invalid department code", map[string]string{"code": "use the two letters the Department's USNs carry, such as CS"})
+	}
 	name, description, hodUserID, err := validateDepartmentInput(code, input.Name, input.Description, input.HODUserID)
 	if err != nil {
 		return nil, err
@@ -105,6 +139,9 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateDepart
 
 func (s *Service) Update(ctx context.Context, actorID, code string, input UpdateDepartmentInput) (*DepartmentResponse, error) {
 	normalizedCode := normalizeCode(code)
+	if err := refuseCodeChange(normalizedCode, input.Code); err != nil {
+		return nil, err
+	}
 	name, description, hodUserID, err := validateDepartmentInput(normalizedCode, input.Name, input.Description, input.HODUserID)
 	if err != nil {
 		return nil, err
@@ -146,6 +183,49 @@ func (s *Service) Update(ctx context.Context, actorID, code string, input Update
 	return &response, nil
 }
 
+// Rename changes a Department's name and nothing else, so its description
+// and HOD stay as they are.
+func (s *Service) Rename(ctx context.Context, actorID, code string, input RenameDepartmentInput) (*DepartmentResponse, error) {
+	normalizedCode := normalizeCode(code)
+	if err := refuseCodeChange(normalizedCode, input.Code); err != nil {
+		return nil, err
+	}
+	name, _, _, err := validateDepartmentInput(normalizedCode, input.Name, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var renamed *Department
+	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
+		department, findErr := repositories.Departments.FindByCodeForUpdate(ctx, normalizedCode)
+		if findErr != nil {
+			return findErr
+		}
+		if department == nil {
+			return apperrors.NewNotFound("department not found")
+		}
+		previous := department.Name
+		department.Name = name
+		if updateErr := repositories.Departments.Update(ctx, department); updateErr != nil {
+			return updateErr
+		}
+		renamed = department
+		return repositories.AuditLogs.Create(ctx, &auth.AuditLog{
+			ActorID:      &actorID,
+			Action:       "department.updated",
+			ResourceType: "department",
+			ResourceID:   &department.ID,
+			Metadata:     map[string]interface{}{"code": department.Code, "name": department.Name, "previous_name": previous},
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("rename department: %w", err)
+	}
+
+	response := toResponse(renamed)
+	return &response, nil
+}
+
 func (s *Service) Delete(ctx context.Context, actorID, code string) error {
 	normalizedCode := normalizeCode(code)
 	if !departmentCodePattern.MatchString(normalizedCode) {
@@ -182,6 +262,19 @@ func (s *Service) Delete(ctx context.Context, actorID, code string) error {
 		return fmt.Errorf("delete department: %w", err)
 	}
 	return nil
+}
+
+// refuseCodeChange refuses a request body whose code differs from the
+// Department's: the code is in every USN of the Department, so it never
+// changes once created (ADR 0021).
+func refuseCodeChange(code string, requested *string) error {
+	if requested == nil || normalizeCode(*requested) == code {
+		return nil
+	}
+	return apperrors.NewValidation(
+		"department codes never change",
+		map[string]string{"code": "a department's code can't change once it is created; add a new department instead"},
+	)
 }
 
 func validateDepartmentInput(code, rawName string, rawDescription, hodUserID *string) (string, *string, *string, error) {
@@ -224,6 +317,13 @@ func validateHODAssignment(ctx context.Context, repository Repository, hodUserID
 
 func normalizeCode(code string) string {
 	return strings.ToUpper(strings.TrimSpace(code))
+}
+
+func deref(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func trimOptional(value *string) *string {
