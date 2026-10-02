@@ -35,6 +35,12 @@ type CodeSettings struct {
 	PerEmailLimit int
 	PerIPLimit    int
 	Window        time.Duration
+	// PerEmailDailyLimit caps code requests per email within a day.
+	PerEmailDailyLimit int
+	// WrongTriesPerDay wrong guesses at an email's codes within a day stop
+	// new codes going to it until the day is over, so nobody can keep
+	// guessing by asking for code after code.
+	WrongTriesPerDay int
 	// MinReplyTime pads every code request to at least this long, so the
 	// time taken to send an email doesn't tell a known email from an
 	// unknown one.
@@ -45,17 +51,19 @@ type CodeSettings struct {
 // high enough for a class signing in together behind one campus address.
 func DefaultCodeSettings() CodeSettings {
 	return CodeSettings{
-		TTL:           10 * time.Minute,
-		MaxAttempts:   5,
-		PerEmailLimit: 3,
-		PerIPLimit:    60,
-		Window:        15 * time.Minute,
-		MinReplyTime:  time.Second,
+		TTL:                10 * time.Minute,
+		MaxAttempts:        5,
+		PerEmailLimit:      3,
+		PerIPLimit:         60,
+		Window:             15 * time.Minute,
+		PerEmailDailyLimit: 10,
+		WrongTriesPerDay:   10,
+		MinReplyTime:       time.Second,
 	}
 }
 
-// codeRecordsKept is how long code requests stay stored, long after any
-// limit or code has stopped needing them.
+// codeRecordsKept is how long code requests stay stored. The daily limits
+// count over the same day.
 const codeRecordsKept = 24 * time.Hour
 
 func errCodeRefused() error {
@@ -102,6 +110,24 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 		}
 		if byEmail >= int64(s.codeSettings.PerEmailLimit) || byIP >= int64(s.codeSettings.PerIPLimit) {
 			return apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
+		}
+		dayAgo := start.Add(-codeRecordsKept)
+		byEmailToday, err := repos.SignInCodes.CountByEmailSince(ctx, emailHash, dayAgo)
+		if err != nil {
+			return fmt.Errorf("count codes for email today: %w", err)
+		}
+		if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) {
+			return apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
+		}
+		// Only accounts get codes, so only they collect wrong guesses. They
+		// get the usual reply with no code, so the reply can't tell anyone
+		// the email has an account.
+		wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailSince(ctx, emailHash, dayAgo)
+		if err != nil {
+			return fmt.Errorf("count wrong tries for email: %w", err)
+		}
+		if wrongToday >= int64(s.codeSettings.WrongTriesPerDay) {
+			return repos.SignInCodes.Create(ctx, challenge)
 		}
 
 		user, err := repos.Users.FindByEmail(ctx, email)
