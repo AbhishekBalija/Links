@@ -8,21 +8,13 @@ import (
 	"testing"
 )
 
-func batch(n int) []ActivationEmail {
-	emails := make([]ActivationEmail, n)
-	for i := range emails {
-		emails[i] = ActivationEmail{To: "s@gmail.com", Name: "S", Link: "https://links.example.com/activate?token=t"}
-	}
-	return emails
-}
-
-func TestResendMailerSendsABatchInOneRequest(t *testing.T) {
+func TestResendMailerSendsTheSignInCodeInOneRequest(t *testing.T) {
 	var requests int
-	var sent []sendRequest
+	var sent sendRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
-		if r.Method != http.MethodPost || r.URL.Path != "/emails/batch" {
-			t.Errorf("request = %s %s, want POST /emails/batch", r.Method, r.URL.Path)
+		if r.Method != http.MethodPost || r.URL.Path != "/emails" {
+			t.Errorf("request = %s %s, want POST /emails", r.Method, r.URL.Path)
 		}
 		if got := r.Header.Get("Authorization"); got != "Bearer key" {
 			t.Errorf("Authorization = %q", got)
@@ -36,34 +28,26 @@ func TestResendMailerSendsABatchInOneRequest(t *testing.T) {
 
 	m := NewResendMailer("key", "links@example.com")
 	m.baseURL = server.URL
-	if err := m.SendActivationEmails(batch(MaxBatchSize)); err != nil {
+	if err := m.SendSignInCode("asha@gmail.com", "482913"); err != nil {
 		t.Fatalf("send: %v", err)
 	}
-	if requests != 1 || len(sent) != MaxBatchSize {
-		t.Fatalf("requests = %d with %d emails, want 1 with %d", requests, len(sent), MaxBatchSize)
+	if requests != 1 || sent.From != "links@example.com" || sent.To != "asha@gmail.com" {
+		t.Fatalf("requests = %d, email = %+v", requests, sent)
 	}
-	if sent[0].From != "links@example.com" || sent[0].To != "s@gmail.com" || !strings.Contains(sent[0].HTML, "activate?token=t") {
-		t.Errorf("first email = %+v", sent[0])
+	if !strings.Contains(sent.Subject, "482913") || !strings.Contains(sent.HTML, "482913") || !strings.Contains(sent.HTML, "Never share this code") {
+		t.Errorf("email doesn't carry the code and the warning: %+v", sent)
 	}
 }
 
-func TestResendMailerReportsAFailedBatch(t *testing.T) {
+func TestResendMailerReportsAFailedSend(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
 	m := NewResendMailer("key", "links@example.com")
 	m.baseURL = server.URL
-	if err := m.SendActivationEmails(batch(2)); err == nil {
-		t.Fatal("send succeeded, want the 422 reported")
-	}
-}
-
-func TestResendMailerRefusesAnOversizedBatch(t *testing.T) {
-	m := NewResendMailer("key", "links@example.com")
-	m.baseURL = "http://127.0.0.1:0"
-	if err := m.SendActivationEmails(batch(MaxBatchSize + 1)); err == nil {
-		t.Fatal("send succeeded, want an oversized batch refused")
+	if err := m.SendSignInCode("asha@gmail.com", "482913"); err == nil {
+		t.Error("a failed send reported success")
 	}
 }

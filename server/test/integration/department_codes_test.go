@@ -2,20 +2,20 @@ package integration
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/AbhishekBalija/Links/server/test/apitest"
 )
 
-func requestAccess(t *testing.T, h *apitest.Harness, usn, department string) apitest.Response {
+// requestAccess proves an email on no list with a code and sends an Access
+// request for the USN.
+func requestAccess(t *testing.T, h *apitest.Harness, usn string) apitest.Response {
 	t.Helper()
-	return h.Do(t, http.MethodPost, "/api/v1/auth/request-access", "", map[string]any{
-		"email":           "request-" + usn + "@apitest.local",
-		"password":        "SignUp123",
-		"full_name":       "Requested " + usn,
-		"usn":             usn,
-		"department_code": department,
-	})
+	email := "request-" + strings.ToLower(usn) + "@apitest.local"
+	_, signIn := signInWithCode(t, h, email)
+	_, _, token := notOnList(t, signIn)
+	return sendAccessRequest(t, h, token, usn, "Requested "+usn)
 }
 
 func TestNewDepartmentCanBeUsedToRequestAccess(t *testing.T) {
@@ -26,7 +26,7 @@ func TestNewDepartmentCanBeUsedToRequestAccess(t *testing.T) {
 		t.Fatalf("create department status = %d: %s", response.Status, response.Body)
 	}
 
-	userID := signUp(t, h, "4MN24IS001", "IS")
+	userID := signUp(t, h, "4MN24IS001")
 	var code string
 	if err := h.DB().Raw(`SELECT d.code FROM student_identities s JOIN departments d ON d.id = s.department_id WHERE s.user_id = ?`, userID).Scan(&code).Error; err != nil {
 		t.Fatalf("read department: %v", err)
@@ -40,12 +40,10 @@ func TestRequestAccessRejectsUnknownOrMismatchedDepartments(t *testing.T) {
 	h := apitest.New(t)
 
 	cases := map[string]apitest.Response{
-		"unknown code in USN":     requestAccess(t, h, "4MN24ZZ001", "CS"),
-		"unknown code, form too":  requestAccess(t, h, "4MN24ZZ002", "ZZ"),
-		"USN and form disagree":   requestAccess(t, h, "4MN24CS003", "EC"),
-		"bad USN format":          requestAccess(t, h, "4MN24C5004", "CS"),
-		"USN year out of range":   requestAccess(t, h, "4MN99CS006", "CS"),
-		"department code missing": requestAccess(t, h, "4MN24ME007", "XX"),
+		"unknown code in USN":     requestAccess(t, h, "4MN24ZZ001"),
+		"bad USN format":          requestAccess(t, h, "4MN24C5004"),
+		"USN year out of range":   requestAccess(t, h, "4MN99CS006"),
+		"department code missing": requestAccess(t, h, "4MN24XX007"),
 	}
 	for name, response := range cases {
 		if response.Status != http.StatusBadRequest {

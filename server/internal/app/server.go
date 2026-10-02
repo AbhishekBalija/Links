@@ -97,7 +97,6 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 
 	userRepo := auth.NewGormUserRepository(database.GORM())
 	refreshRepo := auth.NewGormRefreshTokenRepository(database.GORM())
-	activationRepo := auth.NewGormActivationTokenRepository(database.GORM())
 	authUnitOfWork := auth.NewGormAuthUnitOfWork(database.GORM())
 
 	tokenCfg := auth.TokenConfig{
@@ -141,12 +140,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	authService := auth.NewAuthService(
 		userRepo,
 		refreshRepo,
-		activationRepo,
 		authUnitOfWork,
 		tokenCfg,
-		auth.NewArgon2PasswordHasher(),
 		m,
-		cfg.Mailer.FrontendURL,
 		wiring.codeSettings,
 		googleVerifier,
 	)

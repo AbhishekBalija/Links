@@ -1,6 +1,6 @@
 import { Client } from 'pg'
 import { v4 as uuidv4 } from 'uuid'
-import { randomBytes, createHash } from 'crypto'
+import { randomBytes } from 'crypto'
 
 function getNeonURLs(): { pooled: string; unpooled: string } {
   const pooled = process.env.E2E_NEON_URL || process.env.DATABASE_URL
@@ -107,36 +107,6 @@ export async function dropTestSchema(name = schemaName) {
   }
 }
 
-// replaceActivationToken creates a known raw token for the activation endpoint
-// after the approval path has created its production token.
-export async function replaceActivationToken(userId: string): Promise<string> {
-  const client = await getSchemaClient()
-  try {
-    const existingToken = await client.query<{ exists: boolean }>(
-      'SELECT EXISTS(SELECT 1 FROM account_activation_tokens WHERE user_id = $1) AS exists',
-      [userId],
-    )
-    if (!existingToken.rows[0]?.exists) {
-      throw new Error('approval did not create an activation token')
-    }
-
-    const tokenRaw = randomBytes(32).toString('base64url')
-    const tokenHash = createHash('sha256').update(tokenRaw).digest('hex')
-    const now = new Date().toISOString()
-
-    await client.query('DELETE FROM account_activation_tokens WHERE user_id = $1', [userId])
-    await client.query(
-      `INSERT INTO account_activation_tokens (id, user_id, token_hash, purpose, expires_at, created_at)
-       VALUES ($1, $2, $3, 'activate', $4, $5)`,
-      [uuidv4(), userId, tokenHash, new Date(Date.now() + 7 * 86400000).toISOString(), now],
-    )
-
-    return tokenRaw
-  } finally {
-    await client.end()
-  }
-}
-
 export async function activateUser(userId: string) {
   const client = await getSchemaClient()
   try {
@@ -165,7 +135,6 @@ export async function cleanupTestUser(email: string) {
 		await client.query(`DELETE FROM audit_logs WHERE actor_id IN (SELECT id FROM users WHERE email = $1) OR resource_id IN (SELECT id FROM users WHERE email = $1)`, [email])
 		await client.query(`DELETE FROM role_assignments WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
-    await client.query(`DELETE FROM account_activation_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM student_identities WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM profiles WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
     await client.query(`DELETE FROM users WHERE email = $1`, [email])

@@ -255,7 +255,7 @@ Do not ask for browser notification permission immediately on first visit.
 
 Ask after a useful moment, for example:
 
-- After account activation
+- After the first sign-in
 - After student opens Jobs page
 - After student applies to first opportunity
 

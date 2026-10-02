@@ -109,8 +109,6 @@ GET /api/v1/events?limit=20&cursor=...
 ## Auth
 
 ```text
-POST /api/v1/auth/request-access
-POST /api/v1/auth/login
 POST /api/v1/auth/code
 POST /api/v1/auth/code/verify
 GET  /api/v1/auth/google/nonce
@@ -119,15 +117,7 @@ POST /api/v1/auth/access-request
 POST /api/v1/auth/not-me
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
-POST /api/v1/auth/activate
-POST /api/v1/auth/resend-activation
 ```
-
-`POST /api/v1/auth/request-access` reads the Department from the USN
-(`4MN24IS001` is `IS`) and checks it exists in the `departments` table, so a
-Department an admin adds works straight away. `department_code`, when sent,
-must be the same Department. `400` for a malformed USN, a joining year out of
-range, a code with no Department, or a mismatch.
 
 ### Email code
 
@@ -261,7 +251,7 @@ Department's review queue (ADR 0025). `201` with
 forged token; `400` for a malformed USN, a Department code with no
 Department, or an empty name; `409` for an email or USN already registered.
 Audited as `access_requested`. Once approved, the person signs in with Google
-or a code; there is nothing to activate, and no Activation email is sent.
+or a code; there is nothing to activate and no email is sent.
 
 ### Not you?
 
@@ -453,7 +443,7 @@ DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId
 `GET /api/v1/admin/users/review-queue` lists the Access requests still
 waiting for approval (pending and not yet approved), oldest first: every
 request for the principal and admins, and only their own Department's for an
-HOD (`approve_access`, ADR 0025). An approved student who hasn't activated yet
+HOD (`approve_access`, ADR 0025). An approved student waiting for their first sign-in
 is no longer in it.
 
 Approving (`verify`) and rejecting (`status` with `rejected`) follow the same
@@ -1284,4 +1274,4 @@ DELETE /api/v1/push-subscriptions/:id
 - Every list endpoint must paginate, except small reference lists that only admins can grow and that clients need whole, such as `GET /api/v1/departments` (one row per college department).
 - Every CSV export must be audited.
 - Every request body must have a DTO.
-- Never return password hashes, refresh tokens, or private applicant notes to unauthorized users.
+- Never return refresh tokens, sign-in codes or private applicant notes to unauthorized users.

@@ -11,7 +11,7 @@ database or Neon branch for development, never a shared one for tests.
 ## Before you start
 
 - Read [`CONTEXT.md`](CONTEXT.md) for the domain words (USN, Access request,
-  Access approval, Activation, Role assignment, Scope) and use them in code and docs.
+  Access approval, First sign-in, Role assignment, Scope) and use them in code and docs.
 - Architecture decisions live in [`docs/adr/`](docs/adr). If your change
   alters one, add a new ADR instead of silently diverging.
 - Check [`docs/roadmap.md`](docs/roadmap.md) and the open issues; comment on

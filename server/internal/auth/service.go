@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -14,161 +13,33 @@ import (
 )
 
 type authService struct {
-	userRepo       UserRepository
-	refreshRepo    RefreshTokenRepository
-	activationRepo ActivationTokenRepository
-	unitOfWork     AuthUnitOfWork
-	tokenCfg       TokenConfig
-	passwordHasher PasswordHasher
-	mailer         mailer.Mailer
-	frontendURL    string
-	codeSettings   CodeSettings
-	google         GoogleVerifier
+	userRepo     UserRepository
+	refreshRepo  RefreshTokenRepository
+	unitOfWork   AuthUnitOfWork
+	tokenCfg     TokenConfig
+	mailer       mailer.Mailer
+	codeSettings CodeSettings
+	google       GoogleVerifier
 }
 
 func NewAuthService(
 	userRepo UserRepository,
 	refreshRepo RefreshTokenRepository,
-	activationRepo ActivationTokenRepository,
 	unitOfWork AuthUnitOfWork,
 	tokenCfg TokenConfig,
-	passwordHasher PasswordHasher,
 	mailer mailer.Mailer,
-	frontendURL string,
 	codeSettings CodeSettings,
 	google GoogleVerifier,
 ) AuthService {
 	return &authService{
-		userRepo:       userRepo,
-		refreshRepo:    refreshRepo,
-		activationRepo: activationRepo,
-		unitOfWork:     unitOfWork,
-		tokenCfg:       tokenCfg,
-		passwordHasher: passwordHasher,
-		mailer:         mailer,
-		frontendURL:    frontendURL,
-		codeSettings:   codeSettings,
-		google:         google,
+		userRepo:     userRepo,
+		refreshRepo:  refreshRepo,
+		unitOfWork:   unitOfWork,
+		tokenCfg:     tokenCfg,
+		mailer:       mailer,
+		codeSettings: codeSettings,
+		google:       google,
 	}
-}
-
-func (s *authService) RequestAccess(ctx context.Context, input RequestAccessInput) (*RequestAccessResponse, error) {
-	existing, err := s.userRepo.FindByEmail(ctx, input.Email)
-	if err != nil {
-		return nil, fmt.Errorf("check email: %w", err)
-	}
-	if existing != nil {
-		return nil, apperrors.NewConflict("email already registered")
-	}
-
-	passwordHash, err := s.passwordHasher.Hash(input.Password)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
-	var deptID string
-	if input.DepartmentCode != "" {
-		dept, err := s.userRepo.FindDepartmentByCode(ctx, input.DepartmentCode)
-		if err != nil {
-			return nil, fmt.Errorf("find department: %w", err)
-		}
-		if dept == nil {
-			return nil, apperrors.NewValidation("invalid department code", nil)
-		}
-		deptID = dept.ID
-	}
-
-	if input.USN != "" {
-		usnCode, err := ValidateUSNFormat(input.USN)
-		if err != nil {
-			return nil, apperrors.NewValidation("invalid USN: "+err.Error(), nil)
-		}
-		// The USN names the Department, so a form choice can't contradict it.
-		if input.DepartmentCode != "" && input.DepartmentCode != usnCode {
-			return nil, apperrors.NewValidation("the USN's department code "+usnCode+" doesn't match the chosen department", nil)
-		}
-		if deptID == "" {
-			dept, err := s.userRepo.FindDepartmentByCode(ctx, usnCode)
-			if err != nil {
-				return nil, fmt.Errorf("find department from USN: %w", err)
-			}
-			if dept == nil {
-				return nil, apperrors.NewValidation("department code "+usnCode+" from USN not found in system; contact admin", nil)
-			}
-			deptID = dept.ID
-		}
-	}
-
-	var phone *string
-	if normalizedPhone := strings.TrimSpace(input.Phone); normalizedPhone != "" {
-		phone = &normalizedPhone
-	}
-	user := &User{
-		Email:        &input.Email,
-		Phone:        phone,
-		PasswordHash: passwordHash,
-		Status:       UserStatusPending,
-		IsVerified:   false,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
-		existing, err := repos.Users.FindByEmail(ctx, input.Email)
-		if err != nil {
-			return fmt.Errorf("recheck email: %w", err)
-		}
-		if existing != nil {
-			return apperrors.NewConflict("email already registered")
-		}
-
-		if err := repos.Users.Create(ctx, user); err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "idx_users_email" {
-				return apperrors.NewConflict("email already registered")
-			}
-			return fmt.Errorf("create user: %w", err)
-		}
-
-		profile := &Profile{
-			UserID:               user.ID,
-			FullName:             input.FullName,
-			PublicProfileEnabled: true,
-			CreatedAt:            time.Now(),
-			UpdatedAt:            time.Now(),
-		}
-		if err := s.createProfileWithRetry(ctx, repos.Users, profile); err != nil {
-			return fmt.Errorf("create profile: %w", err)
-		}
-
-		if input.USN != "" {
-			// The Batch comes from the USN, never from the form, so it
-			// can't be missing or disagree with the USN (#45).
-			batchYear, err := BatchYearFromUSN(input.USN)
-			if err != nil {
-				return apperrors.NewValidation("invalid USN: "+err.Error(), nil)
-			}
-			identity := &StudentIdentity{
-				UserID:       user.ID,
-				USN:          input.USN,
-				DepartmentID: deptID,
-				BatchYear:    batchYear,
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
-			}
-			if err := repos.Users.CreateStudentIdentity(ctx, identity); err != nil {
-				return fmt.Errorf("create student identity: %w", err)
-			}
-		}
-
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return &RequestAccessResponse{
-		UserID: user.ID,
-		Status: string(UserStatusPending),
-	}, nil
 }
 
 func (s *authService) GetMe(ctx context.Context, userID string) (*MeResponse, error) {

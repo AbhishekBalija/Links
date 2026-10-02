@@ -36,8 +36,6 @@ func NewHandler(service AuthService, policy *Policy, cookieCfg config.CookieConf
 // that act on the refresh cookie, to refuse cross-site requests.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, cookieGuard gin.HandlerFunc) {
 	v1 := rg.Group("/v1/auth")
-	v1.POST("/request-access", h.RequestAccess)
-	v1.POST("/login", h.Login)
 	// Signing in sets the refresh cookie, so a cross-site page mustn't be
 	// able to sign a browser into someone else's account (login CSRF).
 	v1.POST("/code", cookieGuard, h.RequestCode)
@@ -45,41 +43,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, cookieGuard gin.HandlerFun
 	v1.POST("/access-request", h.RequestAccessWithProof)
 	v1.POST("/refresh", cookieGuard, h.Refresh)
 	v1.POST("/logout", cookieGuard, h.Logout)
-	v1.POST("/activate", h.Activate)
-	v1.POST("/resend-activation", h.ResendActivation)
-}
-
-func (h *Handler) RequestAccess(c *gin.Context) {
-	var input RequestAccessInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
-		return
-	}
-
-	resp, err := h.service.RequestAccess(c.Request.Context(), input)
-	if err != nil {
-		writeError(c, err)
-		return
-	}
-
-	response.Success(c, http.StatusCreated, resp, nil)
-}
-
-func (h *Handler) Login(c *gin.Context) {
-	var input LoginInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
-		return
-	}
-
-	resp, refreshRaw, err := h.service.Login(c.Request.Context(), input)
-	if err != nil {
-		writeError(c, err)
-		return
-	}
-
-	h.setRefreshCookie(c, refreshRaw)
-	response.Success(c, http.StatusOK, resp, nil)
 }
 
 func (h *Handler) RequestCode(c *gin.Context) {
@@ -225,36 +188,6 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	h.clearRefreshCookie(c)
 	response.Success(c, http.StatusOK, LogoutResponse{Message: "logged out successfully"}, nil)
-}
-
-func (h *Handler) Activate(c *gin.Context) {
-	var input ActivateInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
-		return
-	}
-
-	if err := h.service.ActivateAccount(c.Request.Context(), input.Token, input.Password); err != nil {
-		writeError(c, err)
-		return
-	}
-
-	response.Success(c, http.StatusOK, map[string]string{"message": "account activated"}, nil)
-}
-
-func (h *Handler) ResendActivation(c *gin.Context) {
-	var input ResendActivationInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
-		return
-	}
-
-	if err := h.service.ResendActivation(c.Request.Context(), input.Email); err != nil {
-		writeError(c, err)
-		return
-	}
-
-	response.Success(c, http.StatusOK, map[string]string{"message": "activation email sent"}, nil)
 }
 
 func (h *Handler) setRefreshCookie(c *gin.Context, token string) {

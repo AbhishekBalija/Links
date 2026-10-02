@@ -60,16 +60,11 @@ func userIDByEmail(t *testing.T, h *apitest.Harness, email string) string {
 	return id
 }
 
-func TestAnImportedStudentWaitsForFirstSignInWithNoActivationEmail(t *testing.T) {
+func TestAnImportedStudentWaitsForFirstSignIn(t *testing.T) {
 	h := apitest.New(t)
 	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
 	imported(t, importCSV(h, admin.Token, "email,full_name,usn\nasha@gmail.com,Asha Rao,4MN23CS042\n"))
 
-	var tokens int
-	h.DB().Raw(`SELECT count(*) FROM account_activation_tokens`).Scan(&tokens)
-	if tokens != 0 {
-		t.Errorf("activation tokens = %d, want none: the class list waits for first sign-in", tokens)
-	}
 	if got := userStatus(t, h, "asha@gmail.com"); got != "pending" {
 		t.Fatalf("status before first sign-in = %q, want pending", got)
 	}
@@ -325,11 +320,6 @@ func TestSomeoneNotOnTheListRequestsAccessWithAnEmailCode(t *testing.T) {
 
 	id := userIDByEmail(t, h, "kiran@gmail.com")
 	expectStatus(t, "HOD approves", h.Do(t, http.MethodPatch, "/api/v1/admin/users/"+id+"/verify", csHOD.Token, map[string]string{}), http.StatusOK)
-	var tokens int
-	h.DB().Raw(`SELECT count(*) FROM account_activation_tokens WHERE user_id = ?`, id).Scan(&tokens)
-	if tokens != 0 {
-		t.Errorf("activation tokens = %d, want none: nothing to activate without a password", tokens)
-	}
 
 	session, approved := signInWithCode(t, h, "kiran@gmail.com")
 	expectStatus(t, "sign-in once approved", approved, http.StatusOK)

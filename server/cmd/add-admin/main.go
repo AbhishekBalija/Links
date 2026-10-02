@@ -63,12 +63,9 @@ func addAdmin(ctx context.Context, gdb *gorm.DB, email, name string) error {
 	service := auth.NewAuthService(
 		auth.NewGormUserRepository(gdb),
 		auth.NewGormRefreshTokenRepository(gdb),
-		auth.NewGormActivationTokenRepository(gdb),
 		auth.NewGormAuthUnitOfWork(gdb),
 		auth.TokenConfig{},
-		auth.NewArgon2PasswordHasher(),
 		mailer.NoopMailer{},
-		"",
 		auth.DefaultCodeSettings(),
 		nil,
 	)

@@ -10,10 +10,10 @@ app or a social network.
 ## Status
 
 - **Done:** Phase 0 (foundation) and Phase 1 (identity and access).
-  Students request access with their Gmail and USN, an HOD or admin approves
-  them, and they activate their account from an emailed link. Login uses
-  short-lived access tokens with rotating refresh tokens, and permissions come
-  from scoped role assignments.
+  Everyone signs in with Google or a one-time email code; there are no
+  passwords. A Department's class list decides who gets in, and anyone not on
+  it sends a request to their HOD. Sessions use short-lived access tokens with
+  rotating refresh tokens, and permissions come from scoped role assignments.
 - **Now:** Phase 2, the campus hub: departments, dashboards, directory and
   targeted announcements. See the
   [milestone](https://github.com/AbhishekBalija/Links/milestone/1) and
@@ -44,7 +44,7 @@ Without `RESEND_API_KEY`, no emails are sent. See
 
 ## Docs
 
-- [CONTEXT.md](CONTEXT.md): the domain words (USN, Access request, Activation, Role assignment)
+- [CONTEXT.md](CONTEXT.md): the domain words (USN, Access request, First sign-in, Role assignment)
 - [docs/architecture.md](docs/architecture.md) and [docs/adr/](docs/adr): how it's built and why
 - [docs/api-spec.md](docs/api-spec.md): the REST API
 - [docs/roadmap.md](docs/roadmap.md): phases and what's next

@@ -123,7 +123,7 @@ server/
 
 | Module | Owns |
 |---|---|
-| Auth | Login, refresh tokens, password hashing, auth middleware |
+| Auth | Sign-in (Google, email codes), refresh tokens, auth middleware |
 | Users | Account lifecycle, Gmail invite/access request, status |
 | Profiles | Public verified profiles, visibility controls |
 | Departments | Department pages, HOD mapping, department scope |

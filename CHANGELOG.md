@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+- Passwords and activation (#136): password login, the password Request
+  access form, Activation emails and links, and Resend activation are gone,
+  with their API routes. Everyone signs in with Google or an email code.
+  Migration 023 drops `users.password_hash` and `account_activation_tokens`.
+
 ### Fixed
 - The "Continue with Google" button was cut off on the sign-in screen.
 

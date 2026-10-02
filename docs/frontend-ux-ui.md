@@ -303,7 +303,7 @@ The UI should include:
 - Mark all as read
 - Link to related event, opportunity, announcement, or approval
 
-Web push permission should not be requested immediately on first visit. Ask after a relevant moment, such as after account activation or when a student opens the Jobs page.
+Web push permission should not be requested immediately on first visit. Ask after a relevant moment, such as after the first sign-in or when a student opens the Jobs page.
 
 Placement notifications should clearly tell the student that an opportunity or application status changed, but sensitive details should require opening LINKS after login.
 
@@ -311,7 +311,7 @@ Placement notifications should clearly tell the student that an opportunity or a
 
 **Route:** `/account-pending`
 
-**Trigger:** An authenticated user whose account has zero role assignments (e.g., activated but not yet verified/approved by an admin or HOD).
+**Trigger:** An authenticated user whose account has zero role assignments (e.g., one whose last role just ended).
 
 **Purpose:** Explain the incomplete state and tell the user to contact an administrator. This is a dead-end route — the user cannot proceed into the app until a role is assigned.
 

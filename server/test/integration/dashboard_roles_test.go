@@ -73,8 +73,8 @@ func TestHomeShowsHODsTheirDepartmentAndThePrincipalTheCollege(t *testing.T) {
 	publish("CS hackathon", cs, later, false)
 	publish("CS draft idea", cs, soon, true)
 	publish("EC talk", ec, soon, false)
-	signUp(t, h, "4MN25CS821", "CS")
-	signUp(t, h, "4MN25EC822", "EC")
+	signUp(t, h, "4MN25CS821")
+	signUp(t, h, "4MN25EC822")
 
 	head := roleDashboard(t, h, hod.Token).Data
 	if head.Department == nil {

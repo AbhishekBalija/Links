@@ -4,22 +4,6 @@ import (
 	"time"
 )
 
-type RequestAccessInput struct {
-	Email          string `json:"email" binding:"required,email"`
-	Password       string `json:"password" binding:"required"`
-	FullName       string `json:"full_name" binding:"required,max=200"`
-	USN            string `json:"usn,omitempty"`
-	DepartmentCode string `json:"department_code,omitempty"`
-	// Deprecated: ignored. The Batch is read from the USN (#45).
-	BatchYear *int   `json:"batch_year,omitempty"`
-	Phone     string `json:"phone,omitempty" binding:"omitempty,max=32"`
-}
-
-type LoginInput struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-}
-
 type RequestCodeInput struct {
 	// Checked as an email after trimming, since phones add spaces.
 	Email string `json:"email" binding:"required,max=254"`
@@ -82,15 +66,6 @@ type LoginResponse struct {
 type RefreshResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
-}
-
-type ActivateInput struct {
-	Token    string `json:"token" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
-type ResendActivationInput struct {
-	Email string `json:"email" binding:"required,email"`
 }
 
 type LogoutResponse struct {

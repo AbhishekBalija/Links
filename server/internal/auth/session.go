@@ -11,29 +11,6 @@ import (
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
-func (s *authService) Login(ctx context.Context, input LoginInput) (*LoginResponse, string, error) {
-	user, err := s.userRepo.FindByEmail(ctx, input.Email)
-	if err != nil {
-		return nil, "", fmt.Errorf("find user: %w", err)
-	}
-	if user == nil {
-		return nil, "", apperrors.NewUnauthenticated("invalid credentials")
-	}
-
-	if !user.Status.CanLogin() {
-		return nil, "", apperrors.NewUnauthenticated("account not active")
-	}
-
-	ok, err := s.passwordHasher.Verify(input.Password, user.PasswordHash)
-	if err != nil {
-		return nil, "", fmt.Errorf("verify password: %w", err)
-	}
-	if !ok {
-		return nil, "", apperrors.NewUnauthenticated("invalid credentials")
-	}
-	return s.issueSession(ctx, user)
-}
-
 // TestSignIn signs an active member in by email alone, for the e2e suite.
 // Its route exists only when the config allows it (APP_ENV=local).
 func (s *authService) TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error) {

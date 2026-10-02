@@ -1,125 +1,53 @@
-# Postman Test Guide — Auth Flow
+# Postman Test Guide: Auth Flow
 
 Base URL: `http://localhost:8080`
 
 ---
 
-## 1. Request Access
+## 1. Ask for a sign-in code
 
-Creates a new user with `pending` status.
-
-**Request**
-
-```
-POST /api/v1/auth/request-access
-Content-Type: application/json
-
-{
-  "email": "test@mitt.edu.in",
-  "password": "TestPass123",
-  "full_name": "Test User",
-  "usn": "4XX21XX001",
-  "department_code": "CS"
-}
-```
-
-**Success Response — `201 Created`**
-
-```json
-{
-  "data": {
-    "id": "473b87ac-cc4a-4366-85bd-709d99830407",
-    "status": "pending"
-  }
-}
-```
-
-**Error Responses**
-
-| Scenario | Status | Code |
-|---|---|---|
-| Missing required field | 400 | `VALIDATION_ERROR` |
-| Email already registered | 409 | `CONFLICT` |
-| Invalid department code | 400 | `VALIDATION_ERROR` |
-
----
-
-## 2. Activate User
-
-The activation email is sent via Resend on sign-up. The `/activate` endpoint sets the user's password
-and flips status to `active`.
-
-**Request:** `POST /api/v1/auth/activate`
-
-```json
-{
-  "token": "<raw_activation_token_from_email>",
-  "password": "MySecurePass123"
-}
-```
-
-**Response:** `200`
-
-```json
-{
-  "data": {
-    "message": "account activated"
-  }
-}
-```
-
-**Note:** In local dev without a `RESEND_API_KEY`, no email is sent. To activate manually:
-
-```sql
-UPDATE users SET status = 'active', is_verified = true WHERE email = 'test@mitt.edu.in';
-```
-
-After activation, assign a role:
-
-```sql
-INSERT INTO role_assignments (id, user_id, role, scope_type, scope_id, assigned_by, starts_at, created_at)
-VALUES (gen_random_uuid(), '<user_id>', 'student', 'global', NULL, NULL, now(), now());
-```
-
-Available roles: `student`, `student_coordinator`, `faculty`, `hod`, `placement_officer`, `principal`, `alumni`, `club_organizer`, `admin`
-
----
-
-## 3. Login
-
-Authenticates and returns a JWT access token + HTTP-only refresh cookie.
-
-**Request**
+There are no passwords (ADR 0026). Members sign in with Google or a one-time
+email code; Google needs a browser, so use the email code here.
 
 ```http
-POST /api/v1/auth/login
+POST /api/v1/auth/code
 Content-Type: application/json
 
-{
-  "email": "test@mitt.edu.in",
-  "password": "TestPass123"
-}
+{"email": "<A_MEMBER_EMAIL>"}
 ```
 
-**Success Response — `200 OK`**
+Always `200` with a `challenge_id`, whether or not the email is known. The
+code arrives by email (Resend). Without a Resend key, run the server with
+`ENABLE_TEST_SIGN_IN=true` and `APP_ENV=local` and read it back:
 
-```json
-{
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIs...",
-    "expires_in": 900
-  }
-}
+```http
+GET /api/v1/test/sign-in-code?email=<A_MEMBER_EMAIL>
 ```
 
-The `refresh_token` is set as an `HttpOnly` cookie on the response.
+## 2. Sign in with the code
 
-**Error Responses**
+```http
+POST /api/v1/auth/code/verify
+Content-Type: application/json
 
-| Scenario | Status | Code |
-|---|---|---|
-| Wrong email/password | 401 | `UNAUTHENTICATED` |
-| Account not active (pending/suspended/rejected) | 401 | `UNAUTHENTICATED` |
+{"challenge_id": "<from step 1>", "email": "<A_MEMBER_EMAIL>", "code": "123456"}
+```
+
+`200` with `access_token` and the `refresh_token` cookie. An email on no list
+gets `403 NOT_ON_LIST` with a `request_token` for `POST
+/api/v1/auth/access-request`; see `docs/api-spec.md`, Auth.
+
+## 3. Sign in without a code (local only)
+
+With `ENABLE_TEST_SIGN_IN=true` and `APP_ENV=local`, an active member can get
+a session by email alone:
+
+```http
+POST /api/v1/test/sign-in
+Content-Type: application/json
+
+{"email": "<A_MEMBER_EMAIL>"}
+```
 
 ---
 
@@ -374,93 +302,19 @@ Valid status values: `active`, `suspended`, `rejected`.
 
 ---
 
-## 11. Resend Activation
-
-Requests a new activation email. Silently returns success for non-existent or already-active emails (enumeration protection).
-
-**Request**
-
-```
-POST /api/v1/auth/resend-activation
-Content-Type: application/json
-
-{
-  "email": "pending@mitt.edu.in"
-}
-```
-
-**Success Response — `200 OK`** (identical for registered-pending, registered-active, and non-existent emails)
-
-```json
-{
-  "data": {
-    "message": "activation email sent"
-  }
-}
-```
-
-**Error Responses**
-
-| Scenario | Status | Code |
-|---|---|---|
-| Resend within 5 minutes of last send | 429 | `RATE_LIMITED` |
-
----
-
-## 12. Activation Error Responses
-
-All activation failure modes return exactly **401 Unauthorized** with a generic message (no enumeration):
-
-| Scenario | Status | Response |
-|---|---|---|
-| Invalid token (no match) | 401 | `{"error":{"code":"UNAUTHENTICATED","message":"invalid or expired activation token"}}` |
-| Expired token | 401 | Same as above |
-| Already-used token | 401 | Same as above |
-| Malformed/short token | 401 | Same as above |
-| SQL injection / XSS in token | 401 | Same as above |
-
----
-
-## 13. Live E2E Verification (2026-07-22)
-
-Full pipeline tested against Neon DB + Resend production API.
-
-| Step | Endpoint | Result |
-|---|---|---|
-| 1 | `POST /request-access` | `201` — user created, status `pending` |
-| 2 | DB: `account_activation_tokens` | Token inserted, `used_at` null, 7-day expiry |
-| 3 | Resend API | Email accepted and delivered to inbox |
-| 4 | Extract raw token from email link | Token extracted from URL query param |
-| 5 | `POST /activate` with raw token | `200` — `"account activated"` |
-| 6 | DB: `users` | `status=active`, `is_verified=true` |
-| 7 | `POST /login` with email + password | `200` — access token + refresh cookie |
-| 8 | `POST /resend-activation` (active user) | `200` — silently returns success |
-| 9 | `POST /resend-activation` (pending, cooldown expired) | Old token revoked, new token created, email sent |
-| 10 | `POST /resend-activation` (immediate second attempt) | `429 RATE_LIMITED` — 5-min cooldown enforced |
-
-### Resend Sandbox Note
+## Resend Sandbox Note
 
 Resend's `onboarding@resend.dev` sandbox sender only delivers to the Resend account owner's email.  
 Production with a custom domain (`noreply@<domain>`) has no such restriction.  
 Gmail `+` aliases (e.g. `user+tag@gmail.com`) are rejected by the sandbox API — emails must use the exact owner address.
 
-### Activation Token Format
-
-| Property | Value |
-|---|---|
-| Source | 32 bytes from `crypto/rand` |
-| Encoding | `base64.RawURLEncoding` (no padding) |
-| Storage | SHA-256 hash in `account_activation_tokens.token_hash` |
-| Link | `FRONTEND_URL/activate?token=<raw>` |
-| Expiry | 7 days from creation |
-
 ---
 
 ## Full E2E Test Flow (Postman Collection Order)
 
-1. **Request Access** → copy `user_id` from response
-2. **Activate via SQL** → run SQL queries above
-3. **Login** → copy `access_token`
+1. **Ask for a code** → copy `challenge_id`
+2. **Read the code** (`/api/v1/test/sign-in-code`, local) or from the email
+3. **Sign in with the code** → copy `access_token`
 4. **Get Me with token** → verify roles match
 5. **Refresh** → new token issued
 6. **Get Me with new token** → still works

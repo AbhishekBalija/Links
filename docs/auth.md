@@ -27,14 +27,6 @@ Rules:
 - `suspended` users cannot log in or refresh tokens.
 - `rejected` users need admin/HOD intervention to retry.
 
-## Passwords
-
-- Prefer Argon2id for new password hashes.
-- Bcrypt is acceptable if simpler to operate initially.
-- Never store plaintext passwords.
-- Never log passwords.
-- Enforce minimum password strength.
-
 ## Token Strategy
 
 Use short-lived access tokens and rotating refresh tokens.
@@ -45,21 +37,11 @@ Recommended:
 - Refresh token lifetime: 7-30 days
 - Store refresh tokens hashed
 - Rotate refresh tokens on every refresh
-- Revoke tokens on logout, password reset, suspension, or role risk event
+- Revoke tokens on logout, suspension, or role risk event
 
-**Account Activation Token (first-time setup):**
-
-- Single-use, emailed via magic link to the user's Gmail
-- Lifetime: 7 days
-- Token format: 32 bytes `crypto/rand`, `base64.RawURLEncoding` (NOT a JWT, not UUIDv4)
-- Stored as `token_hash` = `SHA-256(token)` in `account_activation_tokens` table
-- On activation (single transaction): verify SHA-256 hash, hash user's chosen password (Argon2id/bcrypt), update `users.password_hash` and flip `users.status` to `active`, mark token `used_at`, check affected rows
-- Resend endpoint: transactionally revoke or mark all prior unused activation tokens before issuing a new one. Rate-limited: query `account_activation_tokens` by `user_id` ordered by `created_at desc`, reject if last token < 5 minutes old. Activation validation accepts only the latest non-revoked token.
-
-**Important — Hashing choice for tokens vs passwords:**
-
-- **Passwords:** Argon2id (preferred) or bcrypt — slow, memory-hard, salted.
-- **Account activation tokens & Refresh tokens:** SHA-256 — fast, deterministic. Tokens are high-entropy random strings (32 bytes), so a fast hash is sufficient and avoids DoS risk on verification endpoints.
+Refresh tokens are high-entropy random strings (32 bytes), stored as
+`SHA-256` hashes: a fast hash is enough for that and avoids DoS risk on the
+refresh endpoint. There are no passwords to hash (ADR 0026).
 
 JWT rules:
 
@@ -109,7 +91,6 @@ JWT rules:
 - An email on no list gets `403 NOT_ON_LIST` and no account. Google's tokens
   are not stored.
 - The principal and admins sign in with Google only: they get no email code.
-  Password login still works for everyone until #136 removes it.
 
 **First sign-in (spec #129, #133):**
 

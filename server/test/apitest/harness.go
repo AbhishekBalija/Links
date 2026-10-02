@@ -175,8 +175,8 @@ func (h *Harness) SeedUser(t *testing.T, seed UserSeed) User {
 	id := uuid.NewString()
 	suffix := randomHex(t, 4)
 	email := "user-" + suffix + "@apitest.local"
-	h.exec(t, `INSERT INTO users (id, email, password_hash, status, is_verified, created_at, updated_at)
-		VALUES (?, ?, 'not-a-real-hash', 'active', true, now(), now())`, id, email)
+	h.exec(t, `INSERT INTO users (id, email, status, is_verified, created_at, updated_at)
+		VALUES (?, ?, 'active', true, now(), now())`, id, email)
 	h.exec(t, `INSERT INTO profiles (user_id, username, full_name) VALUES (?, ?, ?)`,
 		id, "user_"+suffix, "Test User "+suffix)
 
@@ -208,26 +208,35 @@ func (h *Harness) SeedUser(t *testing.T, seed UserSeed) User {
 	return User{ID: id, Email: email, Token: token}
 }
 
-// SignIn gives a seeded user a real password, logs them in through the API and
+// SignIn signs a seeded user in with an email code through the API and
 // returns their refresh token cookie, for tests about sessions.
 func (h *Harness) SignIn(t *testing.T, user User) *http.Cookie {
 	t.Helper()
-	const password = "Apitest-password-1"
-	hash, err := auth.NewArgon2PasswordHasher().Hash(password)
-	if err != nil {
-		t.Fatalf("hash password: %v", err)
+	asked := h.Do(t, http.MethodPost, "/api/v1/auth/code", "", map[string]string{"email": user.Email})
+	if asked.Status != http.StatusOK {
+		t.Fatalf("code request status = %d: %s", asked.Status, asked.Body)
 	}
-	h.exec(t, `UPDATE users SET password_hash = ? WHERE id = ?`, hash, user.ID)
-	response := h.Do(t, http.MethodPost, "/api/v1/auth/login", "", map[string]string{"email": user.Email, "password": password})
+	var challenge struct {
+		Data struct {
+			ChallengeID string `json:"challenge_id"`
+		} `json:"data"`
+	}
+	asked.Decode(t, &challenge)
+	response := h.Do(t, http.MethodPost, "/api/v1/auth/code/verify", "", map[string]string{
+		"challenge_id": challenge.Data.ChallengeID, "email": user.Email, "code": h.Outbox.LastCodeTo(t, user.Email),
+	})
 	if response.Status != http.StatusOK {
-		t.Fatalf("login status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
+		t.Fatalf("sign-in status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
 	}
+	// Session tests sign in again and again; the code limits aren't what
+	// they're about, so forget the codes once used.
+	h.exec(t, `DELETE FROM sign_in_codes`)
 	for _, cookie := range response.Cookies() {
 		if cookie.Name == "refresh_token" {
 			return cookie
 		}
 	}
-	t.Fatal("login set no refresh_token cookie")
+	t.Fatal("sign-in set no refresh_token cookie")
 	return nil
 }
 
