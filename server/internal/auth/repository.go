@@ -231,13 +231,48 @@ func (r *GormUserRepository) GetRoleAssignments(ctx context.Context, userID stri
 	return roles, err
 }
 
+// ReviewDepartments returns every Department with whether an HOD role is in
+// effect for it, for showing where each Access request belongs.
+func (r *GormUserRepository) ReviewDepartments(ctx context.Context) ([]ReviewDepartment, error) {
+	var departments []ReviewDepartment
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT d.id, d.code, d.name, EXISTS (
+			SELECT 1 FROM role_assignments ra
+			WHERE ra.role = ? AND ra.scope_type = ? AND ra.scope_id = d.id
+			  AND ra.starts_at <= now() AND (ra.ends_at IS NULL OR ra.ends_at > now())
+		) AS has_hod
+		FROM departments d`, RoleHOD, ScopeDepartment).Scan(&departments).Error
+	return departments, err
+}
+
+// ReportedAt returns when each of the users last said "Not you?" on a first
+// sign-in, for those who did.
+func (r *GormUserRepository) ReportedAt(ctx context.Context, userIDs []string) (map[string]time.Time, error) {
+	reported := map[string]time.Time{}
+	if len(userIDs) == 0 {
+		return reported, nil
+	}
+	var rows []struct {
+		ResourceID string
+		At         time.Time
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT resource_id::text AS resource_id, max(created_at) AS at FROM audit_logs
+		WHERE action = 'auth.not_me' AND resource_id::text IN ?
+		GROUP BY resource_id`, userIDs).Scan(&rows).Error
+	for _, row := range rows {
+		reported[row.ResourceID] = row.At
+	}
+	return reported, err
+}
+
 func (r *GormUserRepository) FindPendingUsers(ctx context.Context) ([]User, error) {
 	var users []User
 	err := r.db.WithContext(ctx).
 		Preload("Profile").
 		Preload("StudentIdentity").
-		// An approved student stays pending until they activate, but no
-		// longer waits for approval.
+		// An approved student stays pending until their first sign-in, but
+		// no longer waits for approval.
 		Where("status = ? AND is_verified = false", UserStatusPending).
 		Order("created_at asc").
 		Find(&users).Error

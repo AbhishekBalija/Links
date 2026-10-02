@@ -168,6 +168,14 @@ func (f *fakeUserRepo) GetRoleAssignments(ctx context.Context, userID string) ([
 
 func (f *fakeUserRepo) HasAdmin(context.Context) (bool, error) { return false, nil }
 
+func (f *fakeUserRepo) ReviewDepartments(context.Context) ([]ReviewDepartment, error) {
+	return nil, nil
+}
+
+func (f *fakeUserRepo) ReportedAt(context.Context, []string) (map[string]time.Time, error) {
+	return map[string]time.Time{}, nil
+}
+
 func (f *fakeUserRepo) CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error {
 	if f.createRoleAssignment != nil {
 		return f.createRoleAssignment(ctx, ra)

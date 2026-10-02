@@ -446,6 +446,31 @@ request for the principal and admins, and only their own Department's for an
 HOD (`approve_access`, ADR 0025). An approved student waiting for their first sign-in
 is no longer in it.
 
+Each request also says where it belongs and why it's there:
+`student_identity.department_name`, `student_identity.department_has_hod`
+(false when no HOD is in effect, which is why it comes to the principal and
+admins) and `reported_at`, set when the row came from a class list and the
+person said "Not you?" on their first sign-in (so its details need checking):
+
+```json
+{
+  "id": "uuid",
+  "email": "asha.rao@gmail.com",
+  "profile": { "full_name": "Asha Rao", "username": "asha.rao1234" },
+  "student_identity": {
+    "usn": "4MN23CS042",
+    "department_code": "CS",
+    "department_name": "Computer Science and Engineering",
+    "department_has_hod": true,
+    "batch_year": 2023
+  },
+  "created_at": "2026-10-02T08:00:00Z",
+  "reported_at": null
+}
+```
+
+Approving a reported row again doesn't add a second student role.
+
 Approving (`verify`) and rejecting (`status` with `rejected`) follow the same
 scope: an HOD gets `404` for a request outside their Department. Suspending
 and reactivating need `manage_users_and_roles` (principal and admin); an HOD

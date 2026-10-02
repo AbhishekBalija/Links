@@ -26,6 +26,22 @@ func (s *authService) ReviewQueue(ctx context.Context, actorID string) (*ReviewQ
 	if err != nil {
 		return nil, fmt.Errorf("find pending users: %w", err)
 	}
+	reviewDepartments, err := s.userRepo.ReviewDepartments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find departments: %w", err)
+	}
+	departmentByID := map[string]ReviewDepartment{}
+	for _, d := range reviewDepartments {
+		departmentByID[d.ID] = d
+	}
+	ids := make([]string, 0, len(users))
+	for _, u := range users {
+		ids = append(ids, u.ID)
+	}
+	reported, err := s.userRepo.ReportedAt(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("find reported rows: %w", err)
+	}
 
 	responses := make([]PendingUserResponse, 0, len(users))
 	for _, u := range users {
@@ -36,6 +52,9 @@ func (s *authService) ReviewQueue(ctx context.Context, actorID string) (*ReviewQ
 			ID:        u.ID,
 			Email:     u.Email,
 			CreatedAt: u.CreatedAt,
+		}
+		if at, ok := reported[u.ID]; ok {
+			pur.ReportedAt = &at
 		}
 		if u.Profile != nil {
 			pur.Profile = &PendingUserProfile{
@@ -48,10 +67,13 @@ func (s *authService) ReviewQueue(ctx context.Context, actorID string) (*ReviewQ
 			if code, err := ValidateUSNFormat(u.StudentIdentity.USN); err == nil {
 				departmentCode = code
 			}
+			department := departmentByID[u.StudentIdentity.DepartmentID]
 			pur.StudentIdentity = &PendingUserStudentID{
-				USN:            u.StudentIdentity.USN,
-				DepartmentCode: departmentCode,
-				BatchYear:      u.StudentIdentity.BatchYear,
+				USN:              u.StudentIdentity.USN,
+				DepartmentCode:   departmentCode,
+				DepartmentName:   department.Name,
+				DepartmentHasHOD: department.HasHOD,
+				BatchYear:        u.StudentIdentity.BatchYear,
 			}
 		}
 		responses = append(responses, pur)
@@ -113,6 +135,17 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 			}
 		}
 
+		// A row reported with "Not you?" kept its role: approving it again
+		// must not add a second one.
+		existing, err := repos.Users.GetRoleAssignments(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("get roles: %w", err)
+		}
+		hasRole := false
+		for _, assignment := range existing {
+			hasRole = hasRole || assignment.Role == role
+		}
+
 		ra := &RoleAssignment{
 			UserID:     userID,
 			Role:       role,
@@ -122,8 +155,10 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 			StartsAt:   now,
 			CreatedAt:  now,
 		}
-		if err := repos.Users.CreateRoleAssignment(ctx, ra); err != nil {
-			return fmt.Errorf("create role assignment: %w", err)
+		if !hasRole {
+			if err := repos.Users.CreateRoleAssignment(ctx, ra); err != nil {
+				return fmt.Errorf("create role assignment: %w", err)
+			}
 		}
 
 		// Approval grants the role; the first sign-in makes the account active.

@@ -135,6 +135,9 @@ type PendingUserResponse struct {
 	Profile         *PendingUserProfile   `json:"profile,omitempty"`
 	StudentIdentity *PendingUserStudentID `json:"student_identity,omitempty"`
 	CreatedAt       time.Time             `json:"created_at"`
+	// ReportedAt is set when the row came from a class list and the person
+	// said "Not you?" on their first sign-in, so the details need checking.
+	ReportedAt *time.Time `json:"reported_at"`
 }
 
 type PendingUserProfile struct {
@@ -145,7 +148,11 @@ type PendingUserProfile struct {
 type PendingUserStudentID struct {
 	USN            string `json:"usn"`
 	DepartmentCode string `json:"department_code,omitempty"`
-	BatchYear      int    `json:"batch_year"`
+	DepartmentName string `json:"department_name,omitempty"`
+	// DepartmentHasHOD is false when no HOD is in effect, which is why the
+	// request comes to the principal and admins.
+	DepartmentHasHOD bool `json:"department_has_hod"`
+	BatchYear        int  `json:"batch_year"`
 }
 
 type ReviewQueueResponse struct {
