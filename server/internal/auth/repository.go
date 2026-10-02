@@ -317,6 +317,19 @@ func (r *GormUserRepository) LockAdminAssignmentsInEffect(ctx context.Context) (
 	return assignments, err
 }
 
+// HasAdmin reports whether any admin role hasn't ended for an account that
+// can still sign in, counting one still waiting for its first sign-in.
+func (r *GormUserRepository) HasAdmin(ctx context.Context) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT count(*) FROM role_assignments ra
+		JOIN users u ON u.id = ra.user_id
+		WHERE ra.role = ? AND u.status IN (?, ?)
+		  AND (ra.ends_at IS NULL OR ra.ends_at > now())`, RoleAdmin, UserStatusActive, UserStatusPending).
+		Scan(&count).Error
+	return count > 0, err
+}
+
 func (r *GormUserRepository) EndRoleAssignment(ctx context.Context, id string, endsAt time.Time) error {
 	return r.db.WithContext(ctx).Model(&RoleAssignment{}).Where("id = ?", id).Update("ends_at", endsAt).Error
 }

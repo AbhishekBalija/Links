@@ -211,6 +211,7 @@ type AuthService interface {
 	RequestAccess(ctx context.Context, input RequestAccessInput) (*RequestAccessResponse, error)
 	Login(ctx context.Context, input LoginInput) (*LoginResponse, string, error)
 	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
+	AddFirstAdmin(ctx context.Context, email, fullName string) (string, error)
 	RequestCode(ctx context.Context, email, ip string) (string, error)
 	VerifyCode(ctx context.Context, challengeID, email, code string) (*LoginResponse, string, error)
 	SignInWithGoogle(ctx context.Context, credential, expectedNonce string) (*LoginResponse, string, error)
@@ -272,6 +273,7 @@ type UserRepository interface {
 	USNExists(ctx context.Context, usn string) (bool, error)
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
+	HasAdmin(ctx context.Context) (bool, error)
 	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
 	FindRoleAssignmentForUpdate(ctx context.Context, userID, id string) (*RoleAssignment, error)
 	HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error)

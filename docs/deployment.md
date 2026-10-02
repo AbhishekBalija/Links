@@ -76,6 +76,21 @@ Production and one to Preview.
 No `VITE_API_URL` or `FRONTEND_URL` is needed because both services share the
 same domain.
 
+## First Admin
+
+A new college's first admin is added once from the command line, against the
+database the deployment uses (ADR 0026):
+
+```bash
+cd server
+DATABASE_URL=<the environment's database> JWT_ACCESS_SECRET=<any> JWT_REFRESH_SECRET=<any> \
+  go run ./cmd/add-admin -email office@college.edu -name "Full Name"
+```
+
+The admin signs in with Google using that email; there is no password. The
+command refuses once the college has an admin: later admins are granted inside
+LINKS.
+
 ## Smoke Test
 
 After deploying, verify:
