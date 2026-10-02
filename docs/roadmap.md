@@ -42,6 +42,13 @@ Deliverables:
 - Auth middleware
 - RBAC policy checks
 
+Follow-up, spec #129 "Getting in" (passwordless, the class list decides):
+
+- [x] Test-only sign-in for the e2e suite (#130)
+- [x] Email code, Google sign-in, first sign-in and requests from people on no list (#131, #132, #133)
+- [ ] Sign-in screens (#135), designed on the canvas (#134)
+- [ ] Passwords removed (#136)
+
 ## Phase 2: Campus Hub (in progress)
 
 Goal: Make LINKS useful as a daily information hub. Milestone "Phase 2: Campus Hub".

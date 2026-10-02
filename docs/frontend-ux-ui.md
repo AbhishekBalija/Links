@@ -61,7 +61,10 @@ Clean institutional workspace with crisp typography, restrained color, strong st
 
 ```mermaid
 flowchart TB
-    Public[Public Site] --> Login[Login / Access Request]
+    Public[Public Site] --> Login[Sign in: Google or email code]
+    Login --> Request[Not on a class list: Access request]
+    Login --> First[First sign-in: Not you?]
+    First --> App
     Login --> App[Authenticated App]
 
     App --> Dashboard[Role Dashboard]

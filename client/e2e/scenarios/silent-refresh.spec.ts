@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getDatabaseURL, replaceActivationToken } from '../helpers/db'
+import { getDatabaseURL } from '../helpers/db'
 
 declare global {
   interface Window {
@@ -11,23 +11,19 @@ import {
   setupAdmin,
   loginViaUI,
   cleanupTestUsers,
-  getUserIdByEmail,
-  adminApproveUser,
-  submitAccessRequestViaUI,
+  seedMember,
   expectHome,
 } from '../helpers/auth'
 
-const TS = Date.now()
-const USER = { email: `e2e-refresh-${TS}@test.com`, password: 'E2EPass123', usn: `4MN${String(new Date().getFullYear()).slice(2)}CS${String(TS).slice(-3)}` }
+const USER = { email: '' }
 
 test.describe('Silent Token Refresh', () => {
   let dbURL: string
-  let adminToken: string
 
   test.beforeAll(async ({ request }) => {
     dbURL = getDatabaseURL()
     const admin = await bootstrapAdmin(dbURL)
-    adminToken = await setupAdmin(request, dbURL, admin)
+    await setupAdmin(request, dbURL, admin)
   })
 
   test.afterAll(async () => {
@@ -35,24 +31,8 @@ test.describe('Silent Token Refresh', () => {
   })
 
   test('Session continues after token expiry via silent refresh', async ({ page, context, request }) => {
-    // 1. Onboard user via real flow
-    await submitAccessRequestViaUI(page, {
-      full_name: 'Refresh Test',
-      email: USER.email,
-      password: USER.password,
-      usn: USER.usn,
-      department_code: 'CS',
-    })
-    await expect(page.locator('h1')).toContainText('Access requested')
-
-    const userId = await getUserIdByEmail(dbURL, USER.email)
-    await adminApproveUser(request, adminToken, userId)
-
-    const activationToken = await replaceActivationToken(userId)
-    const activationResponse = await request.post('/api/v1/auth/activate', {
-      data: { token: activationToken, password: USER.password },
-    })
-    expect(activationResponse.ok()).toBeTruthy()
+    // 1. An active student, set up directly (not what this spec tests)
+    USER.email = (await seedMember(request, { role: 'student', fullName: 'Refresh Test', department: 'CS', batch: 2024 })).email
 
     // 2. Log in via UI — this sets refresh_token cookie in browser
     await loginViaUI(page, USER.email)

@@ -37,7 +37,8 @@ type ApiError = {
 
 Frontend should:
 
-- Call `POST /api/v1/auth/login`.
+- Sign in with an email code (`POST /api/v1/auth/code`, then `/auth/code/verify`) or Google (`GET /api/v1/auth/google/nonce`, then `POST /auth/google`); see `docs/api-spec.md`, Auth. There is no password form (spec #129).
+- On `NOT_ON_LIST`, offer an Access request with the `request_token` (`POST /api/v1/auth/access-request`). On a reply with `first_sign_in`, show who they signed in as, with "Not you?" (`POST /api/v1/auth/not-me`).
 - Store access token only short-term.
 - Rely on secure refresh cookie if implemented.
 - Call `POST /api/v1/auth/refresh` on access-token expiry.

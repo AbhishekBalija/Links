@@ -1,10 +1,12 @@
 import { test, expect, type Page } from '@playwright/test'
-import { getDatabaseURL, getSchemaClient, replaceActivationToken } from '../helpers/db'
+import { getDatabaseURL } from '../helpers/db'
 import {
   bootstrapAdmin,
   setupAdmin,
   loginViaUI,
-  submitAccessRequestViaUI,
+  loginViaAPI,
+  signInWithCode,
+  freeUSN,
   getUserIdByEmail,
   adminApproveUser,
   cleanupTestUsers,
@@ -21,66 +23,45 @@ async function openEditProfile(page: Page) {
 }
 
 const TS = Date.now()
-const STUDENT = { email: `e2e-student-${TS}@test.com`, password: 'E2EPass123', phone: '+91 98765 43210', usn: `4MN${String(new Date().getFullYear()).slice(2)}CS${String(TS).slice(-3)}` }
+const STUDENT = { email: `e2e-student-${TS}@test.com` }
 
 test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
   let dbURL: string
-  let adminToken: string
+  let adminEmail: string
 
   test.beforeAll(async ({ request }) => {
     dbURL = getDatabaseURL()
     const admin = await bootstrapAdmin(dbURL)
-    adminToken = await setupAdmin(request, dbURL, admin)
+    await setupAdmin(request, dbURL, admin)
+    adminEmail = admin.email
   })
 
   test.afterAll(async () => {
     await cleanupTestUsers(dbURL, [STUDENT.email])
   })
 
-  test('1. Submit access request via real UI form', async ({ page }) => {
-    await submitAccessRequestViaUI(page, {
-      full_name: 'E2E Student',
-      email: STUDENT.email,
-		password: STUDENT.password,
-		phone: STUDENT.phone,
-      usn: STUDENT.usn,
-      department_code: 'CS',
-    })
-	await expect(page.locator('h1')).toContainText('Access requested')
-	await expect(page.locator('text=submitted')).toBeVisible()
-
-	const dbClient = await getSchemaClient()
-	try {
-		const result = await dbClient.query('SELECT phone FROM users WHERE email = $1', [STUDENT.email])
-		expect(result.rows[0]?.phone).toBe(STUDENT.phone)
-	} finally {
-		await dbClient.end()
-	}
+  test('1. Someone on no class list signs in with an email code and sends a request', async ({ page }) => {
+    const usn = await freeUSN('CS', 2024)
+    await signInWithCode(page, STUDENT.email)
+    await expect(page.getByRole('heading', { name: "You're not on a class list yet" })).toBeVisible()
+    await page.getByLabel('Your name').fill('E2E Student')
+    await page.getByLabel('USN').fill(usn)
+    await page.getByRole('button', { name: 'Send request to the CS HOD' }).click()
+    await expect(page.getByRole('heading', { name: 'Your request is with the CS HOD' })).toBeVisible()
   })
 
-  test('2. Admin approves user via real endpoint', async ({ request }) => {
+  test('2. Admin approves the request via the real endpoint', async ({ request }) => {
     const userId = await getUserIdByEmail(dbURL, STUDENT.email)
     expect(userId).toBeTruthy()
-    await adminApproveUser(request, adminToken, userId)
+    // Access tokens last seconds in the e2e suite, so ask for a fresh one.
+    await adminApproveUser(request, await loginViaAPI(request, adminEmail), userId)
   })
 
-  test('3. Approved user must activate before logging in', async ({ request }) => {
-    const loginResponse = await request.post('/api/v1/auth/login', {
-      data: { email: STUDENT.email, password: STUDENT.password },
-    })
-    expect(loginResponse.status()).toBe(401)
-  })
-
-	test('4. Activate account through the email-link UI, then login and see Dashboard', async ({ page }) => {
-		const userId = await getUserIdByEmail(dbURL, STUDENT.email)
-		const activationToken = await replaceActivationToken(userId)
-		await page.goto(`/activate?token=${activationToken}`)
-		await page.fill('#password', STUDENT.password)
-		await page.fill('#password-confirmation', STUDENT.password)
-		await page.click('button:has-text("Activate account")')
-		await expect(page.locator('h1')).toContainText('Account activated')
-
-    await loginViaUI(page, STUDENT.email)
+  test('3. The approved student signs in, confirms who they are and sees Home', async ({ page }) => {
+    await signInWithCode(page, STUDENT.email)
+    await page.waitForURL('**/welcome')
+    await expect(page.getByRole('heading', { name: 'Welcome to Links, E2E' })).toBeVisible()
+    await page.getByRole('button', { name: "Yes, that's me" }).click()
     await expectHome(page)
     await expect(page.getByRole('navigation', { name: 'Main' }).getByText('Student', { exact: true })).toBeVisible()
   })

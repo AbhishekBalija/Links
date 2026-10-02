@@ -68,6 +68,7 @@ Set these in the Vercel project dashboard. They apply to both services.
 | `GIN_MODE`           | Preview, Production                 | `release`                            |
 | `RESEND_API_KEY`, `FROM_EMAIL` | Preview, Production       | Email delivery                       |
 | `SENTRY_DSN`, `VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN` | Preview, Production | Error tracking            |
+| `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID` | Production | Google sign-in (the same public client ID). Previews leave it unset and sign in with an email code, since Google can't list preview URLs as origins |
 
 "Separately" means two Vercel variables with the same name, one scoped to
 Production and one to Preview.

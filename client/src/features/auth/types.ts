@@ -20,40 +20,32 @@ export type CurrentUser = {
   profile: Profile
 }
 
-export type LoginInput = {
-  email: string
-  password: string
+export type CodeChallenge = {
+  challenge_id: string
+  message: string
 }
 
-export type LoginResponse = {
-  access_token: string
-  expires_in: number
-}
-
-export type RequestAccessInput = {
-  email: string
-  password: string
+// FirstSignIn says who a first sign-in signed in as, for "Not you?".
+export type FirstSignIn = {
   full_name: string
+  email: string
   usn?: string
   department_code?: string
+  department_name?: string
+  batch_year?: number
+  roles: string[]
 }
 
-export type RequestAccessResponse = {
-  user_id: string
-  status: string
+export type SignInResponse = {
+  access_token: string
+  expires_in: number
+  first_sign_in?: FirstSignIn
 }
 
-export type ActivateInput = {
-  token: string
-  password: string
-}
-
-export type AuthState = {
-  user: CurrentUser | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  login: (input: LoginInput) => Promise<void>
-  logout: () => Promise<void>
+export type AccessRequestInput = {
+  requestToken: string
+  usn: string
+  fullName: string
 }
 
 export type UpdateProfileInput = {
