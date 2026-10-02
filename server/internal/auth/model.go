@@ -155,6 +155,14 @@ type Department struct {
 
 func (Department) TableName() string { return "departments" }
 
+// ReviewDepartment is a Department as the Access request queue shows it.
+type ReviewDepartment struct {
+	ID     string
+	Code   string
+	Name   string
+	HasHOD bool
+}
+
 // StudentIdentity represents the student_identities table.
 type StudentIdentity struct {
 	UserID        string `gorm:"column:user_id;primaryKey"`
@@ -248,6 +256,8 @@ type UserRepository interface {
 	CreateStudentIdentity(ctx context.Context, identity *StudentIdentity) error
 	USNExists(ctx context.Context, usn string) (bool, error)
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)
+	ReviewDepartments(ctx context.Context) ([]ReviewDepartment, error)
+	ReportedAt(ctx context.Context, userIDs []string) (map[string]time.Time, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
 	HasAdmin(ctx context.Context) (bool, error)
 	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
