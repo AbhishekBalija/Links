@@ -224,6 +224,61 @@ func TestAtMostThreeCodesPerEmailInFifteenMinutes(t *testing.T) {
 	askForCode(t, h, member.Email)
 }
 
+// ageCodes moves every stored code request back in time, as if that much
+// time had passed.
+func ageCodes(h *apitest.Harness, interval string) {
+	h.DB().Exec(`UPDATE sign_in_codes SET created_at = created_at - ?::interval, expires_at = expires_at - ?::interval`, interval, interval)
+}
+
+func TestAtMostTenCodesPerEmailInADay(t *testing.T) {
+	h := apitest.New(t)
+	member := studentOf(t, h, "CS", 2023)
+
+	for i := 1; i <= 10; i++ {
+		askForCode(t, h, member.Email)
+		if i%3 == 0 {
+			ageCodes(h, "16 minutes")
+		}
+	}
+	ageCodes(h, "16 minutes")
+	expectStatus(t, "an eleventh code in a day", h.Do(t, http.MethodPost, "/api/v1/auth/code", "", map[string]string{"email": member.Email}), http.StatusTooManyRequests)
+	if codes := h.Outbox.CodesTo(member.Email); len(codes) != 10 {
+		t.Errorf("sent %d codes, want 10", len(codes))
+	}
+
+	// A day later the member can ask again.
+	ageCodes(h, "24 hours")
+	askForCode(t, h, member.Email)
+}
+
+func TestTenWrongGuessesInADayStopNewCodes(t *testing.T) {
+	h := apitest.New(t)
+	member := studentOf(t, h, "CS", 2023)
+
+	for round := 1; round <= 2; round++ {
+		challenge := askForCode(t, h, member.Email)
+		code := h.Outbox.LastCodeTo(t, member.Email)
+		for try := 1; try <= 5; try++ {
+			enterCode(t, h, challenge, wrongCode(code))
+		}
+		ageCodes(h, "16 minutes")
+	}
+
+	// The reply looks the same, so it doesn't say the email has an account,
+	// but no code goes out.
+	askForCode(t, h, member.Email)
+	if codes := h.Outbox.CodesTo(member.Email); len(codes) != 2 {
+		t.Errorf("sent %d codes after ten wrong guesses, want 2", len(codes))
+	}
+
+	// A day later codes go out again.
+	ageCodes(h, "24 hours")
+	askForCode(t, h, member.Email)
+	if codes := h.Outbox.CodesTo(member.Email); len(codes) != 3 {
+		t.Errorf("sent %d codes a day later, want 3", len(codes))
+	}
+}
+
 func TestOneIPAddressCanAskForOnlySoManyCodes(t *testing.T) {
 	h := apitest.New(t)
 	limit := auth.DefaultCodeSettings().PerIPLimit

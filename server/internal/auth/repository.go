@@ -421,6 +421,13 @@ func (r *GormSignInCodeRepository) CountByIPSince(ctx context.Context, ipHash st
 	return count, err
 }
 
+func (r *GormSignInCodeRepository) SumWrongTriesByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).Select("COALESCE(SUM(attempts), 0)").
+		Where("email_hash = ? AND created_at > ?", emailHash, since).Scan(&total).Error
+	return total, err
+}
+
 func (r *GormSignInCodeRepository) Create(ctx context.Context, code *SignInCode) error {
 	return r.db.WithContext(ctx).Create(code).Error
 }
