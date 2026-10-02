@@ -121,9 +121,9 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 		if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) {
 			return apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
 		}
-		// Only accounts get codes, so only they collect wrong guesses. They
-		// get the usual reply with no code, so the reply can't tell anyone
-		// the email has an account.
+		// Too many wrong guesses today: the usual reply with no code, so
+		// the reply still can't tell anyone whether the email has an
+		// account.
 		wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailSince(ctx, emailHash, dayAgo)
 		if err != nil {
 			return fmt.Errorf("count wrong tries for email: %w", err)
