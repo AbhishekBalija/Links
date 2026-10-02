@@ -223,31 +223,25 @@ No request body — reads the `refresh_token` cookie automatically.
 
 ## 7. Admin Auth Setup
 
-Before testing admin endpoints, bootstrap the first admin user via SQL:
+Before testing admin endpoints, add the first admin from the command line,
+with the server's environment loaded (ADR 0026):
 
-```sql
-INSERT INTO users (id, email, password_hash, status, is_verified, created_at, updated_at)
-VALUES (gen_random_uuid(), '<LOCAL_ADMIN_EMAIL>',
-  '<ARGON2ID_HASH_FOR_LOCAL_ADMIN_PASSWORD>',
-  'active', true, now(), now());
-
--- Get the user_id from the insert above, then:
-INSERT INTO role_assignments (id, user_id, role, scope_type, scope_id, assigned_by, starts_at, created_at)
-VALUES (gen_random_uuid(), '<user_id>', 'admin', 'global', NULL, NULL, now(), now());
-
-INSERT INTO profiles (user_id, username, full_name, created_at, updated_at)
-VALUES ('<user_id>', 'admin', 'Admin', now(), now());
+```bash
+cd server
+go run ./cmd/add-admin -email <YOUR_GOOGLE_EMAIL> -name "Local Admin"
 ```
 
-Generate the Argon2id hash through the project's local bootstrap flow, then log
-in with the matching local-only email and password. Do not put shared or
-production credentials in this guide:
+It refuses if the database already has an admin. The admin has no password:
+sign in once at the web app (`http://localhost:5173`) with **Continue with
+Google** using that email, which makes the account active. After that, with
+`ENABLE_TEST_SIGN_IN=true` and `APP_ENV=local`, get a token for Postman
+without Google:
 
 ```http
-POST /api/v1/auth/login
+POST /api/v1/test/sign-in
 Content-Type: application/json
 
-{"email": "<LOCAL_ADMIN_EMAIL>", "password": "<LOCAL_ADMIN_PASSWORD>"}
+{"email": "<YOUR_GOOGLE_EMAIL>"}
 ```
 
 Copy the `access_token` from the response for all admin endpoint calls.

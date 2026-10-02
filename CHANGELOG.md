@@ -10,6 +10,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Add a college's first admin from the command line: `go run ./cmd/add-admin
+  -email ... -name ...` (ADR 0026). They sign in with Google; the command
+  refuses once the college has an admin.
 - New sign-in screens (#135): Continue with Google or get a 6-digit code by
   email, with no password. Someone on no class list sends a request to their
   HOD with just their USN, read back as Department and Batch. The first
