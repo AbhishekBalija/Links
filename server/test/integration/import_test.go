@@ -97,7 +97,7 @@ func TestAdminImportCreatesPendingVerifiedStudents(t *testing.T) {
 
 func TestImportReportsEachBadRowAndKeepsTheGoodOnes(t *testing.T) {
 	h := apitest.New(t)
-	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
 	existing := h.SeedUser(t, apitest.UserSeed{})
 	existingStudent := student(t, h, "CS", 2023) // gets USN 4MN23CS001 from the harness
 
@@ -117,7 +117,7 @@ func TestImportReportsEachBadRowAndKeepsTheGoodOnes(t *testing.T) {
 		"second@gmail.com,Second Good,4MN22EC209",   // 13
 	}
 	_ = existingStudent
-	result := imported(t, importCSV(h, principal.Token, strings.Join(rows, "\n")))
+	result := imported(t, importCSV(h, admin.Token, strings.Join(rows, "\n")))
 	if result.Created != 2 || result.Failed != 10 {
 		t.Fatalf("result = %+v, want 2 created and 10 failed", result)
 	}
@@ -147,14 +147,33 @@ func TestHODImportsOnlyTheirOwnDepartment(t *testing.T) {
 	}
 }
 
+// An HOD who is also the principal still imports only their own
+// Department: being principal no longer widens an import (ADR 0029).
+func TestPrincipalWhoIsAnHODImportsOnlyTheirOwnDepartment(t *testing.T) {
+	h := apitest.New(t)
+	both := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}, {Role: "hod", DepartmentCode: "CS"}}})
+
+	result := imported(t, importCSV(h, both.Token, "email,full_name,usn\ncs@gmail.com,CS Student,4MN24CS301\nec@gmail.com,EC Student,4MN24EC302\n"))
+	if result.Created != 1 || result.Rows[0].Status != "created" || result.Rows[1].Status != "failed" {
+		t.Fatalf("result = %+v, want the CS row created and the EC row refused", result)
+	}
+}
+
+// Admins and HODs import students; the principal no longer does (ADR 0029).
 func TestImportIsForbiddenToOtherRoles(t *testing.T) {
 	h := apitest.New(t)
+	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
 	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
 	reader := student(t, h, "CS", 2023)
-	for _, token := range []string{faculty.Token, reader.Token} {
+	for name, token := range map[string]string{"principal": principal.Token, "faculty": faculty.Token, "student": reader.Token} {
 		if response := importCSV(h, token, "email,full_name,usn\na@gmail.com,A,4MN24CS401\n"); response.Status != http.StatusForbidden {
-			t.Errorf("status = %d, want %d: %s", response.Status, http.StatusForbidden, response.Body)
+			t.Errorf("%s: status = %d, want %d: %s", name, response.Status, http.StatusForbidden, response.Body)
 		}
+	}
+	var count int
+	h.DB().Raw(`SELECT count(*) FROM users WHERE email = 'a@gmail.com'`).Scan(&count)
+	if count != 0 {
+		t.Errorf("a refused import created %d accounts", count)
 	}
 }
 

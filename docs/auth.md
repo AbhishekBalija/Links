@@ -198,11 +198,15 @@ Examples:
 | View applicant data | Own only | No | No | Department summary | Yes | Yes | Yes |
 | Shortlist applicants | No | No | No | View only | Yes | Yes | Yes |
 | Decide access requests | No | No | No | Own Department | No | Yes | Yes |
+| Import students | No | No | No | Own Department | No | No | Yes |
+| Add staff (staff invite) | No | No | No | Faculty, own Department | No | No | Yes |
 | Manage users and roles | No | No | No | Limited | No | Limited | Yes |
 
-Importing students from a CSV (`import_students`) is open to admins, the
-principal and HODs; an HOD can import only students whose USN is in their own
-Department.
+Importing students from a CSV (`import_students`) is open to admins and HODs;
+an HOD can import only students whose USN is in their own Department. Staff
+invites (`invite_staff`) are open to admins, for any role, and HODs, for
+faculty of their own Department. The principal does neither (ADR 0029), and
+being the principal doesn't widen an HOD's own Department scope.
 
 "Manage users and roles" for the principal means everything but the `admin`
 role, which only an admin grants or ends. HODs don't manage users or roles;

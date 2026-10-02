@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Only admins and HODs add people (ADR 0029): the principal can no longer
+  import students or add staff. HODs can now add faculty to their own
+  Department, and an HOD who is also the principal imports only their own
+  Department's students.
+
 ### Removed
 - Passwords and activation (#136): password login, the password Request
   access form, Activation emails and links, and Resend activation are gone,

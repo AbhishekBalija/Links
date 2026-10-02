@@ -150,24 +150,38 @@ func TestAStaffInviteWaitsForFirstSignIn(t *testing.T) {
 	}), http.StatusConflict)
 }
 
+// Admins add staff anywhere; an HOD adds faculty to their own Department;
+// the principal no longer adds staff (ADR 0029).
 func TestWhoCanInviteStaff(t *testing.T) {
 	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
 	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
 	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	cs, ec := h.DepartmentID(t, "CS"), h.DepartmentID(t, "EC")
 	invite := func(token, email, role, scopeType, scopeID string) apitest.Response {
 		return h.Do(t, http.MethodPost, "/api/v1/admin/users", token, map[string]string{
 			"email": email, "full_name": "New Staff", "role": role, "scope_type": scopeType, "scope_id": scopeID,
 		})
 	}
 
-	expectStatus(t, "principal invites a placement officer", invite(principal.Token, "po@college.example", "placement_officer", "global", ""), http.StatusCreated)
-	expectStatus(t, "principal invites an admin", invite(principal.Token, "admin2@college.example", "admin", "global", ""), http.StatusForbidden)
-	expectStatus(t, "HOD invites faculty", invite(hod.Token, "f@college.example", "faculty", "department", h.DepartmentID(t, "CS")), http.StatusForbidden)
-	expectStatus(t, "a second CS HOD", invite(principal.Token, "hod2@college.example", "hod", "department", h.DepartmentID(t, "CS")), http.StatusConflict)
-	expectStatus(t, "not an email", invite(principal.Token, "nope", "faculty", "department", h.DepartmentID(t, "CS")), http.StatusBadRequest)
+	expectStatus(t, "admin invites a placement officer", invite(admin.Token, "po@college.example", "placement_officer", "global", ""), http.StatusCreated)
+	expectStatus(t, "admin invites an admin", invite(admin.Token, "admin2@college.example", "admin", "global", ""), http.StatusCreated)
+	expectStatus(t, "HOD invites CS faculty", invite(hod.Token, "f@college.example", "faculty", "department", cs), http.StatusCreated)
+
+	expectStatus(t, "principal invites a placement officer", invite(principal.Token, "po2@college.example", "placement_officer", "global", ""), http.StatusForbidden)
+	expectStatus(t, "principal invites CS faculty", invite(principal.Token, "f2@college.example", "faculty", "department", cs), http.StatusForbidden)
+	expectStatus(t, "HOD invites EC faculty", invite(hod.Token, "f3@college.example", "faculty", "department", ec), http.StatusForbidden)
+	expectStatus(t, "HOD invites a placement officer", invite(hod.Token, "po3@college.example", "placement_officer", "global", ""), http.StatusForbidden)
+	expectStatus(t, "HOD invites another CS HOD", invite(hod.Token, "hod2@college.example", "hod", "department", cs), http.StatusForbidden)
+	expectStatus(t, "faculty invites faculty", invite(faculty.Token, "f4@college.example", "faculty", "department", cs), http.StatusForbidden)
+	expectStatus(t, "a second CS HOD", invite(admin.Token, "hod3@college.example", "hod", "department", cs), http.StatusConflict)
+	expectStatus(t, "not an email", invite(admin.Token, "nope", "faculty", "department", cs), http.StatusBadRequest)
 
 	var leftovers int
-	h.DB().Raw(`SELECT count(*) FROM users WHERE email IN ('admin2@college.example', 'hod2@college.example')`).Scan(&leftovers)
+	h.DB().Raw(`SELECT count(*) FROM users WHERE email IN
+		('po2@college.example', 'f2@college.example', 'f3@college.example', 'po3@college.example',
+		 'hod2@college.example', 'f4@college.example', 'hod3@college.example')`).Scan(&leftovers)
 	if leftovers != 0 {
 		t.Errorf("%d refused invites left an account behind", leftovers)
 	}
