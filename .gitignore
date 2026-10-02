@@ -50,3 +50,6 @@ docs/local/
 .claude/canvas-work/
 .claude/worktrees/
 .claude/settings.local.json
+
+# Security reports written by review agents: local only, never committed
+/docs/security report by agents/
