@@ -1,87 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { getDatabaseURL, getSchemaClient, replaceActivationToken } from '../helpers/db'
-import {
-  bootstrapAdmin,
-  setupAdmin,
-  loginViaUI,
-  cleanupTestUsers,
-  getUserIdByEmail,
-  adminApproveUser,
-  submitAccessRequestViaUI,
-  expectHome,
-} from '../helpers/auth'
+import { getDatabaseURL, getSchemaClient } from '../helpers/db'
+import { bootstrapAdmin, setupAdmin, loginViaUI, cleanupTestUsers, seedMember, expectHome } from '../helpers/auth'
 
-const TS = Date.now()
-const STUDENT = { email: `e2e-guard-${TS}@test.com`, password: 'E2EPass123', usn: `4MN${String(new Date().getFullYear()).slice(2)}CS${String(TS).slice(-3)}` }
-const ZERO_ROLE = { email: `e2e-zerorole-${TS}@test.com`, password: 'E2EPass123', usn: `4MN${String(new Date().getFullYear()).slice(2)}CS${String(TS).slice(-3)}` }
+const emails: string[] = []
 
 test.describe('Auth Guards', () => {
   let dbURL: string
-  let adminToken: string
-
-  test.beforeAll(async ({ request }) => {
-    dbURL = getDatabaseURL()
-    const admin = await bootstrapAdmin(dbURL)
-    adminToken = await setupAdmin(request, dbURL, admin)
-  })
-
-  test.afterAll(async () => {
-    await cleanupTestUsers(dbURL, [STUDENT.email])
-  })
-
-  test('Protected route redirects to /login when logged out', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForURL('**/login')
-
-    await page.goto('/')
-    await page.waitForURL('**/login')
-    await expect(page.locator('h1')).toContainText('Log in')
-  })
-
-  test('Logout clears session and redirects to login', async ({ page, request }) => {
-    // Onboard the student via real flow
-    await submitAccessRequestViaUI(page, {
-      full_name: 'Guard Test',
-      email: STUDENT.email,
-      password: STUDENT.password,
-      usn: STUDENT.usn,
-      department_code: 'CS',
-    })
-    await expect(page.locator('h1')).toContainText('Access requested')
-
-    const userId = await getUserIdByEmail(dbURL, STUDENT.email)
-    await adminApproveUser(request, adminToken, userId)
-
-    const activationToken = await replaceActivationToken(userId)
-    const activationResponse = await request.post('/api/v1/auth/activate', {
-      data: { token: activationToken, password: STUDENT.password },
-    })
-    expect(activationResponse.ok()).toBeTruthy()
-
-    // Login
-	await loginViaUI(page, STUDENT.email)
-	await expectHome(page)
-
-	// A role-bearing user cannot remain on the pending-account screen.
-	await page.goto('/account-pending')
-	await page.waitForURL((url) => url.pathname === '/')
-	await expectHome(page)
-
-	// Logout
-    await page.getByRole('button', { name: 'Log out' }).click()
-    await page.waitForURL('**/login')
-    await expect(page.locator('h1')).toContainText('Log in')
-
-    // Protected route blocked
-    await page.goto('/')
-    await page.waitForURL('**/login')
-    await expect(page.locator('h1')).toContainText('Log in')
-  })
-})
-
-test.describe('Zero-Role User → /account-pending', () => {
-  let dbURL: string
-  let zeroRoleUserId: string
 
   test.beforeAll(async ({ request }) => {
     dbURL = getDatabaseURL()
@@ -90,39 +14,60 @@ test.describe('Zero-Role User → /account-pending', () => {
   })
 
   test.afterAll(async () => {
-    await cleanupTestUsers(dbURL, [ZERO_ROLE.email])
+    await cleanupTestUsers(dbURL, emails)
   })
 
-  test('Zero-role user lands on /account-pending, not 403 or Dashboard', async ({ page }) => {
-    // Onboard user but DO NOT assign a role (zero-role scenario)
-    await submitAccessRequestViaUI(page, {
-      full_name: 'Zero Role User',
-      email: ZERO_ROLE.email,
-      password: ZERO_ROLE.password,
-      usn: ZERO_ROLE.usn,
-      department_code: 'CS',
-    })
-    await expect(page.locator('h1')).toContainText('Access requested')
+  test('Protected route redirects to the sign-in screen when signed out', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForURL('**/login')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sign in')
+  })
 
-    zeroRoleUserId = await getUserIdByEmail(dbURL, ZERO_ROLE.email)
-    // Activate directly via DB, NOT via admin endpoint (which also assigns a role).
-    // This keeps the user active with zero role assignments (tests ADR-015 /me fix).
-    const dbClient = await getSchemaClient()
+  test('Old password links lead to the sign-in screen', async ({ page }) => {
+    for (const path of ['/access-request', '/activate?token=x']) {
+      await page.goto(path)
+      await page.waitForURL('**/login')
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sign in')
+    }
+  })
+
+  test('Logout clears session and redirects to sign-in', async ({ page, request }) => {
+    const student = await seedMember(request, { role: 'student', fullName: 'Guard Test', department: 'CS', batch: 2024 })
+    emails.push(student.email)
+
+    await loginViaUI(page, student.email)
+    await expectHome(page)
+
+    // A member with a role can't stay on the no-role screen.
+    await page.goto('/account-pending')
+    await page.waitForURL((url) => url.pathname === '/')
+    await expectHome(page)
+
+    await page.getByRole('button', { name: 'Log out' }).first().click()
+    await page.waitForURL('**/login')
+    await expect(page.getByText("You're signed out on this device.")).toBeVisible()
+
+    await page.goto('/')
+    await page.waitForURL('**/login')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Sign in')
+  })
+
+  test('A member with no role lands on the no-role screen and can sign out', async ({ page, request }) => {
+    const member = await seedMember(request, { role: 'student', fullName: 'Zero Role User', department: 'CS', batch: 2024 })
+    emails.push(member.email)
+    // Their only role ends, as when an admin removes it.
+    const client = await getSchemaClient()
     try {
-      await dbClient.query(`UPDATE users SET status = 'active' WHERE id = $1`, [zeroRoleUserId])
+      await client.query(`DELETE FROM role_assignments WHERE user_id = $1`, [member.userId])
     } finally {
-      await dbClient.end()
+      await client.end()
     }
 
-    // Login — should succeed (no permission gate on /me anymore per ADR-015)
-    await loginViaUI(page, ZERO_ROLE.email)
-
-    // Should land on /account-pending, not dashboard
+    await loginViaUI(page, member.email)
     await page.waitForURL('**/account-pending')
-    await expect(page.locator('h1')).toContainText('Account setup incomplete')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your account has no role yet')
 
-    // Logout should work from account-pending
-    await page.getByRole('button', { name: 'Log out' }).click()
+    await page.getByRole('button', { name: 'Sign out' }).click()
     await page.waitForURL('**/login')
   })
 })

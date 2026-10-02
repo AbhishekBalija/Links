@@ -29,6 +29,7 @@ ENABLE_TEST_SIGN_IN # true only for the e2e suite; refused unless APP_ENV=local.
                     # Adds POST /api/v1/test/sign-in and GET /api/v1/test/sign-in-code?email=
                     # (the last code emailed to that address)
 GOOGLE_CLIENT_ID   # Google sign-in's OAuth client ID (public); Google sign-in is off while empty
+VITE_GOOGLE_CLIENT_ID # the same client ID for the web app; the Google button is hidden while empty
 STORAGE_PROVIDER
 STORAGE_BUCKET
 STORAGE_API_KEY

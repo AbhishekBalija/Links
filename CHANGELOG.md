@@ -7,6 +7,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New sign-in screens (#135): Continue with Google or get a 6-digit code by
+  email, with no password. Someone on no class list sends a request to their
+  HOD with just their USN, read back as Department and Batch. The first
+  sign-in shows who you signed in as, with "Not you?" to report a wrong row.
+  They replace Log in, Request access, Account pending and Activate; old
+  links lead to the new sign-in screen.
 - The class list and staff invites wait for a first sign-in (#133): an
   imported row gets no Activation email; signing in with its email, by Google
   or a code, makes it active and shows who it is, with "Not you?" to report a

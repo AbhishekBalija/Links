@@ -88,19 +88,55 @@ export async function loginViaUI(page: Page, email: string) {
   await page.waitForURL((url) => !url.pathname.includes('/login'))
 }
 
-export async function submitAccessRequestViaUI(
-	page: Page,
-	data: { full_name: string; email: string; password: string; usn: string; department_code: string; phone?: string }
-) {
-  await page.goto('/access-request')
-  await page.waitForURL('**/access-request')
-  await page.fill('#full_name', data.full_name)
-  await page.fill('#email', data.email)
-	await page.fill('#password', data.password)
-	if (data.phone) await page.fill('#phone', data.phone)
-  await page.fill('#usn', data.usn)
-  await page.selectOption('#department_code', data.department_code)
-  await page.click('button[type="submit"]')
+// signInWithCode goes through the sign-in screens with a real email code:
+// the email, then the code the server emailed (read back through the
+// test-only endpoint), then Sign in. It stops there, so each spec checks
+// where the sign-in lands.
+export async function signInWithCode(page: Page, email: string) {
+  await page.goto('/login')
+  await page.getByLabel('Email').fill(email)
+  await page.getByRole('button', { name: 'Email me a code' }).click()
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+  await typeCode(page, await lastCode(page.request, email))
+}
+
+export async function typeCode(page: Page, code: string) {
+  await page.getByLabel('6-digit code').fill(code)
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+}
+
+export async function lastCode(apiContext: APIRequestContext, email: string): Promise<string> {
+  const res = await apiContext.get(`/api/v1/test/sign-in-code?email=${encodeURIComponent(email)}`)
+  if (!res.ok()) throw new Error(`No code was sent to ${email} (${res.status()})`)
+  return (await res.json()).data.code
+}
+
+// importStudents adds class list rows the way an admin does.
+export async function importStudents(apiContext: APIRequestContext, adminToken: string, rows: Array<{ email: string; fullName: string; usn: string }>) {
+  const csv = ['email,full_name,usn', ...rows.map((r) => `${r.email},${r.fullName},${r.usn}`)].join('\n')
+  const res = await apiContext.post('/api/v1/admin/users/import', {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    multipart: { file: { name: 'class-list.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) } },
+  })
+  if (!res.ok()) throw new Error(`Import failed (${res.status()}): ${await res.text()}`)
+  const body = await res.json()
+  if (body.data.failed > 0) throw new Error(`Import rows failed: ${JSON.stringify(body.data.rows)}`)
+}
+
+// freeUSN picks a USN no one has yet. USNs are unique and other specs seed
+// students too, so it checks rather than trusting a random roll number.
+export async function freeUSN(department: string, batch: number): Promise<string> {
+  const client = await getSchemaClient()
+  try {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const candidate = `4MN${String(batch).slice(2)}${department}${String(Math.floor(Math.random() * 900) + 100)}`
+      const taken = await client.query('SELECT 1 FROM student_identities WHERE lower(usn) = lower($1)', [candidate])
+      if (taken.rowCount === 0) return candidate
+    }
+  } finally {
+    await client.end()
+  }
+  throw new Error('no free USN found')
 }
 
 // ── DB extraction helpers ──

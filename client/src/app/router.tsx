@@ -8,10 +8,9 @@ import { PageLoading } from '../shared/ui/states'
 
 // Each page is its own chunk, so the first visit downloads only the screen
 // it opens, which matters most for students on phones.
-const Login = lazy(() => import('../features/auth/pages/Login'))
-const AccessRequest = lazy(() => import('../features/auth/pages/AccessRequest'))
+const SignIn = lazy(() => import('../features/auth/pages/SignIn'))
+const FirstSignIn = lazy(() => import('../features/auth/pages/FirstSignIn'))
 const AccountPending = lazy(() => import('../features/auth/pages/AccountPending'))
-const ActivateAccount = lazy(() => import('../features/auth/pages/ActivateAccount'))
 const Home = lazy(() => import('../features/home/pages/Home'))
 const Notices = lazy(() => import('../features/notices/pages/Notices'))
 const NoticeDetail = lazy(() => import('../features/notices/pages/NoticeDetail'))
@@ -42,14 +41,16 @@ export function AppRouter() {
     <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route element={<GuestRoute />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/access-request" element={<AccessRequest />} />
-        <Route path="/activate" element={<ActivateAccount />} />
+        <Route path="/login" element={<SignIn />} />
       </Route>
+      {/* Old links from before passwordless sign-in (spec #129). */}
+      <Route path="/access-request" element={<Navigate to="/login" replace />} />
+      <Route path="/activate" element={<Navigate to="/login" replace />} />
       <Route element={<PendingRoute />}>
         <Route path="/account-pending" element={<AccountPending />} />
       </Route>
       <Route element={<ProtectedRoute />}>
+        <Route path="/welcome" element={<FirstSignIn />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<Home />} />
           <Route path="/notices" element={<Notices />} />
