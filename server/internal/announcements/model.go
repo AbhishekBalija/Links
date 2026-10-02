@@ -127,6 +127,7 @@ type Repository interface {
 	Find(ctx context.Context, id string) (*FeedEntry, error)
 	QueueSummary(ctx context.Context, scope ApproverScope) (int, *time.Time, error)
 	AuthorCounts(ctx context.Context, authorID string) (map[Status]int, int, error)
+	AuthorWork(ctx context.Context, authorID string, revision RevisionStatus, limit int) ([]AuthorWorkRow, error)
 	AudienceRules(ctx context.Context, announcementIDs []string) ([]AudienceRuleView, error)
 	Audience(ctx context.Context, announcementID string) ([]AudienceRule, error)
 	LockDepartments(ctx context.Context, departmentIDs []string) (int, error)

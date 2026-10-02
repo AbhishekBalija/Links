@@ -390,6 +390,12 @@ sections without changing these:
     "events_pending_count": 1, "oldest_event_submitted_at": "..."
   },
   "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 },
+  "my_work": {
+    "sent_back": [{ "kind": "event", "id": "...", "title": "...", "note": "Add the room booking.", "sent_back_by": "Asha Rao", "sent_back_at": "...", "is_edit": false }],
+    "sent_back_has_more": false,
+    "waiting": [{ "kind": "announcement", "id": "...", "title": "...", "waiting_on": "CS HOD", "since": "...", "is_edit": false }],
+    "waiting_has_more": false
+  },
   "opportunities": { "items": [/* next three open ones, as in the feed */], "has_more": true },
   "placement": {
     "open_count": 4, "awaiting_review_count": 2,
@@ -408,6 +414,20 @@ sections without changing these:
   without an HOD and every final approval; never the caller's own). An
   `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
+- `my_work` appears for users who can post (faculty, student coordinators, HODs
+  and so on) and for anyone with something sent back or waiting. It lists the
+  caller's own Announcements and Events, ten of each list at most (`*_has_more`
+  says there are more):
+  - `sent_back`: what a reviewer sent back to fix, newest first, with the
+    reviewer's `note` and name (`sent_back_by`) and `sent_back_at`. It holds
+    Announcements a reviewer rejected, edits to published Announcements that were
+    rejected (`is_edit`), and Events where changes were requested. A rejected
+    Event is final, so it is not here; fixing and resubmitting moves an item to
+    `waiting`.
+  - `waiting`: what is at a reviewer, longest waiting first: `waiting_on` (`CS HOD`,
+    or `Principal or admin` when the Department has no HOD or it is at final
+    approval) and `since`, when it was submitted (an Event at final approval
+    waits since its HOD approved it). `kind` is `announcement` or `event`.
 - `department` appears for HODs: their Department's `code`, `name`, number of
   `students` and `staff`, `students_by_batch` (`batch_year`, `count`) and
   `upcoming_events`, the next three published Events of the Department

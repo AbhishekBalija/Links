@@ -127,6 +127,45 @@ func (r *GormRepository) AuthorCounts(ctx context.Context, authorID string) (map
 	return counts, int(editsWaiting), err
 }
 
+// AuthorWorkRow is an Announcement of the author's whose newest revision was
+// sent back or waits: a new Announcement, or an edit to a published one.
+type AuthorWorkRow struct {
+	ID                   string     `gorm:"column:id"`
+	Title                string     `gorm:"column:title"`
+	AnnouncementStatus   Status     `gorm:"column:announcement_status"`
+	ReviewNote           *string    `gorm:"column:review_note"`
+	ReviewedAt           *time.Time `gorm:"column:reviewed_at"`
+	SubmittedAt          *time.Time `gorm:"column:submitted_at"`
+	ApproverDepartmentID *string    `gorm:"column:approver_department_id"`
+	ReviewerName         string     `gorm:"column:reviewer_name"`
+}
+
+// AuthorWork returns the author's Announcements whose newest revision has
+// the given status, rejected ones newest first and pending ones longest
+// waiting first. A published Announcement that expired is left out.
+func (r *GormRepository) AuthorWork(ctx context.Context, authorID string, revision RevisionStatus, limit int) ([]AuthorWorkRow, error) {
+	otherStatus, order := "rejected", "v.reviewed_at DESC, a.id"
+	if revision == RevisionPending {
+		otherStatus, order = "pending", "v.submitted_at, a.id"
+	}
+	var rows []AuthorWorkRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT a.id, a.title, a.status AS announcement_status, v.review_note, v.reviewed_at,
+		       v.submitted_at, v.approver_department_id, COALESCE(p.full_name, '') AS reviewer_name
+		FROM announcements a
+		JOIN LATERAL (
+			SELECT * FROM announcement_revisions rv WHERE rv.announcement_id = a.id
+			ORDER BY rv.created_at DESC, rv.id DESC LIMIT 1
+		) v ON true
+		LEFT JOIN profiles p ON p.user_id = v.reviewed_by
+		WHERE a.publisher_id = ? AND v.status = ?
+		  AND (a.status = ? OR (a.status = 'published' AND `+unexpiredSQL+`))
+		ORDER BY `+order+`
+		LIMIT ?`, authorID, revision, otherStatus, limit,
+	).Scan(&rows).Error
+	return rows, err
+}
+
 // QueueEntry is a pending revision with its submitter's name.
 type QueueEntry struct {
 	Revision

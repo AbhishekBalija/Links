@@ -18,6 +18,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Home for authors (#142): `GET /api/v1/dashboard` gets `my_work` with the
+  caller's Announcements and Events a reviewer sent back (with the note and who
+  sent it) and those waiting on a reviewer (who, and since when). Faculty and
+  student coordinators get the same section.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,
