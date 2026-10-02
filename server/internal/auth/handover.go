@@ -34,16 +34,25 @@ type Handover struct {
 
 // HandoverSummary says what ending the role did, or would do in a preview.
 type HandoverSummary struct {
-	WithdrawnAnnouncements int `json:"withdrawn_announcements"`
+	WithdrawnAnnouncements []WorkItem `json:"withdrawn_announcements"`
 	// ClosedEdits are edits to published Announcements that were waiting for
 	// approval or sent back; the published version stays.
-	ClosedEdits int `json:"closed_edits"`
+	ClosedEdits []WorkItem `json:"closed_edits"`
 	// ReturnedEvents are Event proposals sent back to private drafts.
-	ReturnedEvents int          `json:"returned_events"`
+	ReturnedEvents []WorkItem   `json:"returned_events"`
 	MovedEvents    []MovedEvent `json:"moved_events"`
 	// OrganiserNeeded is true when some upcoming Event has no one to take it
 	// over by default, so whoever ends the role must pick an Organiser.
 	OrganiserNeeded bool `json:"organiser_needed"`
+	// OrganiserOptions are the people who could run every moved Event, for
+	// the picker. Admins can too, but stay a quiet fallback.
+	OrganiserOptions []PersonRef `json:"organiser_options"`
+}
+
+// WorkItem names one Announcement or Event.
+type WorkItem struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
 }
 
 // MovedEvent is an upcoming Event that changes Organiser. Organiser is nil
@@ -62,16 +71,21 @@ type PersonRef struct {
 }
 
 func (s *HandoverSummary) add(other HandoverSummary) {
-	s.WithdrawnAnnouncements += other.WithdrawnAnnouncements
-	s.ClosedEdits += other.ClosedEdits
-	s.ReturnedEvents += other.ReturnedEvents
+	s.WithdrawnAnnouncements = append(s.WithdrawnAnnouncements, other.WithdrawnAnnouncements...)
+	s.ClosedEdits = append(s.ClosedEdits, other.ClosedEdits...)
+	s.ReturnedEvents = append(s.ReturnedEvents, other.ReturnedEvents...)
 	s.MovedEvents = append(s.MovedEvents, other.MovedEvents...)
 	s.OrganiserNeeded = s.OrganiserNeeded || other.OrganiserNeeded
+	s.OrganiserOptions = append(s.OrganiserOptions, other.OrganiserOptions...)
 }
 
 // handOver runs every module's share and adds up what they did.
 func handOver(ctx context.Context, work []UnfinishedWork, handover Handover) (HandoverSummary, error) {
-	summary := HandoverSummary{MovedEvents: []MovedEvent{}}
+	// Empty lists, not null, so clients can read every field the same way.
+	summary := HandoverSummary{
+		WithdrawnAnnouncements: []WorkItem{}, ClosedEdits: []WorkItem{}, ReturnedEvents: []WorkItem{},
+		MovedEvents: []MovedEvent{}, OrganiserOptions: []PersonRef{},
+	}
 	for _, module := range work {
 		done, err := module.HandOver(ctx, handover)
 		if err != nil {

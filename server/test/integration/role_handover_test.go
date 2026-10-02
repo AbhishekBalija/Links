@@ -62,13 +62,15 @@ func TestEndingACoordinatorWithdrawsTheirWaitingAnnouncements(t *testing.T) {
 	var ended struct {
 		Data struct {
 			Handover struct {
-				WithdrawnAnnouncements int `json:"withdrawn_announcements"`
+				WithdrawnAnnouncements []struct {
+					Title string `json:"title"`
+				} `json:"withdrawn_announcements"`
 			} `json:"handover"`
 		} `json:"data"`
 	}
 	response.Decode(t, &ended)
-	if ended.Data.Handover.WithdrawnAnnouncements != 2 {
-		t.Errorf("withdrawn announcements = %d, want 2", ended.Data.Handover.WithdrawnAnnouncements)
+	if withdrawn := ended.Data.Handover.WithdrawnAnnouncements; len(withdrawn) != 2 || withdrawn[0].Title != "Waiting notice" {
+		t.Errorf("withdrawn announcements = %+v, want the waiting and sent back notices", withdrawn)
 	}
 
 	if titles := queueTitles(t, h, hod.Token); contains(titles, "Waiting notice") {
@@ -116,13 +118,15 @@ func TestEndingACoordinatorReturnsTheirProposalsToDraft(t *testing.T) {
 	var ended struct {
 		Data struct {
 			Handover struct {
-				ReturnedEvents int `json:"returned_events"`
+				ReturnedEvents []struct {
+					ID string `json:"id"`
+				} `json:"returned_events"`
 			} `json:"handover"`
 		} `json:"data"`
 	}
 	response.Decode(t, &ended)
-	if ended.Data.Handover.ReturnedEvents != 2 {
-		t.Errorf("returned events = %d, want 2", ended.Data.Handover.ReturnedEvents)
+	if returned := ended.Data.Handover.ReturnedEvents; len(returned) != 2 {
+		t.Errorf("returned events = %+v, want 2", returned)
 	}
 
 	if queue := reviewQueue(t, h, hod.Token); len(queue) != 0 {
@@ -237,5 +241,47 @@ func TestWorkStaysWithSomeoneWhoCanStillAuthorIt(t *testing.T) {
 	expectStatus(t, "end HOD role", endRole(t, h, principal.Token, teacher.ID, roleID(t, h, principal.Token, teacher.ID, "hod"), ""), http.StatusOK)
 	if status := getEvent(t, h, principal.Token, id).Status; status != "hod_approved" {
 		t.Errorf("status = %q, want the proposal still waiting: they are still CS faculty", status)
+	}
+}
+
+func TestEndingPreviewOffersWhoCouldRunTheEvents(t *testing.T) {
+	h := apitest.New(t)
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	csFaculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	ecFaculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "EC"}}})
+	coordinator := csCoordinator(t, h)
+	other := csCoordinator(t, h)
+	facultyPublished(t, h, coordinator, hod, principal, nil)
+
+	preview := h.Do(t, http.MethodGet, "/api/v1/admin/users/"+coordinator.ID+"/roles/"+roleID(t, h, hod.Token, coordinator.ID, "student_coordinator")+"/ending", hod.Token, nil)
+	expectStatus(t, "preview", preview, http.StatusOK)
+	var previewed struct {
+		Data struct {
+			Options []struct {
+				UserID   string `json:"user_id"`
+				FullName string `json:"full_name"`
+			} `json:"organiser_options"`
+		} `json:"data"`
+	}
+	preview.Decode(t, &previewed)
+	got := map[string]bool{}
+	for _, option := range previewed.Data.Options {
+		if option.FullName == "" {
+			t.Errorf("option %s has no name", option.UserID)
+		}
+		got[option.UserID] = true
+	}
+	for name, id := range map[string]string{"CS HOD": hod.ID, "CS faculty": csFaculty.ID, "principal": principal.ID} {
+		if !got[id] {
+			t.Errorf("options miss the %s", name)
+		}
+	}
+	// Admins can run events but stay a quiet fallback; the others can't run a CS event.
+	for name, id := range map[string]string{"admin": admin.ID, "EC faculty": ecFaculty.ID, "another coordinator": other.ID, "the person": coordinator.ID} {
+		if got[id] {
+			t.Errorf("options include the %s", name)
+		}
 	}
 }

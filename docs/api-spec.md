@@ -647,15 +647,21 @@ touched: a former HOD who is still faculty of that Department keeps theirs.
 
 ```json
 "handover": {
-  "withdrawn_announcements": 1,
-  "closed_edits": 0,
-  "returned_events": 2,
+  "withdrawn_announcements": [{ "id": "uuid", "title": "Coding club meet moved to Thursday" }],
+  "closed_edits": [],
+  "returned_events": [{ "id": "uuid", "title": "Open source sprint" }],
   "moved_events": [
     { "id": "uuid", "title": "Robotics meetup", "starts_at": "...", "organiser": { "user_id": "uuid", "full_name": "Dr. Rao" } }
   ],
-  "organiser_needed": false
+  "organiser_needed": false,
+  "organiser_options": [{ "user_id": "uuid", "full_name": "Dr. Rao" }]
 }
 ```
+
+`organiser_options` lists, by name, the active people who could run every
+moved Event (their Department's HOD and faculty, the principal, the
+placement officer for training), for the picker. Admins could too but are
+left out, as the quiet fallback. Every list is `[]` when empty.
 
 `GET /api/v1/admin/users/:id/roles/:roleAssignmentId/ending` (same
 `organiser_id` query) returns that `handover` for the confirmation without

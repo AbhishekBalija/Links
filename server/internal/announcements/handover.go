@@ -48,14 +48,14 @@ func (h handover) HandOver(ctx context.Context, change auth.Handover) (auth.Hand
 		}
 		action := "announcement.edit_closed"
 		if announcement.Status == StatusPublished {
-			summary.ClosedEdits++
+			summary.ClosedEdits = append(summary.ClosedEdits, auth.WorkItem{ID: announcement.ID, Title: announcement.Title})
 		} else {
 			announcement.Status, announcement.UpdatedAt = StatusWithdrawn, change.At
 			if err := h.repositories.Announcements.UpdateAnnouncement(ctx, &announcement); err != nil {
 				return summary, err
 			}
 			action = "announcement.withdrawn"
-			summary.WithdrawnAnnouncements++
+			summary.WithdrawnAnnouncements = append(summary.WithdrawnAnnouncements, auth.WorkItem{ID: announcement.ID, Title: announcement.Title})
 		}
 		if err := audit(ctx, h.repositories, change.ActorID, action, announcement.ID, map[string]interface{}{"reason": "role_ended"}); err != nil {
 			return summary, err

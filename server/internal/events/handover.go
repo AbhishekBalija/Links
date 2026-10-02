@@ -47,6 +47,7 @@ func (h handover) HandOver(ctx context.Context, change auth.Handover) (auth.Hand
 		}
 	}
 
+	var moving []Event
 	for _, event := range unfinished {
 		if _, problem := proposalProblem(remaining, event.EventType, event.DepartmentID); problem == "" {
 			continue
@@ -55,10 +56,11 @@ func (h handover) HandOver(ctx context.Context, change auth.Handover) (auth.Hand
 			if err := h.returnToDraft(ctx, change, &event); err != nil {
 				return summary, err
 			}
-			summary.ReturnedEvents++
+			summary.ReturnedEvents = append(summary.ReturnedEvents, auth.WorkItem{ID: event.ID, Title: event.Title})
 			continue
 		}
 
+		moving = append(moving, event)
 		moved := auth.MovedEvent{ID: event.ID, Title: event.Title, StartsAt: event.StartsAt}
 		if picked != nil {
 			if _, problem := proposalProblem(pickedGrants, event.EventType, event.DepartmentID); problem != "" {
@@ -82,7 +84,48 @@ func (h handover) HandOver(ctx context.Context, change auth.Handover) (auth.Hand
 			return summary, err
 		}
 	}
+	if len(moving) > 0 {
+		summary.OrganiserOptions, err = h.organiserOptions(ctx, change.PersonID, moving)
+		if err != nil {
+			return summary, err
+		}
+	}
 	return summary, nil
+}
+
+// organiserOptions are the active staff, other than the person, who could
+// propose every one of the moving Events: its Departments' HODs and faculty,
+// the principal and, for training, the placement officer.
+func (h handover) organiserOptions(ctx context.Context, personID string, moving []Event) ([]auth.PersonRef, error) {
+	departments := []string{}
+	for _, event := range moving {
+		if event.DepartmentID != nil {
+			departments = append(departments, *event.DepartmentID)
+		}
+	}
+	candidates, err := h.repositories.Events.OrganiserCandidates(ctx, departments, personID)
+	if err != nil {
+		return nil, fmt.Errorf("find organiser candidates: %w", err)
+	}
+	options := []auth.PersonRef{}
+	for _, candidate := range candidates {
+		assignments, err := h.users.GetRoleAssignments(ctx, candidate.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("load candidate roles: %w", err)
+		}
+		grants := grantsOf(assignments)
+		canRunAll := true
+		for _, event := range moving {
+			if _, problem := proposalProblem(grants, event.EventType, event.DepartmentID); problem != "" {
+				canRunAll = false
+				break
+			}
+		}
+		if canRunAll {
+			options = append(options, candidate)
+		}
+	}
+	return options, nil
 }
 
 // organiser checks the picked Organiser is someone else, active, and returns
@@ -156,6 +199,24 @@ func (r *GormRepository) UnfinishedOf(ctx context.Context, personID string, at t
 		Order("starts_at, id").
 		Find(&events).Error
 	return events, err
+}
+
+// OrganiserCandidates lists active people, other than the given user, who
+// hold a staff role that might run an Event in these Departments, by name.
+// Admins are left out: they are the quiet fallback.
+func (r *GormRepository) OrganiserCandidates(ctx context.Context, departmentIDs []string, exceptUserID string) ([]auth.PersonRef, error) {
+	var people []auth.PersonRef
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT u.id AS user_id, p.full_name
+		FROM role_assignments ra
+		JOIN users u ON u.id = ra.user_id AND u.status = 'active'
+		JOIN profiles p ON p.user_id = u.id
+		WHERE u.id <> ?
+		  AND ra.starts_at <= now() AND (ra.ends_at IS NULL OR ra.ends_at > now())
+		  AND (ra.role IN ('principal', 'placement_officer')
+		       OR (ra.role IN ('hod', 'faculty') AND ra.scope_id IN ?))
+		ORDER BY p.full_name`, exceptUserID, append(departmentIDs, "00000000-0000-0000-0000-000000000000")).Scan(&people).Error
+	return people, err
 }
 
 // DepartmentHOD is the Department's HOD now, other than the given user, or
