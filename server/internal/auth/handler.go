@@ -3,6 +3,8 @@ package auth
 import (
 	"errors"
 	"net/http"
+	"net/mail"
+	"strings"
 
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
@@ -29,6 +31,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, cookieGuard gin.HandlerFun
 	v1 := rg.Group("/v1/auth")
 	v1.POST("/request-access", h.RequestAccess)
 	v1.POST("/login", h.Login)
+	// Signing in sets the refresh cookie, so a cross-site page mustn't be
+	// able to sign a browser into someone else's account (login CSRF).
+	v1.POST("/code", cookieGuard, h.RequestCode)
+	v1.POST("/code/verify", cookieGuard, h.VerifyCode)
 	v1.POST("/refresh", cookieGuard, h.Refresh)
 	v1.POST("/logout", cookieGuard, h.Logout)
 	v1.POST("/activate", h.Activate)
@@ -59,6 +65,45 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	resp, refreshRaw, err := h.service.Login(c.Request.Context(), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+
+	h.setRefreshCookie(c, refreshRaw)
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+func (h *Handler) RequestCode(c *gin.Context) {
+	var input RequestCodeInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	email := strings.TrimSpace(input.Email)
+	if address, err := mail.ParseAddress(email); err != nil || address.Address != email {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "enter a valid email address", nil)
+		return
+	}
+
+	challengeID, err := h.service.RequestCode(c.Request.Context(), email, c.ClientIP())
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, RequestCodeResponse{ChallengeID: challengeID, Message: CodeSentMessage}, nil)
+}
+
+func (h *Handler) VerifyCode(c *gin.Context) {
+	var input VerifyCodeInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	resp, refreshRaw, err := h.service.VerifyCode(c.Request.Context(), input.ChallengeID, input.Code)
 	if err != nil {
 		writeError(c, err)
 		return

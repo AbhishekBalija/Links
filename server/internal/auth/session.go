@@ -50,7 +50,12 @@ func (s *authService) TestSignIn(ctx context.Context, email string) (*LoginRespo
 // issueSession gives a signed-in user an access token and a stored refresh
 // token, whichever way they proved who they are.
 func (s *authService) issueSession(ctx context.Context, user *User) (*LoginResponse, string, error) {
-	roles, err := s.userRepo.GetRoleAssignments(ctx, user.ID)
+	return s.issueSessionWith(ctx, s.userRepo, s.refreshRepo, user)
+}
+
+// issueSessionWith is issueSession inside a caller's transaction.
+func (s *authService) issueSessionWith(ctx context.Context, users UserRepository, refreshTokens RefreshTokenRepository, user *User) (*LoginResponse, string, error) {
+	roles, err := users.GetRoleAssignments(ctx, user.ID)
 	if err != nil {
 		return nil, "", fmt.Errorf("get roles: %w", err)
 	}
@@ -75,7 +80,7 @@ func (s *authService) issueSession(ctx context.Context, user *User) (*LoginRespo
 		ExpiresAt: refreshRaw.ExpiresAt,
 		CreatedAt: time.Now(),
 	}
-	if err := s.refreshRepo.Create(ctx, refreshToken); err != nil {
+	if err := refreshTokens.Create(ctx, refreshToken); err != nil {
 		return nil, "", fmt.Errorf("store refresh token: %w", err)
 	}
 

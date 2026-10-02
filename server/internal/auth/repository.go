@@ -30,6 +30,7 @@ func (u *GormAuthUnitOfWork) WithinTransaction(ctx context.Context, fn func(Auth
 			Users:         NewGormUserRepository(tx),
 			RefreshTokens: NewGormRefreshTokenRepository(tx),
 			Activations:   NewGormActivationTokenRepository(tx),
+			SignInCodes:   NewGormSignInCodeRepository(tx),
 			AuditLogs:     NewGormAuditLogRepository(tx),
 		})
 	})
@@ -389,4 +390,67 @@ func (r *GormAuditLogRepository) Create(ctx context.Context, log *AuditLog) erro
 		log.MetadataJSON = &s
 	}
 	return r.db.WithContext(ctx).Create(log).Error
+}
+
+// GormSignInCodeRepository implements SignInCodeRepository.
+type GormSignInCodeRepository struct {
+	db *gorm.DB
+}
+
+func NewGormSignInCodeRepository(db *gorm.DB) *GormSignInCodeRepository {
+	return &GormSignInCodeRepository{db: db}
+}
+
+func (r *GormSignInCodeRepository) LockEmail(ctx context.Context, emailHash string) error {
+	return r.db.WithContext(ctx).Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`, "sign-in-code:"+emailHash).Error
+}
+
+func (r *GormSignInCodeRepository) DeleteCreatedBefore(ctx context.Context, before time.Time) error {
+	return r.db.WithContext(ctx).Where("created_at < ?", before).Delete(&SignInCode{}).Error
+}
+
+func (r *GormSignInCodeRepository) CountByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).Where("email_hash = ? AND created_at > ?", emailHash, since).Count(&count).Error
+	return count, err
+}
+
+func (r *GormSignInCodeRepository) CountByIPSince(ctx context.Context, ipHash string, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).Where("ip_hash = ? AND created_at > ?", ipHash, since).Count(&count).Error
+	return count, err
+}
+
+func (r *GormSignInCodeRepository) SumWrongTriesByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).Select("COALESCE(SUM(attempts), 0)").
+		Where("email_hash = ? AND created_at > ?", emailHash, since).Scan(&total).Error
+	return total, err
+}
+
+func (r *GormSignInCodeRepository) Create(ctx context.Context, code *SignInCode) error {
+	return r.db.WithContext(ctx).Create(code).Error
+}
+
+func (r *GormSignInCodeRepository) FindForUpdate(ctx context.Context, id string) (*SignInCode, error) {
+	var codes []SignInCode
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		Limit(1).
+		Find(&codes).Error
+	if err != nil || len(codes) == 0 {
+		return nil, err
+	}
+	return &codes[0], nil
+}
+
+func (r *GormSignInCodeRepository) RecordWrongTry(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Model(&SignInCode{}).Where("id = ?", id).
+		UpdateColumn("attempts", gorm.Expr("attempts + 1")).Error
+}
+
+func (r *GormSignInCodeRepository) MarkUsed(ctx context.Context, id string, at time.Time) error {
+	return r.db.WithContext(ctx).Model(&SignInCode{}).Where("id = ? AND used_at IS NULL", id).
+		UpdateColumn("used_at", at).Error
 }

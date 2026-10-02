@@ -44,6 +44,8 @@ type Harness struct {
 	database *db.Database
 	tokenCfg auth.TokenConfig
 	nextRoll int
+	// Outbox holds the emails the API sent.
+	Outbox *Outbox
 }
 
 // New creates a fresh schema, applies every migration to it, and builds the
@@ -105,7 +107,11 @@ func NewWith(t *testing.T, configure func(*config.Config)) *Harness {
 		configure(&cfg)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	router, err := app.NewServer(cfg, database, logger)
+	outbox := &Outbox{}
+	codeSettings := auth.DefaultCodeSettings()
+	// Tests don't wait out the reply floor that hides whether a code was sent.
+	codeSettings.MinReplyTime = 0
+	router, err := app.NewServer(cfg, database, logger, app.WithMailer(outbox), app.WithCodeSettings(codeSettings))
 	if err != nil {
 		t.Fatalf("build router: %v", err)
 	}
@@ -113,6 +119,7 @@ func NewWith(t *testing.T, configure func(*config.Config)) *Harness {
 	return &Harness{
 		router:   router,
 		database: database,
+		Outbox:   outbox,
 		tokenCfg: auth.TokenConfig{
 			AccessSecret:  accessSecret,
 			RefreshSecret: refreshSecret,

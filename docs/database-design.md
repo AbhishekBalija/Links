@@ -86,6 +86,34 @@ create index idx_activation_tokens_user on account_activation_tokens (user_id, c
 
 `token_hash` = `SHA-256(token)` (fast hash, not bcrypt/argon2). The token is a 32-byte `crypto/rand` value, `base64.RawURLEncoding`. On activation (single transaction): server conditionally consumes only an unused, unexpired token (`used_at IS NULL AND expires_at > now()`), verifies `SHA-256(presented_token)`, checks the affected row count (must be exactly 1 — any other count means replay or race), updates `users.password_hash` and `users.status` to `active`, marks `token.used_at`, and hashes user's password with Argon2id/bcrypt. Resend rate-limit uses this table: query by `user_id` order by `created_at desc`, reject if last token < 5 min old. Resend transactionally revokes or marks all prior unused tokens before issuing a replacement. No separate rate-limit table or Redis needed.
 
+### sign_in_codes
+
+```sql
+sign_in_codes (
+  id uuid primary key,          -- the challenge ID the browser keeps
+  email_hash text not null,
+  ip_hash text not null,
+  user_id uuid references users(id) on delete cascade,
+  code_hash text,
+  attempts int not null default 0,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+)
+```
+
+```sql
+create index idx_sign_in_codes_email_created on sign_in_codes (email_hash, created_at);
+create index idx_sign_in_codes_ip_created on sign_in_codes (ip_hash, created_at);
+```
+
+One row per email code request, whether or not a code was sent, so the
+per-email and per-IP limits count every request alike and hold across
+serverless instances (no Redis). `user_id` and `code_hash` are null when no
+code was sent. The email, the IP address and the code are stored only as
+HMAC-SHA256 values keyed with the server secret; the code's HMAC includes the
+challenge ID. Rows older than a day are deleted on the next request.
+
 ### student_identities
 
 ```sql

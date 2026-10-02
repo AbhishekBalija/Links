@@ -7,6 +7,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Sign in with a one-time email code (#131): the API emails a 6-digit code
+  that works once, for 10 minutes, in the browser that asked for it, with
+  limits on tries and requests. The reply is the same whether or not the
+  email is known. The principal and admins can't use codes. The screens
+  come later (#135).
 - HODs decide Access requests for their own Department (#122, ADR 0025):
   their review queue holds only their Department's requests, and they approve
   or reject them; the principal and admins still see every request. Home's

@@ -20,6 +20,21 @@ type LoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type RequestCodeInput struct {
+	// Checked as an email after trimming, since phones add spaces.
+	Email string `json:"email" binding:"required,max=254"`
+}
+
+type RequestCodeResponse struct {
+	ChallengeID string `json:"challenge_id"`
+	Message     string `json:"message"`
+}
+
+type VerifyCodeInput struct {
+	ChallengeID string `json:"challenge_id" binding:"required,max=64"`
+	Code        string `json:"code" binding:"required,max=16"`
+}
+
 type RequestAccessResponse struct {
 	UserID string `json:"user_id"`
 	Status string `json:"status"`

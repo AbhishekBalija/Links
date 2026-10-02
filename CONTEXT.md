@@ -33,6 +33,10 @@ _Avoid_: verification (the `is_verified` flag is its result, not the step), plai
 **Activation**:
 The user setting their password through a single-use emailed link, which moves the account from `pending` to `active`.
 
+**Sign-in code**:
+A 6-digit code emailed to someone signing in without Google. It works once, for 10 minutes, in the browser that asked for it. The principal and admins can't use one.
+_Avoid_: OTP, magic code, PIN
+
 **Account status**:
 Where an account is in its lifecycle: `pending`, `active`, `rejected` or `suspended`. Only `active` accounts can use protected features.
 

@@ -168,6 +168,23 @@ type AccountActivationToken struct {
 
 func (AccountActivationToken) TableName() string { return "account_activation_tokens" }
 
+// SignInCode is one email code request (sign_in_codes). Its ID is the
+// challenge the browser keeps. UserID and CodeHash are nil when no code was
+// sent.
+type SignInCode struct {
+	ID        string     `gorm:"column:id;primaryKey"`
+	EmailHash string     `gorm:"column:email_hash"`
+	IPHash    string     `gorm:"column:ip_hash"`
+	UserID    *string    `gorm:"column:user_id"`
+	CodeHash  *string    `gorm:"column:code_hash"`
+	Attempts  int        `gorm:"column:attempts"`
+	ExpiresAt time.Time  `gorm:"column:expires_at"`
+	UsedAt    *time.Time `gorm:"column:used_at"`
+	CreatedAt time.Time  `gorm:"column:created_at"`
+}
+
+func (SignInCode) TableName() string { return "sign_in_codes" }
+
 // PasswordHasher defines the interface for password hashing.
 type PasswordHasher interface {
 	Hash(password string) (string, error)
@@ -179,6 +196,8 @@ type AuthService interface {
 	RequestAccess(ctx context.Context, input RequestAccessInput) (*RequestAccessResponse, error)
 	Login(ctx context.Context, input LoginInput) (*LoginResponse, string, error)
 	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
+	RequestCode(ctx context.Context, email, ip string) (string, error)
+	VerifyCode(ctx context.Context, challengeID, code string) (*LoginResponse, string, error)
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	ActivateAccount(ctx context.Context, token, password string) error
@@ -276,6 +295,20 @@ type ActivationTokenRepository interface {
 	RevokeAllUnusedByUserID(ctx context.Context, userID string) error
 }
 
+// SignInCodeRepository stores email code requests.
+type SignInCodeRepository interface {
+	// LockEmail holds a lock on the email hash until the transaction ends.
+	LockEmail(ctx context.Context, emailHash string) error
+	DeleteCreatedBefore(ctx context.Context, before time.Time) error
+	CountByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error)
+	CountByIPSince(ctx context.Context, ipHash string, since time.Time) (int64, error)
+	SumWrongTriesByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error)
+	Create(ctx context.Context, code *SignInCode) error
+	FindForUpdate(ctx context.Context, id string) (*SignInCode, error)
+	RecordWrongTry(ctx context.Context, id string) error
+	MarkUsed(ctx context.Context, id string, at time.Time) error
+}
+
 // AuditLogRepository defines the interface for audit log persistence.
 type AuditLogRepository interface {
 	Create(ctx context.Context, log *AuditLog) error
@@ -286,6 +319,7 @@ type AuthRepositories struct {
 	Users         UserRepository
 	RefreshTokens RefreshTokenRepository
 	Activations   ActivationTokenRepository
+	SignInCodes   SignInCodeRepository
 	AuditLogs     AuditLogRepository
 }
 

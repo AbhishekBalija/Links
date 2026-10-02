@@ -347,6 +347,8 @@ func (f *fakeMailer) SendActivationEmail(to, name, activationLink string) error 
 	return f.err
 }
 
+func (f *fakeMailer) SendSignInCode(_, _ string) error { return nil }
+
 func (f *fakeMailer) SendActivationEmails(emails []mailer.ActivationEmail) error {
 	f.batches = append(f.batches, emails)
 	return f.batchErr[len(f.batches)-1]
@@ -383,7 +385,7 @@ func newAuthHarness(t *testing.T) *authHarness {
 		AccessTTL:     15 * time.Minute,
 		RefreshTTL:    7 * 24 * time.Hour,
 	}
-	service := NewAuthService(users, refreshTokens, activations, uow, cfg, hasher, mailer, "https://links.example.com")
+	service := NewAuthService(users, refreshTokens, activations, uow, cfg, hasher, mailer, "https://links.example.com", DefaultCodeSettings())
 	return &authHarness{
 		service:       service,
 		users:         users,

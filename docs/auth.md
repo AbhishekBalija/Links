@@ -67,6 +67,29 @@ JWT rules:
 - Include issuer, audience, subject, issued-at, expiry, and token ID.
 - Reject tokens for inactive users.
 
+**Email code (sign-in, spec #129):**
+
+- A 6-digit code from `crypto/rand`, emailed through Resend with "never share
+  this code". It works once, for 10 minutes, and only with the challenge ID
+  the requesting browser got back.
+- Stored only as `HMAC-SHA256(server secret, challenge ID + code)`, in
+  `sign_in_codes`. A 6-digit code has too little entropy for a plain hash.
+- 5 wrong tries kill the code. At most 3 requests per email and 60 per IP
+  address in 15 minutes, counted in the database so every serverless
+  instance sees them, and at most 10 requests per email in a day. Emails and
+  IPs are stored as keyed hashes.
+- After 10 wrong guesses at an email's codes within a day, that email gets
+  no new code for the rest of the day (the reply still looks the same). This
+  stops someone guessing by asking for code after code: without it, about
+  1,400 guesses a day would find a 6-digit code within a year.
+- The reply is the same for every email, and padded to at least a second.
+- Only active members who are not the principal or an admin get a code;
+  the principal and admins sign in with Google only (ADR 0026). The account
+  is checked again when the code is entered.
+- On Vercel the client's address comes from `X-Real-IP`, which Vercel sets
+  itself; elsewhere the connection's address is used, since a header could
+  be forged.
+
 ## Cookie Strategy
 
 For web:
