@@ -290,12 +290,11 @@ func (run *importer) create(ctx context.Context, row importRow, department *Depa
 		Email: &row.Email,
 		// No password: pending and verified means waiting for the first
 		// sign-in, which makes the account active.
-		PasswordHash: "",
-		Status:       UserStatusPending,
-		IsVerified:   true,
-		CreatedBy:    &run.actorID,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		Status:     UserStatusPending,
+		IsVerified: true,
+		CreatedBy:  &run.actorID,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	var problem string
 	err = run.service.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {

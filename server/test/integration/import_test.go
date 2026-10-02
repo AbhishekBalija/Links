@@ -68,11 +68,9 @@ func TestAdminImportCreatesPendingVerifiedStudents(t *testing.T) {
 		Code       string
 		BatchYear  int
 		Role       string
-		Tokens     int
 	}
 	err := h.DB().Raw(`
-		SELECT u.status, u.is_verified, u.created_by, s.usn, d.code, s.batch_year, r.role,
-			(SELECT count(*) FROM account_activation_tokens a WHERE a.user_id = u.id AND a.used_at IS NULL) AS tokens
+		SELECT u.status, u.is_verified, u.created_by, s.usn, d.code, s.batch_year, r.role
 		FROM users u
 		JOIN student_identities s ON s.user_id = u.id
 		JOIN departments d ON d.id = s.department_id
@@ -86,9 +84,6 @@ func TestAdminImportCreatesPendingVerifiedStudents(t *testing.T) {
 	}
 	if student.USN != "4MN23CS101" || student.Code != "CS" || student.BatchYear != 2023 || student.Role != "student" {
 		t.Errorf("identity = %+v, want 4MN23CS101 in CS, Batch 2023, student role", student)
-	}
-	if student.Tokens != 0 {
-		t.Errorf("activation tokens = %d, want none: the row waits for first sign-in", student.Tokens)
 	}
 
 	var audits struct{ Import, Users int }

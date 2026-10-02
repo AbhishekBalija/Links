@@ -79,15 +79,9 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 	if st == "" {
 		st = ScopeGlobal
 	}
-	token, tokenRaw, err := newActivationToken(userID)
-	if err != nil {
-		return err
-	}
-	// A request sent without a password (spec #129) has nothing to
-	// activate: approval leaves it waiting for its first sign-in.
-	var passwordless bool
-	var email, fullName string
-	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+	// Approval leaves the account waiting for its first sign-in (spec #129):
+	// there is nothing to activate and no email to send.
+	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
@@ -104,11 +98,6 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		}
 		if user.Email == nil {
 			return fmt.Errorf("verified user has no email")
-		}
-		email = *user.Email
-		passwordless = user.PasswordHash == ""
-		if user.Profile != nil {
-			fullName = user.Profile.FullName
 		}
 
 		if st == ScopeDepartment {
@@ -137,8 +126,7 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 			return fmt.Errorf("create role assignment: %w", err)
 		}
 
-		// Approval grants the role and permits activation; the activation link is
-		// the only transition that makes a self-service account active.
+		// Approval grants the role; the first sign-in makes the account active.
 		user.IsVerified = true
 		user.UpdatedAt = now
 		if err := repos.Users.Update(ctx, user); err != nil {
@@ -158,28 +146,8 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
 			return fmt.Errorf("create audit log: %w", err)
 		}
-		if passwordless {
-			return nil
-		}
-		if err := repos.Activations.Create(ctx, token); err != nil {
-			return fmt.Errorf("create activation token: %w", err)
-		}
 		return nil
-	}); err != nil {
-		return err
-	}
-	if passwordless {
-		return nil
-	}
-
-	if err := s.sendStoredActivationEmail(email, fullName, tokenRaw); err != nil {
-		if invalidateErr := s.invalidateActivationToken(ctx, token.ID); invalidateErr != nil {
-			return fmt.Errorf("send activation email: %v; invalidate failed token: %w", err, invalidateErr)
-		}
-		return fmt.Errorf("send activation email: %w", err)
-	}
-
-	return nil
+	})
 }
 
 // UpdateUserStatus suspends, reactivates or rejects a user. The principal and

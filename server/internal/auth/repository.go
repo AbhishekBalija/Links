@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var errActivationTokenUnavailable = errors.New("activation token is unavailable")
 var errRefreshTokenUnavailable = errors.New("refresh token is unavailable")
 
 // GormAuthUnitOfWork creates transaction-scoped auth repositories.
@@ -29,7 +28,6 @@ func (u *GormAuthUnitOfWork) WithinTransaction(ctx context.Context, fn func(Auth
 		return fn(AuthRepositories{
 			Users:         NewGormUserRepository(tx),
 			RefreshTokens: NewGormRefreshTokenRepository(tx),
-			Activations:   NewGormActivationTokenRepository(tx),
 			SignInCodes:   NewGormSignInCodeRepository(tx),
 			AuditLogs:     NewGormAuditLogRepository(tx),
 		})
@@ -399,59 +397,6 @@ func (r *GormRefreshTokenRepository) RevokeAllByUserID(ctx context.Context, user
 	return r.db.WithContext(ctx).Model(&RefreshToken{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Update("revoked_at", time.Now()).Error
-}
-
-// GormActivationTokenRepository implements ActivationTokenRepository.
-type GormActivationTokenRepository struct {
-	db *gorm.DB
-}
-
-func NewGormActivationTokenRepository(db *gorm.DB) *GormActivationTokenRepository {
-	return &GormActivationTokenRepository{db: db}
-}
-
-func (r *GormActivationTokenRepository) Create(ctx context.Context, token *AccountActivationToken) error {
-	return r.db.WithContext(ctx).Create(token).Error
-}
-
-func (r *GormActivationTokenRepository) FindLatestByUserID(ctx context.Context, userID string) (*AccountActivationToken, error) {
-	var token AccountActivationToken
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("created_at desc").First(&token).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	return &token, err
-}
-
-func (r *GormActivationTokenRepository) RevokeAllUnusedByUserID(ctx context.Context, userID string) error {
-	return r.db.WithContext(ctx).Model(&AccountActivationToken{}).
-		Where("user_id = ? AND used_at IS NULL", userID).
-		UpdateColumn("used_at", time.Now()).
-		Error
-}
-
-func (r *GormActivationTokenRepository) FindByHash(ctx context.Context, hash string) (*AccountActivationToken, error) {
-	var token AccountActivationToken
-	err := r.db.WithContext(ctx).Where("token_hash = ?", hash).First(&token).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	return &token, err
-}
-
-func (r *GormActivationTokenRepository) MarkUsed(ctx context.Context, id string) error {
-	now := time.Now()
-	result := r.db.WithContext(ctx).
-		Model(&AccountActivationToken{}).
-		Where("id = ? AND used_at IS NULL AND expires_at > ?", id, now).
-		Update("used_at", now)
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected != 1 {
-		return fmt.Errorf("%w: token already used, expired, or missing", errActivationTokenUnavailable)
-	}
-	return nil
 }
 
 // GormAuditLogRepository implements AuditLogRepository using GORM.

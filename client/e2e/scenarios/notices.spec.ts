@@ -1,23 +1,16 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
-import { getDatabaseURL, getSchemaClient, replaceActivationToken } from '../helpers/db'
+import { getDatabaseURL, getSchemaClient } from '../helpers/db'
 import {
   bootstrapAdmin,
   setupAdmin,
   loginViaUI,
   cleanupTestUsers,
-  getUserIdByEmail,
-  adminApproveUser,
+  seedMember,
   expectHome,
 } from '../helpers/auth'
 
-const TS = Date.now()
-const YEAR = String(new Date().getFullYear()).slice(2)
-const STUDENT = {
-  email: `e2e-reader-${TS}@test.com`,
-  password: 'E2EPass123',
-  full_name: 'Priya Kumar',
-  usn: `4MN${YEAR}CS${String(TS).slice(-3)}`,
-}
+const YEAR = new Date().getFullYear()
+const STUDENT = { email: '' }
 // Older notices that push the feed past one page (20), so scrolling must load more.
 const CIRCULARS = 22
 const DAY = 24 * 60 * 60 * 1000
@@ -48,18 +41,8 @@ test.describe('Reading notices', () => {
     const admin = await bootstrapAdmin(dbURL)
     const adminToken = await setupAdmin(request, dbURL, admin)
 
-    // The student joins through the real access request, so they have a
-    // Student identity in CS like any student would.
-    const access = await request.post('/api/v1/auth/request-access', {
-      data: { ...STUDENT, department_code: 'CS' },
-    })
-    expect(access.ok()).toBeTruthy()
-    const userId = await getUserIdByEmail(dbURL, STUDENT.email)
-    await adminApproveUser(request, adminToken, userId)
-    const activation = await request.post('/api/v1/auth/activate', {
-      data: { token: await replaceActivationToken(userId), password: STUDENT.password },
-    })
-    expect(activation.ok()).toBeTruthy()
+    // A CS student, set up directly (not what this spec tests).
+    STUDENT.email = (await seedMember(request, { role: 'student', fullName: 'Priya Kumar', department: 'CS', batch: YEAR })).email
 
     const cs = await departmentId('CS')
     const ec = await departmentId('EC')

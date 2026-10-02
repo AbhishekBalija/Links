@@ -263,7 +263,7 @@ The required club, alumni, and mentorship tables are already defined in `databas
 - Tests that write data run against an isolated database or schema (the e2e harness creates its own), never the shared Neon dev branch.
 - Never weaken a test assertion to make CI pass. In Phase 1 a loosened e2e check hid a live bug (the dashboard showed "no role" because `roles` was typed as objects but sent as strings).
 - Automated e2e tests catch what manual testing misses: in Phase 1 they found that reloading the page logged the user out, because the access token was only in memory. `initializeAuth` now restores the session from the refresh cookie first.
-- Never print activation links or raw tokens to logs. To test activation locally, use a real Resend key or insert a known token hash in a test database.
+- Never print sign-in codes or raw tokens to logs. To sign in with a code locally without email, use `ENABLE_TEST_SIGN_IN=true` and `GET /api/v1/test/sign-in-code` (local only).
 - As new env vars get activated phase by phase (JWT secrets in Phase 1, storage/email keys in Phase 5's lead-up, VAPID keys in Phase 5), keep `environment.md` in sync with what `config.go` actually validates.
 
 ---

@@ -10,9 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -251,56 +249,6 @@ func (f *fakeRefreshTokenRepo) RevokeAllByUserID(ctx context.Context, userID str
 	return nil
 }
 
-type fakeActivationTokenRepo struct {
-	create                  func(ctx context.Context, token *AccountActivationToken) error
-	findByHash              func(ctx context.Context, hash string) (*AccountActivationToken, error)
-	findLatestByUserID      func(ctx context.Context, userID string) (*AccountActivationToken, error)
-	markUsed                func(ctx context.Context, id string) error
-	revokeAllUnusedByUserID func(ctx context.Context, userID string) error
-
-	created       []*AccountActivationToken
-	markedUsed    []string
-	revokedUnused []string
-}
-
-func (f *fakeActivationTokenRepo) Create(ctx context.Context, token *AccountActivationToken) error {
-	if f.create != nil {
-		return f.create(ctx, token)
-	}
-	f.created = append(f.created, token)
-	return nil
-}
-
-func (f *fakeActivationTokenRepo) FindByHash(ctx context.Context, hash string) (*AccountActivationToken, error) {
-	if f.findByHash != nil {
-		return f.findByHash(ctx, hash)
-	}
-	return nil, nil
-}
-
-func (f *fakeActivationTokenRepo) FindLatestByUserID(ctx context.Context, userID string) (*AccountActivationToken, error) {
-	if f.findLatestByUserID != nil {
-		return f.findLatestByUserID(ctx, userID)
-	}
-	return nil, nil
-}
-
-func (f *fakeActivationTokenRepo) MarkUsed(ctx context.Context, id string) error {
-	f.markedUsed = append(f.markedUsed, id)
-	if f.markUsed != nil {
-		return f.markUsed(ctx, id)
-	}
-	return nil
-}
-
-func (f *fakeActivationTokenRepo) RevokeAllUnusedByUserID(ctx context.Context, userID string) error {
-	f.revokedUnused = append(f.revokedUnused, userID)
-	if f.revokeAllUnusedByUserID != nil {
-		return f.revokeAllUnusedByUserID(ctx, userID)
-	}
-	return nil
-}
-
 type fakeAuditLogRepo struct {
 	created []*AuditLog
 }
@@ -313,7 +261,6 @@ func (f *fakeAuditLogRepo) Create(_ context.Context, log *AuditLog) error {
 type fakeUnitOfWork struct {
 	users         *fakeUserRepo
 	refreshTokens *fakeRefreshTokenRepo
-	activations   *fakeActivationTokenRepo
 	auditLogs     *fakeAuditLogRepo
 }
 
@@ -321,63 +268,19 @@ func (u *fakeUnitOfWork) WithinTransaction(ctx context.Context, fn func(AuthRepo
 	return fn(AuthRepositories{
 		Users:         u.users,
 		RefreshTokens: u.refreshTokens,
-		Activations:   u.activations,
 		AuditLogs:     u.auditLogs,
 	})
 }
 
-type fakeHasher struct {
-	hashFn   func(password string) (string, error)
-	verifyFn func(password, hash string) (bool, error)
-}
+type fakeMailer struct{}
 
-func (f *fakeHasher) Hash(password string) (string, error) {
-	if f.hashFn != nil {
-		return f.hashFn(password)
-	}
-	return "hash:" + password, nil
-}
-
-func (f *fakeHasher) Verify(password, hash string) (bool, error) {
-	if f.verifyFn != nil {
-		return f.verifyFn(password, hash)
-	}
-	return hash == "hash:"+password, nil
-}
-
-type sentMail struct {
-	to, name, link string
-}
-
-type fakeMailer struct {
-	err  error
-	sent []sentMail
-	// batches holds each SendActivationEmails call; batchErr fails the
-	// batch at that index.
-	batches  [][]mailer.ActivationEmail
-	batchErr map[int]error
-}
-
-func (f *fakeMailer) SendActivationEmail(to, name, activationLink string) error {
-	f.sent = append(f.sent, sentMail{to: to, name: name, link: activationLink})
-	return f.err
-}
-
-func (f *fakeMailer) SendSignInCode(_, _ string) error { return nil }
-
-func (f *fakeMailer) SendActivationEmails(emails []mailer.ActivationEmail) error {
-	f.batches = append(f.batches, emails)
-	return f.batchErr[len(f.batches)-1]
-}
+func (fakeMailer) SendSignInCode(_, _ string) error { return nil }
 
 type authHarness struct {
 	service       AuthService
 	users         *fakeUserRepo
 	refreshTokens *fakeRefreshTokenRepo
-	activations   *fakeActivationTokenRepo
 	auditLogs     *fakeAuditLogRepo
-	hasher        *fakeHasher
-	mailer        *fakeMailer
 	cfg           TokenConfig
 }
 
@@ -385,14 +288,10 @@ func newAuthHarness(t *testing.T) *authHarness {
 	t.Helper()
 	users := &fakeUserRepo{}
 	refreshTokens := &fakeRefreshTokenRepo{}
-	activations := &fakeActivationTokenRepo{}
 	auditLogs := &fakeAuditLogRepo{}
-	hasher := &fakeHasher{}
-	mailer := &fakeMailer{}
 	uow := &fakeUnitOfWork{
 		users:         users,
 		refreshTokens: refreshTokens,
-		activations:   activations,
 		auditLogs:     auditLogs,
 	}
 	cfg := TokenConfig{
@@ -401,15 +300,12 @@ func newAuthHarness(t *testing.T) *authHarness {
 		AccessTTL:     15 * time.Minute,
 		RefreshTTL:    7 * 24 * time.Hour,
 	}
-	service := NewAuthService(users, refreshTokens, activations, uow, cfg, hasher, mailer, "https://links.example.com", DefaultCodeSettings(), nil)
+	service := NewAuthService(users, refreshTokens, uow, cfg, fakeMailer{}, DefaultCodeSettings(), nil)
 	return &authHarness{
 		service:       service,
 		users:         users,
 		refreshTokens: refreshTokens,
-		activations:   activations,
 		auditLogs:     auditLogs,
-		hasher:        hasher,
-		mailer:        mailer,
 		cfg:           cfg,
 	}
 }
@@ -562,95 +458,7 @@ func TestRefresh_RejectsInactiveUser(t *testing.T) {
 	requireAppError(t, err, "UNAUTHENTICATED", http.StatusUnauthorized)
 }
 
-func TestActivateAccount_ActivatesPendingUser(t *testing.T) {
-	h := newAuthHarness(t)
-	ctx := context.Background()
-	userID := "user-1"
-	raw := "raw-activation-token"
-	activation := &AccountActivationToken{
-		ID:        "tok-1",
-		UserID:    userID,
-		TokenHash: HashRefreshToken(raw),
-		Purpose:   "activate",
-		ExpiresAt: time.Now().Add(24 * time.Hour),
-		CreatedAt: time.Now(),
-	}
-
-	h.activations.findByHash = func(_ context.Context, hash string) (*AccountActivationToken, error) {
-		if hash != activation.TokenHash {
-			return nil, nil
-		}
-		return activation, nil
-	}
-	h.users.findByID = func(_ context.Context, id string) (*User, error) {
-		return &User{ID: id, Status: UserStatusPending, PasswordHash: "hash:old-password"}, nil
-	}
-
-	if err := h.service.ActivateAccount(ctx, raw, "NewPass1"); err != nil {
-		t.Fatalf("activate: %v", err)
-	}
-	if len(h.activations.markedUsed) != 1 || h.activations.markedUsed[0] != activation.ID {
-		t.Fatalf("activation token %q not marked used, got %v", activation.ID, h.activations.markedUsed)
-	}
-	if len(h.users.updatedUsers) != 1 {
-		t.Fatalf("expected one user update, got %d", len(h.users.updatedUsers))
-	}
-	updated := h.users.updatedUsers[0]
-	if updated.Status != UserStatusActive || !updated.IsVerified {
-		t.Fatalf("user not activated: status=%q verified=%v", updated.Status, updated.IsVerified)
-	}
-	if updated.PasswordHash != "hash:NewPass1" {
-		t.Fatalf("password hash not updated: %q", updated.PasswordHash)
-	}
-}
-
-func TestActivateAccount_RejectsInvalidTokens(t *testing.T) {
-	now := time.Now()
-	tests := []struct {
-		name       string
-		activation *AccountActivationToken
-		markUsed   func(ctx context.Context, id string) error
-	}{
-		{"used", &AccountActivationToken{ID: "t", UserID: "u", ExpiresAt: now.Add(time.Hour), UsedAt: &now}, nil},
-		{"expired", &AccountActivationToken{ID: "t", UserID: "u", ExpiresAt: now.Add(-time.Hour)}, nil},
-		{"unknown", nil, nil},
-		{"consumed concurrently", &AccountActivationToken{ID: "t", UserID: "u", ExpiresAt: now.Add(time.Hour)}, func(_ context.Context, _ string) error {
-			return fmt.Errorf("%w: token already used, expired, or missing", errActivationTokenUnavailable)
-		}},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			h := newAuthHarness(t)
-			h.activations.findByHash = func(_ context.Context, _ string) (*AccountActivationToken, error) {
-				return tc.activation, nil
-			}
-			if tc.markUsed != nil {
-				h.activations.markUsed = tc.markUsed
-			}
-			err := h.service.ActivateAccount(context.Background(), "raw-token", "NewPass1")
-			requireAppError(t, err, "UNAUTHENTICATED", http.StatusUnauthorized)
-			if len(h.users.updatedUsers) != 0 {
-				t.Fatal("user must not be updated when activation fails")
-			}
-		})
-	}
-}
-
-func TestActivateAccount_MissingUserIsNotFound(t *testing.T) {
-	h := newAuthHarness(t)
-	now := time.Now()
-
-	h.activations.findByHash = func(_ context.Context, _ string) (*AccountActivationToken, error) {
-		return &AccountActivationToken{ID: "t", UserID: "u", ExpiresAt: now.Add(time.Hour)}, nil
-	}
-	h.users.findByID = func(_ context.Context, _ string) (*User, error) {
-		return nil, nil
-	}
-
-	requireAppError(t, h.service.ActivateAccount(context.Background(), "raw-token", "NewPass1"), "NOT_FOUND", http.StatusNotFound)
-}
-
-func TestVerifyUser_ApprovesPendingStudentAndIssuesActivation(t *testing.T) {
+func TestVerifyUser_ApprovesPendingStudentToWaitForFirstSignIn(t *testing.T) {
 	h := newAuthHarness(t)
 	ctx := context.Background()
 	userID, actorID := "user-1", "admin-1"
@@ -658,11 +466,10 @@ func TestVerifyUser_ApprovesPendingStudentAndIssuesActivation(t *testing.T) {
 
 	h.users.findByIDForUpdate = func(_ context.Context, id string) (*User, error) {
 		return &User{
-			ID:           id,
-			Email:        &email,
-			PasswordHash: "a password from the request form",
-			Status:       UserStatusPending,
-			Profile:      &Profile{UserID: id, FullName: "Test Student"},
+			ID:      id,
+			Email:   &email,
+			Status:  UserStatusPending,
+			Profile: &Profile{UserID: id, FullName: "Test Student"},
 		}, nil
 	}
 
@@ -688,26 +495,8 @@ func TestVerifyUser_ApprovesPendingStudentAndIssuesActivation(t *testing.T) {
 	if len(h.auditLogs.created) != 1 || h.auditLogs.created[0].Action != "user_verified" {
 		t.Fatalf("expected user_verified audit log, got %+v", h.auditLogs.created)
 	}
-	if len(h.activations.created) != 1 {
-		t.Fatalf("expected one activation token, got %d", len(h.activations.created))
-	}
-	token := h.activations.created[0]
-	if token.UserID != userID || token.Purpose != "activate" {
-		t.Fatalf("unexpected activation token: %+v", token)
-	}
-	if len(h.mailer.sent) != 1 {
-		t.Fatalf("expected one activation email, got %d", len(h.mailer.sent))
-	}
-	sent := h.mailer.sent[0]
-	if sent.to != email || sent.name != "Test Student" {
-		t.Fatalf("email sent to %q (%q), want %q (Test Student)", sent.to, sent.name, email)
-	}
-	const prefix = "https://links.example.com/activate?token="
-	if !strings.HasPrefix(sent.link, prefix) {
-		t.Fatalf("activation link %q does not start with %q", sent.link, prefix)
-	}
-	if HashRefreshToken(strings.TrimPrefix(sent.link, prefix)) != token.TokenHash {
-		t.Fatal("activation link token does not hash to the stored token")
+	if h.users.updatedUsers[0].Status != UserStatusPending {
+		t.Fatalf("status = %q, want pending until the first sign-in", h.users.updatedUsers[0].Status)
 	}
 }
 
@@ -730,213 +519,7 @@ func TestVerifyUser_RequiresPendingUnverifiedUser(t *testing.T) {
 			}
 			err := h.service.VerifyUser(context.Background(), "admin-1", "u", "", "", "")
 			requireAppError(t, err, tc.code, tc.status)
-			if len(h.mailer.sent) != 0 {
-				t.Fatal("no email should be sent for a rejected approval")
-			}
 		})
-	}
-}
-
-func TestVerifyUser_InvalidatesTokenWhenEmailFails(t *testing.T) {
-	h := newAuthHarness(t)
-	ctx := context.Background()
-	email := "student@example.com"
-
-	h.users.findByIDForUpdate = func(_ context.Context, id string) (*User, error) {
-		return &User{ID: id, Email: &email, PasswordHash: "a password from the request form", Status: UserStatusPending}, nil
-	}
-	h.mailer.err = errors.New("resend is down")
-
-	if err := h.service.VerifyUser(ctx, "admin-1", "u", "", "", ""); err == nil {
-		t.Fatal("expected error when activation email fails")
-	}
-	if len(h.activations.created) != 1 {
-		t.Fatalf("expected an activation token to be issued, got %d", len(h.activations.created))
-	}
-	if len(h.activations.markedUsed) != 1 || h.activations.markedUsed[0] != h.activations.created[0].ID {
-		t.Fatalf("failed email must invalidate the issued token, marked used: %v", h.activations.markedUsed)
-	}
-}
-
-func TestRequestAccess_CreatesPendingUserAndProfile(t *testing.T) {
-	h := newAuthHarness(t)
-	ctx := context.Background()
-	year := 2024
-
-	h.users.findDepartmentByCode = func(_ context.Context, code string) (*Department, error) {
-		if code != "CS" {
-			return nil, nil
-		}
-		return &Department{ID: "dept-cs", Code: "CS", Name: "Computer Science"}, nil
-	}
-
-	resp, err := h.service.RequestAccess(ctx, RequestAccessInput{
-		Email:          "new@example.com",
-		Password:       "StrongPass1",
-		FullName:       "New Student",
-		DepartmentCode: "CS",
-		BatchYear:      &year,
-		Phone:          "  +1-555-0100  ",
-	})
-	if err != nil {
-		t.Fatalf("request access: %v", err)
-	}
-	if resp.UserID == "" || resp.Status != string(UserStatusPending) {
-		t.Fatalf("unexpected response: %+v", resp)
-	}
-	if len(h.users.createdUsers) != 1 {
-		t.Fatalf("expected one created user, got %d", len(h.users.createdUsers))
-	}
-	u := h.users.createdUsers[0]
-	if u.Status != UserStatusPending || u.IsVerified {
-		t.Fatalf("new user must start pending and unverified: %+v", u)
-	}
-	if u.Email == nil || *u.Email != "new@example.com" {
-		t.Fatalf("unexpected email: %v", u.Email)
-	}
-	if u.Phone == nil || *u.Phone != "+1-555-0100" {
-		t.Fatalf("phone was not trimmed: %v", u.Phone)
-	}
-	if len(h.users.createdProfiles) != 1 {
-		t.Fatalf("expected one profile, got %d", len(h.users.createdProfiles))
-	}
-	p := h.users.createdProfiles[0]
-	if p.UserID != u.ID || p.FullName != "New Student" {
-		t.Fatalf("unexpected profile: %+v", p)
-	}
-	if !strings.HasPrefix(p.Username, "new.student") {
-		t.Fatalf("expected username derived from full name, got %q", p.Username)
-	}
-	if len(h.users.createdIdentities) != 0 {
-		t.Fatal("no student identity expected when USN is empty")
-	}
-}
-
-func TestRequestAccess_RejectsRegisteredEmail(t *testing.T) {
-	h := newAuthHarness(t)
-	email := "taken@example.com"
-
-	h.users.findByEmail = func(_ context.Context, e string) (*User, error) {
-		if e == email {
-			return &User{ID: "u-1", Email: &email}, nil
-		}
-		return nil, nil
-	}
-
-	_, err := h.service.RequestAccess(context.Background(), RequestAccessInput{
-		Email: email, Password: "StrongPass1", FullName: "Someone",
-	})
-	requireAppError(t, err, "CONFLICT", http.StatusConflict)
-	if len(h.users.createdUsers) != 0 {
-		t.Fatal("no user may be created for a duplicate email")
-	}
-}
-
-func TestRequestAccess_MapsUniqueEmailViolationToConflict(t *testing.T) {
-	h := newAuthHarness(t)
-
-	h.users.create = func(_ context.Context, _ *User) error {
-		return &pgconn.PgError{Code: "23505", ConstraintName: "idx_users_email"}
-	}
-
-	_, err := h.service.RequestAccess(context.Background(), RequestAccessInput{
-		Email: "dup@example.com", Password: "StrongPass1", FullName: "Not So Fast",
-	})
-	requireAppError(t, err, "CONFLICT", http.StatusConflict)
-}
-
-func TestRequestAccess_DerivesDepartmentFromUSN(t *testing.T) {
-	h := newAuthHarness(t)
-	ctx := context.Background()
-	year := 2023
-
-	h.users.findDepartmentByCode = func(_ context.Context, code string) (*Department, error) {
-		if code != "CS" {
-			return nil, nil
-		}
-		return &Department{ID: "dept-cs", Code: "CS", Name: "Computer Science"}, nil
-	}
-
-	_, err := h.service.RequestAccess(ctx, RequestAccessInput{
-		Email: "student@example.com", Password: "StrongPass1", FullName: "A B",
-		USN: "4MN23CS005", BatchYear: &year,
-	})
-	if err != nil {
-		t.Fatalf("request access: %v", err)
-	}
-	if len(h.users.createdIdentities) != 1 {
-		t.Fatalf("expected one student identity, got %d", len(h.users.createdIdentities))
-	}
-	id := h.users.createdIdentities[0]
-	if id.USN != "4MN23CS005" || id.DepartmentID != "dept-cs" || id.BatchYear != year {
-		t.Fatalf("unexpected student identity: %+v", id)
-	}
-}
-
-func TestRequestAccess_RejectsBadDepartmentInputs(t *testing.T) {
-	tests := []struct {
-		name  string
-		input RequestAccessInput
-	}{
-		{"invalid usn", RequestAccessInput{
-			Email: "a@example.com", Password: "StrongPass1", FullName: "A B", USN: "4MN99CS001",
-		}},
-		{"unknown department code", RequestAccessInput{
-			Email: "a@example.com", Password: "StrongPass1", FullName: "A B", DepartmentCode: "XX",
-		}},
-		{"valid usn whose department is not seeded", RequestAccessInput{
-			Email: "a@example.com", Password: "StrongPass1", FullName: "A B", USN: "4MN23CS001",
-		}},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			h := newAuthHarness(t)
-			_, err := h.service.RequestAccess(context.Background(), tc.input)
-			requireAppError(t, err, "VALIDATION_ERROR", http.StatusBadRequest)
-		})
-	}
-}
-
-func TestRequestAccess_RetriesUsernameCollision(t *testing.T) {
-	h := newAuthHarness(t)
-	calls := 0
-
-	h.users.createProfile = func(_ context.Context, _ *Profile) error {
-		calls++
-		if calls == 1 {
-			return &pgconn.PgError{Code: "23505", ConstraintName: "idx_profiles_username"}
-		}
-		return nil
-	}
-
-	_, err := h.service.RequestAccess(context.Background(), RequestAccessInput{
-		Email: "x@example.com", Password: "StrongPass1", FullName: "Collision User",
-	})
-	if err != nil {
-		t.Fatalf("request access: %v", err)
-	}
-	if calls != 2 {
-		t.Fatalf("expected profile creation to retry once, got %d calls", calls)
-	}
-}
-
-func TestRequestAccess_GivesUpAfterFiveUsernameCollisions(t *testing.T) {
-	h := newAuthHarness(t)
-	attempts := 0
-
-	h.users.createProfile = func(_ context.Context, _ *Profile) error {
-		attempts++
-		return &pgconn.PgError{Code: "23505", ConstraintName: "idx_profiles_username"}
-	}
-
-	_, err := h.service.RequestAccess(context.Background(), RequestAccessInput{
-		Email: "x@example.com", Password: "StrongPass1", FullName: "Collision User",
-	})
-	if err == nil {
-		t.Fatal("expected request access to fail after repeated username collisions")
-	}
-	if attempts != 5 {
-		t.Fatalf("expected 5 attempts, got %d", attempts)
 	}
 }
 
@@ -1003,157 +586,6 @@ func TestUpdateUserStatus_MissingUserIsNotFound(t *testing.T) {
 		return nil, nil
 	}
 	requireAppError(t, h.service.UpdateUserStatus(context.Background(), "admin-1", "u-1", "suspended", ""), "NOT_FOUND", http.StatusNotFound)
-}
-
-func TestLogin_IssuesTokensForActiveUser(t *testing.T) {
-	h := newAuthHarness(t)
-	ctx := context.Background()
-	email := "active@example.com"
-	hash := "hash:CorrectPass1"
-
-	h.users.findByEmail = func(_ context.Context, e string) (*User, error) {
-		if e == email {
-			return &User{ID: "u-1", Email: &email, PasswordHash: hash, Status: UserStatusActive}, nil
-		}
-		return nil, nil
-	}
-	h.users.getRoleAssignments = func(_ context.Context, userID string) ([]RoleAssignment, error) {
-		return []RoleAssignment{
-			{UserID: userID, Role: RoleStudent},
-			{UserID: userID, Role: RoleHOD},
-		}, nil
-	}
-
-	resp, raw, err := h.service.Login(ctx, LoginInput{Email: email, Password: "CorrectPass1"})
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
-	if raw == "" {
-		t.Fatal("expected a refresh token")
-	}
-	if len(h.refreshTokens.created) != 1 || h.refreshTokens.created[0].TokenHash != HashRefreshToken(raw) {
-		t.Fatalf("refresh token not stored hashed: %+v", h.refreshTokens.created)
-	}
-	claims, err := ValidateAccessToken(resp.AccessToken, h.cfg)
-	if err != nil {
-		t.Fatalf("access token does not validate: %v", err)
-	}
-	if claims.UserID != "u-1" {
-		t.Fatalf("access token subject = %q, want u-1", claims.UserID)
-	}
-	if len(claims.Roles) != 2 || claims.Roles[0] != string(RoleStudent) || claims.Roles[1] != string(RoleHOD) {
-		t.Fatalf("access token roles = %v, want [student hod]", claims.Roles)
-	}
-}
-
-func TestLogin_RejectsInactiveUsersAndBadCredentials(t *testing.T) {
-	email := "x@example.com"
-	tests := []struct {
-		name     string
-		user     *User
-		password string
-	}{
-		{"pending user cannot log in", &User{ID: "u", Email: &email, PasswordHash: "hash:Right1pass", Status: UserStatusPending}, "Right1pass"},
-		{"wrong password", &User{ID: "u", Email: &email, PasswordHash: "hash:Right1pass", Status: UserStatusActive}, "Wrong1pass"},
-		{"unknown email", nil, "Whatever1"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			h := newAuthHarness(t)
-			h.users.findByEmail = func(_ context.Context, _ string) (*User, error) {
-				return tc.user, nil
-			}
-			_, _, err := h.service.Login(context.Background(), LoginInput{Email: email, Password: tc.password})
-			requireAppError(t, err, "UNAUTHENTICATED", http.StatusUnauthorized)
-			if len(h.refreshTokens.created) != 0 {
-				t.Fatal("no refresh token may be issued for a failed login")
-			}
-		})
-	}
-}
-
-func TestResendActivation_IgnoresNonPendingUsers(t *testing.T) {
-	h := newAuthHarness(t)
-	email := "x@example.com"
-
-	h.users.findByEmail = func(_ context.Context, e string) (*User, error) {
-		return &User{ID: "u", Email: &email, Status: UserStatusActive}, nil
-	}
-
-	if err := h.service.ResendActivation(context.Background(), email); err != nil {
-		t.Fatalf("resend activation: %v", err)
-	}
-	if len(h.activations.created) != 0 || len(h.mailer.sent) != 0 {
-		t.Fatal("no token or email expected for a non-pending user")
-	}
-}
-
-func TestResendActivation_RateLimitsRecentTokens(t *testing.T) {
-	h := newAuthHarness(t)
-	email := "x@example.com"
-
-	h.users.findByEmail = func(_ context.Context, e string) (*User, error) {
-		return &User{ID: "u", Email: &email, Status: UserStatusPending}, nil
-	}
-	h.activations.findLatestByUserID = func(_ context.Context, _ string) (*AccountActivationToken, error) {
-		return &AccountActivationToken{
-			ID: "t", UserID: "u",
-			CreatedAt: time.Now().Add(-time.Minute),
-			ExpiresAt: time.Now().Add(6 * 24 * time.Hour),
-		}, nil
-	}
-
-	err := h.service.ResendActivation(context.Background(), email)
-	requireAppError(t, err, "RATE_LIMITED", http.StatusTooManyRequests)
-	if len(h.mailer.sent) != 0 {
-		t.Fatal("no email expected for a rate-limited resend")
-	}
-}
-
-func TestResendActivation_IssuesNewTokenAfterCooldown(t *testing.T) {
-	h := newAuthHarness(t)
-	email := "x@example.com"
-	now := time.Now()
-
-	h.users.findByEmail = func(_ context.Context, e string) (*User, error) {
-		return &User{ID: "u", Email: &email, Status: UserStatusPending, Profile: &Profile{FullName: "Resend Me"}}, nil
-	}
-	h.activations.findLatestByUserID = func(_ context.Context, _ string) (*AccountActivationToken, error) {
-		return &AccountActivationToken{ID: "t-old", UserID: "u", UsedAt: &now, CreatedAt: now.Add(-10 * time.Minute)}, nil
-	}
-
-	if err := h.service.ResendActivation(context.Background(), email); err != nil {
-		t.Fatalf("resend activation: %v", err)
-	}
-	if len(h.activations.revokedUnused) != 1 {
-		t.Fatalf("old unused tokens not revoked: %v", h.activations.revokedUnused)
-	}
-	if len(h.activations.created) != 1 || h.activations.created[0].UserID != "u" {
-		t.Fatalf("expected one new activation token: %+v", h.activations.created)
-	}
-	if len(h.mailer.sent) != 1 || h.mailer.sent[0].to != email || h.mailer.sent[0].name != "Resend Me" {
-		t.Fatalf("unexpected email: %+v", h.mailer.sent)
-	}
-}
-
-func TestResendActivation_InvalidatesTokenWhenEmailFails(t *testing.T) {
-	h := newAuthHarness(t)
-	email := "x@example.com"
-
-	h.users.findByEmail = func(_ context.Context, e string) (*User, error) {
-		return &User{ID: "u", Email: &email, Status: UserStatusPending}, nil
-	}
-	h.mailer.err = errors.New("resend is down")
-
-	if err := h.service.ResendActivation(context.Background(), email); err == nil {
-		t.Fatal("expected error when email send fails")
-	}
-	if len(h.activations.created) != 1 {
-		t.Fatalf("expected an activation token, got %d", len(h.activations.created))
-	}
-	if len(h.activations.markedUsed) != 1 || h.activations.markedUsed[0] != h.activations.created[0].ID {
-		t.Fatalf("failed email must invalidate the issued token, marked used: %v", h.activations.markedUsed)
-	}
 }
 
 func TestGenerateUsername_SanitizesFullName(t *testing.T) {

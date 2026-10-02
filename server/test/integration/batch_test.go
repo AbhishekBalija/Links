@@ -8,17 +8,12 @@ import (
 	"github.com/AbhishekBalija/Links/server/test/apitest"
 )
 
-// signUp requests access through the real endpoint, the way the form does
-// (no batch year sent), and returns the new user's ID.
-func signUp(t *testing.T, h *apitest.Harness, usn, department string) string {
+// signUp sends an Access request the way someone on no class list does:
+// prove the email with a code, then send the USN. The Department and Batch
+// come from the USN. It returns the new user's ID.
+func signUp(t *testing.T, h *apitest.Harness, usn string) string {
 	t.Helper()
-	response := h.Do(t, http.MethodPost, "/api/v1/auth/request-access", "", map[string]any{
-		"email":           "signup-" + usn + "@apitest.local",
-		"password":        "SignUp123",
-		"full_name":       "Signed Up " + usn,
-		"usn":             usn,
-		"department_code": department,
-	})
+	response := requestAccess(t, h, usn)
 	if response.Status != http.StatusCreated {
 		t.Fatalf("request access status = %d: %s", response.Status, response.Body)
 	}
@@ -42,7 +37,7 @@ func batchYear(t *testing.T, h *apitest.Harness, userID string) int {
 
 func TestSignUpTakesTheBatchFromTheUSN(t *testing.T) {
 	h := apitest.New(t)
-	userID := signUp(t, h, "4MN23CS101", "CS")
+	userID := signUp(t, h, "4MN23CS101")
 	if got := batchYear(t, h, userID); got != 2023 {
 		t.Errorf("batch year = %d, want 2023 from the USN", got)
 	}
@@ -51,7 +46,7 @@ func TestSignUpTakesTheBatchFromTheUSN(t *testing.T) {
 func TestBatchTargetedNoticeReachesAStudentWhoSignedUp(t *testing.T) {
 	h := apitest.New(t)
 	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
-	userID := signUp(t, h, "4MN23CS102", "CS")
+	userID := signUp(t, h, "4MN23CS102")
 	// Approval and activation are covered elsewhere; here the student is simply let in.
 	if err := h.DB().Exec(`UPDATE users SET status = 'active', is_verified = true WHERE id = ?`, userID).Error; err != nil {
 		t.Fatalf("activate: %v", err)
@@ -72,7 +67,7 @@ func TestBatchTargetedNoticeReachesAStudentWhoSignedUp(t *testing.T) {
 
 func TestBackfillFixesStudentsSavedWithBatchZero(t *testing.T) {
 	h := apitest.New(t)
-	userID := signUp(t, h, "4MN22EC103", "EC")
+	userID := signUp(t, h, "4MN22EC103")
 	if err := h.DB().Exec(`UPDATE student_identities SET batch_year = 0 WHERE user_id = ?`, userID).Error; err != nil {
 		t.Fatalf("simulate old row: %v", err)
 	}

@@ -12,7 +12,6 @@ type User struct {
 	ID              string           `gorm:"column:id;primaryKey"`
 	Email           *string          `gorm:"column:email"`
 	Phone           *string          `gorm:"column:phone"`
-	PasswordHash    string           `gorm:"column:password_hash"`
 	GoogleSubject   *string          `gorm:"column:google_subject"`
 	FirstSignedInAt *time.Time       `gorm:"column:first_signed_in_at"`
 	Status          UserStatus       `gorm:"column:status"`
@@ -170,19 +169,6 @@ type StudentIdentity struct {
 
 func (StudentIdentity) TableName() string { return "student_identities" }
 
-// AccountActivationToken represents the account_activation_tokens table.
-type AccountActivationToken struct {
-	ID        string     `gorm:"column:id;primaryKey"`
-	UserID    string     `gorm:"column:user_id;not null;index"`
-	TokenHash string     `gorm:"column:token_hash;not null"`
-	Purpose   string     `gorm:"column:purpose;not null;default:'activate'"`
-	ExpiresAt time.Time  `gorm:"column:expires_at;not null"`
-	UsedAt    *time.Time `gorm:"column:used_at"`
-	CreatedAt time.Time  `gorm:"column:created_at;not null;default:now()"`
-}
-
-func (AccountActivationToken) TableName() string { return "account_activation_tokens" }
-
 // SignInCode is one email code request (sign_in_codes). Its ID is the
 // challenge the browser keeps. UserID and CodeHash are nil when no code was
 // sent.
@@ -200,16 +186,8 @@ type SignInCode struct {
 
 func (SignInCode) TableName() string { return "sign_in_codes" }
 
-// PasswordHasher defines the interface for password hashing.
-type PasswordHasher interface {
-	Hash(password string) (string, error)
-	Verify(password, hash string) (bool, error)
-}
-
 // AuthService defines the business logic interface for authentication.
 type AuthService interface {
-	RequestAccess(ctx context.Context, input RequestAccessInput) (*RequestAccessResponse, error)
-	Login(ctx context.Context, input LoginInput) (*LoginResponse, string, error)
 	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
 	AddFirstAdmin(ctx context.Context, email, fullName string) (string, error)
 	RequestCode(ctx context.Context, email, ip string) (string, error)
@@ -220,8 +198,6 @@ type AuthService interface {
 	InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*RequestAccessResponse, error)
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
-	ActivateAccount(ctx context.Context, token, password string) error
-	ResendActivation(ctx context.Context, email string) error
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
 	ReviewQueue(ctx context.Context, actorID string) (*ReviewQueueResponse, error)
 	AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error)
@@ -312,15 +288,6 @@ type RefreshTokenRepository interface {
 	RevokeAllByUserID(ctx context.Context, userID string) error
 }
 
-// ActivationTokenRepository defines the interface for account activation tokens.
-type ActivationTokenRepository interface {
-	Create(ctx context.Context, token *AccountActivationToken) error
-	FindByHash(ctx context.Context, hash string) (*AccountActivationToken, error)
-	FindLatestByUserID(ctx context.Context, userID string) (*AccountActivationToken, error)
-	MarkUsed(ctx context.Context, id string) error
-	RevokeAllUnusedByUserID(ctx context.Context, userID string) error
-}
-
 // SignInCodeRepository stores email code requests.
 type SignInCodeRepository interface {
 	// LockEmail holds a lock on the email hash until the transaction ends.
@@ -346,7 +313,6 @@ type AuditLogRepository interface {
 type AuthRepositories struct {
 	Users         UserRepository
 	RefreshTokens RefreshTokenRepository
-	Activations   ActivationTokenRepository
 	SignInCodes   SignInCodeRepository
 	AuditLogs     AuditLogRepository
 }

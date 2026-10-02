@@ -22,10 +22,6 @@ type Outbox struct {
 
 var _ mailer.Mailer = (*Outbox)(nil)
 
-func (o *Outbox) SendActivationEmail(_, _, _ string) error { return nil }
-
-func (o *Outbox) SendActivationEmails(_ []mailer.ActivationEmail) error { return nil }
-
 func (o *Outbox) SendSignInCode(to, code string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()

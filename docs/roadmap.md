@@ -46,8 +46,8 @@ Follow-up, spec #129 "Getting in" (passwordless, the class list decides):
 
 - [x] Test-only sign-in for the e2e suite (#130)
 - [x] Email code, Google sign-in, first sign-in and requests from people on no list (#131, #132, #133)
-- [ ] Sign-in screens (#135), designed on the canvas (#134)
-- [ ] Passwords removed (#136)
+- [x] Sign-in screens (#135), designed on the canvas (#134)
+- [x] Passwords removed (#136); the first admin is added from the command line
 
 ## Phase 2: Campus Hub (in progress)
 

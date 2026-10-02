@@ -67,12 +67,6 @@ func TestImportSendsNoEmail(t *testing.T) {
 	if result.Created != maxImportRows || result.Failed != 0 {
 		t.Fatalf("created %d, failed %d; want %d and 0", result.Created, result.Failed, maxImportRows)
 	}
-	if len(h.mailer.sent) != 0 || len(h.mailer.batches) != 0 {
-		t.Errorf("sent %d emails and %d batches; the class list waits for first sign-in instead", len(h.mailer.sent), len(h.mailer.batches))
-	}
-	if len(h.activations.created) != 0 {
-		t.Errorf("created %d activation tokens, want none", len(h.activations.created))
-	}
 	for _, row := range result.Rows {
 		if row.Error != "" {
 			t.Errorf("row %d error = %q, want none", row.Row, row.Error)

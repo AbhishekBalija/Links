@@ -45,11 +45,11 @@ func requestIDs(items []accessRequest) []string {
 func TestTheAccessRequestQueueHoldsOnlyRequestsWaitingForApproval(t *testing.T) {
 	h := apitest.New(t)
 	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
-	first := signUp(t, h, "4MN23CS801", "CS")
-	second := signUp(t, h, "4MN24EC802", "EC")
+	first := signUp(t, h, "4MN23CS801")
+	second := signUp(t, h, "4MN24EC802")
 	// An approved student is pending too until they activate, but they no
 	// longer wait for anyone.
-	approved := signUp(t, h, "4MN23CS803", "CS")
+	approved := signUp(t, h, "4MN23CS803")
 	expectStatus(t, "approve", h.Do(t, http.MethodPatch, "/api/v1/admin/users/"+approved+"/verify", principal.Token, nil), http.StatusOK)
 
 	queue := accessQueue(t, h, principal.Token)
@@ -66,9 +66,9 @@ func TestHODsHandleAccessRequestsForTheirOwnDepartment(t *testing.T) {
 	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
 	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
 	faculty := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
-	csFirst := signUp(t, h, "4MN23CS811", "CS")
-	csSecond := signUp(t, h, "4MN23CS812", "CS")
-	ec := signUp(t, h, "4MN24EC813", "EC")
+	csFirst := signUp(t, h, "4MN23CS811")
+	csSecond := signUp(t, h, "4MN23CS812")
+	ec := signUp(t, h, "4MN24EC813")
 
 	if got := requestIDs(accessQueue(t, h, hod.Token)); !slices.Equal(got, []string{csFirst, csSecond}) {
 		t.Fatalf("CS HOD queue = %v, want only the CS requests", got)

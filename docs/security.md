@@ -29,11 +29,10 @@ Each boundary must validate inputs, authenticate users, authorize actions, and l
 
 ## Authentication Security
 
-- Prefer Argon2id for password hashing.
 - Bcrypt is acceptable initially.
 - Store refresh tokens hashed.
 - Rotate refresh tokens.
-- Revoke tokens on suspension, rejection, password reset and when a Role assignment ends.
+- Revoke tokens on suspension, rejection and when a Role assignment ends.
 - Pin JWT signing algorithm.
 - Use issuer and audience claims.
 

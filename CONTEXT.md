@@ -27,11 +27,8 @@ A request to join LINKS from someone whose email is on no list: they prove their
 _Avoid_: signup, registration
 
 **Access approval**:
-Their Department's HOD, the principal or an admin accepting an Access request: the user becomes verified, gets the student role, and waits for their First sign-in. (A request sent with a password, before #136, still gets an Activation link.)
+Their Department's HOD, the principal or an admin accepting an Access request: the user becomes verified, gets the student role, and waits for their First sign-in.
 _Avoid_: verification (the `is_verified` flag is its result, not the step), plain "approval"
-
-**Activation**:
-The user setting their password through a single-use emailed link, which moves the account from `pending` to `active`. Being replaced by the First sign-in (ADR 0026); removed in #136.
 
 **First sign-in**:
 The first time someone signs into an account waiting for it (a class list row, a staff invite or an approved Access request), by Google or a Sign-in code with its email. It makes the account `active` and shows who they signed in as, with "Not you?" to report a wrong row.

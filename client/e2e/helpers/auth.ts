@@ -2,65 +2,44 @@ import { expect, type Page, type APIRequestContext } from '@playwright/test'
 import { getSchemaClient } from './db'
 
 // ── Admin bootstrap (seeded directly — not the thing under test) ──
+// bootstrapAdmin creates an active account with no password: everyone signs
+// in with Google or an email code (spec #129), and the suite signs seeded
+// members in through the test-only endpoint.
 export async function bootstrapAdmin(_dbURL: string) {
   void _dbURL
   const { v4: uuidv4 } = await import('uuid')
-  const { randomBytes, createHash } = await import('crypto')
-
-  const adminEmail = `admin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.com`
-  const adminPass = 'AdminPass123'
+  const email = `admin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.com`
   const client = await getSchemaClient()
   try {
     const userId = uuidv4()
-    const now = new Date().toISOString()
-
-    // Create user as pending with placeholder hash (overwritten by activate endpoint)
-    const placeholderHash = createHash('sha256').update(adminPass).digest('hex')
     await client.query(
-      `INSERT INTO users (id, email, password_hash, status, is_verified, created_at, updated_at)
-       VALUES ($1, $2, $3, 'pending', false, $4, $4)`,
-      [userId, adminEmail, placeholderHash, now]
+      `INSERT INTO users (id, email, status, is_verified, created_at, updated_at) VALUES ($1, $2, 'active', true, NOW(), NOW())`,
+      [userId, email],
     )
     await client.query(
-      `INSERT INTO profiles (user_id, username, full_name, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $4)`,
-      [userId, `admin_${uuidv4().slice(0, 8)}`, 'E2E Admin', now]
+      `INSERT INTO profiles (user_id, username, full_name, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW())`,
+      [userId, `admin_${uuidv4().slice(0, 8)}`, 'E2E Admin'],
     )
-    // Activation token (for setting the real password hash via /activate)
-    const tokenRaw = randomBytes(32).toString('base64url')
-    const tokenHash = createHash('sha256').update(tokenRaw).digest('hex')
-    await client.query(
-      `INSERT INTO account_activation_tokens (id, user_id, token_hash, purpose, expires_at, created_at)
-       VALUES ($1, $2, $3, 'activate', $4, $5)`,
-      [uuidv4(), userId, tokenHash, new Date(Date.now() + 7 * 86400000).toISOString(), now]
-    )
-
-    return { email: adminEmail, password: adminPass, userId, activationToken: tokenRaw }
+    return { email, userId }
   } finally {
     await client.end()
   }
 }
 
-// ── Activate and assign role to a bootstrapped admin (used in beforeAll) ──
-export async function setupAdmin(
-  apiContext: APIRequestContext,
-  _dbURL: string,
-  admin: { email: string; password: string; userId: string; activationToken: string }
-): Promise<string> {
-  await activateUserViaAPI(apiContext, admin.activationToken, admin.password)
+// setupAdmin makes a bootstrapped account an admin and returns a token for
+// API calls made outside the page.
+export async function setupAdmin(apiContext: APIRequestContext, _dbURL: string, admin: { email: string; userId: string }): Promise<string> {
   const { v4: uuidv4 } = await import('uuid')
   const dbClient = await getSchemaClient()
   try {
-    await dbClient.query(`UPDATE users SET status = 'active' WHERE id = $1`, [admin.userId])
     await dbClient.query(
-      `INSERT INTO role_assignments (id, user_id, role, scope_type, starts_at, created_at)
-       VALUES ($1, $2, 'admin', 'global', NOW(), NOW())`,
-      [uuidv4(), admin.userId]
+      `INSERT INTO role_assignments (id, user_id, role, scope_type, starts_at, created_at) VALUES ($1, $2, 'admin', 'global', NOW(), NOW())`,
+      [uuidv4(), admin.userId],
     )
   } finally {
     await dbClient.end()
   }
-  return await loginViaAPI(apiContext, admin.email, admin.password)
+  return await loginViaAPI(apiContext, admin.email)
 }
 
 // ── UI helpers ──
@@ -162,16 +141,6 @@ export async function adminApproveUser(apiContext: APIRequestContext, adminToken
   }
 }
 
-export async function activateUserViaAPI(apiContext: APIRequestContext, token: string, password: string) {
-  const res = await apiContext.post('/api/v1/auth/activate', {
-    data: { token, password },
-  })
-  if (!res.ok()) {
-    const body = await res.text()
-    throw new Error(`Activation failed (${res.status()}): ${body}`)
-  }
-}
-
 // loginViaAPI returns an access token for API calls made outside the page.
 export async function loginViaAPI(apiContext: APIRequestContext, email: string): Promise<string> {
   return testSignIn(apiContext, email)
@@ -185,7 +154,6 @@ export async function cleanupTestUsers(_dbURL: string, emails: string[]) {
 		await client.query(`DELETE FROM audit_logs WHERE actor_id IN (SELECT id FROM users WHERE email = $1) OR resource_id IN (SELECT id FROM users WHERE email = $1)`, [email])
 		await client.query(`DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM role_assignments WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
-      await client.query(`DELETE FROM account_activation_tokens WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM student_identities WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM profiles WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, [email])
       await client.query(`DELETE FROM users WHERE email = $1`, [email])
@@ -209,8 +177,8 @@ export async function seedMember(
   apiContext: APIRequestContext,
   member: { role: string; fullName: string; department?: string; batch?: number },
 ) {
+  void apiContext
   const account = await bootstrapAdmin('')
-  await activateUserViaAPI(apiContext, account.activationToken, account.password)
   const { v4: uuidv4 } = await import('uuid')
   const client = await getSchemaClient()
   try {
@@ -251,5 +219,5 @@ export async function seedMember(
   } finally {
     await client.end()
   }
-  return { email: account.email, password: account.password, userId: account.userId }
+  return { email: account.email, userId: account.userId }
 }

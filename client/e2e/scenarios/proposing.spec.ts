@@ -26,8 +26,8 @@ async function propose(request: APIRequestContext, token: string, body: Record<s
 }
 
 test.describe('Proposing events', () => {
-  let faculty: { email: string; password: string }
-  let hod: { email: string; password: string }
+  let faculty: { email: string; userId: string }
+  let hod: { email: string; userId: string }
 
   test.beforeAll(async ({ request }) => {
     faculty = await seedMember(request, { role: 'faculty', fullName: 'Meera Faculty', department: 'EC' })

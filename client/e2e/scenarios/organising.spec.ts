@@ -21,7 +21,7 @@ async function call(request: APIRequestContext, method: 'post' | 'patch', path: 
 }
 
 test.describe('Organising an event', () => {
-  let faculty: { email: string; password: string }
+  let faculty: { email: string; userId: string }
   let eventId = ''
 
   test.beforeAll(async ({ request }) => {

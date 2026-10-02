@@ -57,7 +57,6 @@ users (
   id uuid primary key,
   email text unique,
   phone text,
-  password_hash text,
   google_subject text,          -- Google's permanent account ID (sub)
   first_signed_in_at timestamptz,
   status text not null,
@@ -76,26 +75,6 @@ active, and cleared by "Not you?".
 `google_subject` is unique where set (`idx_users_google_subject`). It is
 stored on the first Google sign-in, which matches by verified email, and
 matched on from then on.
-
-### account_activation_tokens
-
-```sql
-account_activation_tokens (
-  id uuid primary key,
-  user_id uuid not null references users(id),
-  token_hash text not null,
-  purpose text not null default 'activate',
-  expires_at timestamptz not null,
-  used_at timestamptz,
-  created_at timestamptz not null
-)
-```
-
-```sql
-create index idx_activation_tokens_user on account_activation_tokens (user_id, created_at desc);
-```
-
-`token_hash` = `SHA-256(token)` (fast hash, not bcrypt/argon2). The token is a 32-byte `crypto/rand` value, `base64.RawURLEncoding`. On activation (single transaction): server conditionally consumes only an unused, unexpired token (`used_at IS NULL AND expires_at > now()`), verifies `SHA-256(presented_token)`, checks the affected row count (must be exactly 1 — any other count means replay or race), updates `users.password_hash` and `users.status` to `active`, marks `token.used_at`, and hashes user's password with Argon2id/bcrypt. Resend rate-limit uses this table: query by `user_id` order by `created_at desc`, reject if last token < 5 min old. Resend transactionally revokes or marks all prior unused tokens before issuing a replacement. No separate rate-limit table or Redis needed.
 
 ### sign_in_codes
 

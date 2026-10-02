@@ -82,10 +82,10 @@ Not in MVP:
 
 ```mermaid
 sequenceDiagram
-    Student->>LINKS: Request account or receive Gmail invite
-    LINKS->>Admin/HOD: Pending verification
-    Admin/HOD->>LINKS: Verify USN and student details
-    LINKS->>Student: Account activated
+    Admin/HOD->>LINKS: Upload the class list (email, name, USN)
+    Student->>LINKS: Sign in with Google or an email code
+    LINKS->>Student: First sign-in: "You're signed in as..." (Not you?)
+    Note over Student,LINKS: Not on a list: send a request with the USN; the HOD approves it
     Student->>LINKS: Complete public profile
 ```
 
