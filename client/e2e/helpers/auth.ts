@@ -90,6 +90,20 @@ export async function lastCode(apiContext: APIRequestContext, email: string): Pr
   return (await res.json()).data.code
 }
 
+// sendAccessRequest is someone on no class list asking to get in, through
+// the real API: an email code proves the email, then the USN goes to the HOD.
+export async function sendAccessRequest(apiContext: APIRequestContext, email: string, fullName: string, usn: string) {
+  const asked = await apiContext.post('/api/v1/auth/code', { data: { email } })
+  if (!asked.ok()) throw new Error(`Code request failed (${asked.status()})`)
+  const challenge = (await asked.json()).data.challenge_id
+  const verified = await apiContext.post('/api/v1/auth/code/verify', { data: { challenge_id: challenge, email, code: await lastCode(apiContext, email) } })
+  const proof = await verified.json()
+  if (proof.error?.code !== 'NOT_ON_LIST') throw new Error(`Expected NOT_ON_LIST, got ${verified.status()}: ${JSON.stringify(proof)}`)
+  const sent = await apiContext.post('/api/v1/auth/access-request', { data: { request_token: proof.error.details.request_token, usn, full_name: fullName } })
+  if (!sent.ok()) throw new Error(`Access request failed (${sent.status()}): ${await sent.text()}`)
+  return (await sent.json()).data.user_id as string
+}
+
 // importStudents adds class list rows the way an admin does.
 export async function importStudents(apiContext: APIRequestContext, adminToken: string, rows: Array<{ email: string; fullName: string; usn: string }>) {
   const csv = ['email,full_name,usn', ...rows.map((r) => `${r.email},${r.fullName},${r.usn}`)].join('\n')

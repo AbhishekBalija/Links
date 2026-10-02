@@ -13,9 +13,17 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Approving a class list row reported with "Not you?" no longer gives the
+  student a second student role.
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Access request screens (#124): HODs decide their Department's requests in
+  a new tab of the Approval queue, and admins in a new Admin workspace. Each
+  request says why it's there (not on a class list, a Department with no HOD,
+  or a row reported with "Not you?"); approving asks once, rejecting needs a
+  note, and a request someone else decided first says so.
+
 - Add a college's first admin from the command line: `go run ./cmd/add-admin
   -email ... -name ...` (ADR 0026). They sign in with Google; the command
   refuses once the college has an admin.

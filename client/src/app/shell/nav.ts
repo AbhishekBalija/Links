@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, CalendarDays, ClipboardList, House, ListChecks, Newspaper, PenLine, UserRound, Users, type LucideIcon } from 'lucide-react'
+import { BriefcaseBusiness, CalendarDays, ClipboardList, House, ListChecks, Newspaper, PenLine, ShieldCheck, UserRound, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
@@ -32,6 +32,8 @@ const items: NavItem[] = [
   { to: '/people', label: 'People', icon: Users, also: ['/departments'] },
   { to: '/approvals', label: 'Approval queue', short: 'Approvals', icon: ListChecks, roles: approverRoles },
   { to: '/mine', label: 'My posts', short: 'Mine', icon: PenLine, roles: posterRoles },
+  // The Admin workspace: Access requests now, imports and staff with #125/#126.
+  { to: '/admin', label: 'Admin', icon: ShieldCheck, roles: ['admin'] },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]
 
@@ -55,7 +57,7 @@ export function navFor(roles: string[]): NavItem[] {
 // out first (it stays one tap away from the avatar on Home), then People
 // (reachable from Home's department link), so HODs keep their work tabs.
 // The principal and admins have more work tabs than fit, so Placement, which
-// is desktop work for them, steps out next. Students have no work tabs; for
+// is desktop work for them, steps out next, then Admin. Students have no work tabs; for
 // them Jobs takes People's place and they keep Profile, which they edit more
 // than staff do.
 const maxTabs = 5
@@ -63,7 +65,7 @@ const maxTabs = 5
 export function tabsFor(roles: string[]): NavItem[] {
   let tabs = navFor(roles)
   const staff = canPost(roles) || canApprove(roles)
-  const leaveFirst = staff ? ['/profile', '/people', '/placement'] : ['/people', '/profile']
+  const leaveFirst = staff ? ['/profile', '/people', '/placement', '/admin'] : ['/people', '/profile']
   for (const path of leaveFirst) {
     if (tabs.length <= maxTabs) break
     tabs = tabs.filter((item) => item.to !== path)
@@ -93,4 +95,12 @@ export function roleLabel(role: string): string {
 export function mainRoleLabel(roles: string[]): string {
   const top = seniority.find((role) => roles.includes(role)) ?? roles[0]
   return top ? (roleLabels[top] ?? top) : ''
+}
+
+// hidesTabBar is true on a phone page with its own action bar pinned to the
+// bottom (one notice, event, job or request), where the tab bar would cover
+// it. Lists keep the tab bar.
+export function hidesTabBar(path: string): boolean {
+  if (path === '/approvals/access') return false
+  return /^\/(mine|approvals|events|jobs|placement)\/.+/.test(path) || /^\/admin\/requests\/.+/.test(path)
 }

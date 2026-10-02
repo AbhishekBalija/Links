@@ -7,7 +7,7 @@ import { Avatar } from './Avatar'
 import { LogoutButton } from './LogoutButton'
 import { useDashboard } from '../../features/home/api'
 import { waitingForReview } from '../../features/home/review'
-import { canApprove, mainRoleLabel, navFor, tabsFor, type NavItem } from './nav'
+import { canApprove, hidesTabBar, mainRoleLabel, navFor, tabsFor, type NavItem } from './nav'
 
 // AppShell frames every signed-in screen: a sidebar on desktop and a bottom
 // navigation bar on phones, where students do most of their reading.
@@ -20,7 +20,7 @@ export function AppShell() {
   // The composer, an opened announcement, an event, a job and the placement
   // pages have their own action bar at the bottom on phones, so the tab bar
   // steps aside there.
-  const focused = /^\/(mine|approvals|events|jobs|placement)\/.+/.test(useLocation().pathname)
+  const focused = hidesTabBar(useLocation().pathname)
   // Approvers see how many announcements and event proposals wait for them.
   const approver = canApprove(roles)
   const dashboard = useDashboard(approver)

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 import { EmptyState, ErrorState } from '../../../shared/ui/states'
 import { useIsDesktop } from '../../../shared/ui/useIsDesktop'
 import { useAuthStore } from '../../auth/store'
+import { QueueTabs } from '../../access/components/QueueTabs'
+import { accessRequestsPlace } from '../../access/reason'
 import { useEventReviews } from '../../events/api'
 import { EventQueueRow } from '../../events/components/EventQueueRow'
 import { EventReview } from '../../events/components/EventReview'
@@ -67,15 +69,20 @@ export default function ApprovalQueue() {
       ? 'Oldest first. Final approvals, and anything from departments without an HOD.'
       : 'Oldest first. Announcements and events that need your approval.'
 
+  // An HOD also decides Access requests here, in a tab of their own.
+  const tabs = accessRequestsPlace(roles) === 'approvals' && <QueueTabs active="Posts" />
   const header = (
-    <header className="flex flex-col gap-1 px-1 lg:px-0">
-      <h1 className="flex items-baseline gap-2.5 font-serif text-[28px] font-medium tracking-[-0.4px] lg:text-[38px] lg:leading-tight lg:tracking-[-0.6px]">
-        <span className="lg:hidden">Approvals</span>
-        <span className="hidden lg:inline">Approval queue</span>
-        {items.length > 0 && <span className="font-mono text-sm tracking-normal text-rust lg:text-lg">{items.length}{merged.hasMore ? '+' : ''}</span>}
-      </h1>
-      <p className="hidden text-[15px] text-ink-2 lg:block">{subtitle}</p>
-    </header>
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-col gap-1 px-1 lg:px-0">
+        <h1 className="flex items-baseline gap-2.5 font-serif text-[28px] font-medium tracking-[-0.4px] lg:text-[38px] lg:leading-tight lg:tracking-[-0.6px]">
+          <span className="lg:hidden">Approvals</span>
+          <span className="hidden lg:inline">Approval queue</span>
+          {items.length > 0 && <span className="font-mono text-sm tracking-normal text-rust lg:text-lg">{items.length}{merged.hasMore ? '+' : ''}</span>}
+        </h1>
+        <p className="hidden text-[15px] text-ink-2 lg:block">{subtitle}</p>
+      </header>
+      {tabs}
+    </div>
   )
 
   if (queue.isPending || events.isPending) return <QueueSkeleton header={header} />

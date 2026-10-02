@@ -103,9 +103,12 @@ export function useWithdraw() {
 }
 
 // useQueue loads what the approver may act on, oldest first.
-export function useQueue() {
+// retryOnMount: false is for a view that only shows counts, so mounting it
+// again doesn't re-request a failed queue (the queue's own screen does).
+export function useQueue({ retryOnMount = true }: { retryOnMount?: boolean } = {}) {
   return useInfiniteQuery({
     queryKey: ['queue'],
+    retryOnMount,
     initialPageParam: '',
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({ limit: '50' })
