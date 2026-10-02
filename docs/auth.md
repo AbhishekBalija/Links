@@ -85,8 +85,11 @@ JWT rules:
 - The reply is the same for every email, and padded to at least a second.
 - Any email gets a code except the principal's, an admin's (Google only,
   ADR 0026) or a suspended or rejected account's. An email on no list gets
-  one too, so its owner can prove it and send an Access request. The account
-  is checked again when the code is entered.
+  one too, so its owner can prove it and send an Access request. At most 50
+  codes a day go to emails on no list across the whole site; past that they
+  get the usual reply and no code, so LINKS can't be used to flood inboxes
+  or use up the email quota. Members are never caught by this cap. The
+  account is checked again when the code is entered.
 - On Vercel the client's address comes from `X-Real-IP`, which Vercel sets
   itself; elsewhere the connection's address is used, since a header could
   be forged.

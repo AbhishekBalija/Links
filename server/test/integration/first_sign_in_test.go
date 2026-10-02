@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -381,5 +382,25 @@ func TestTheCodeAndGoogleTellAWaitingRequestApart(t *testing.T) {
 		h.DB().Exec(`UPDATE users SET status = ?, is_verified = false WHERE id = ?`, status, member.ID)
 		nonce, cookie := h.GoogleNonce(t)
 		expectStatus(t, status, googleSignIn(t, h, h.GoogleToken(t, apitest.GoogleClaims{Subject: fmt.Sprint("g", i), Email: member.Email, Nonce: nonce}), cookie), http.StatusForbidden)
+	}
+}
+
+func TestCodesToEmailsOnNoListAreCappedForTheWholeSiteEachDay(t *testing.T) {
+	h := apitest.New(t)
+	member := studentOf(t, h, "CS", 2023)
+	limit := auth.DefaultCodeSettings().NotOnListDailyLimit
+
+	for i := range limit {
+		askForCode(t, h, fmt.Sprintf("stranger%d@gmail.com", i))
+	}
+	// One more stranger gets the usual reply but no code.
+	askForCode(t, h, "one-too-many@gmail.com")
+	if codes := h.Outbox.CodesTo("one-too-many@gmail.com"); len(codes) != 0 {
+		t.Errorf("sent %d codes past the daily cap for emails on no list", len(codes))
+	}
+	// Members are never caught by it.
+	askForCode(t, h, member.Email)
+	if codes := h.Outbox.CodesTo(member.Email); len(codes) != 1 {
+		t.Errorf("sent the member %d codes, want 1", len(codes))
 	}
 }

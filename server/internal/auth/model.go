@@ -327,6 +327,8 @@ type SignInCodeRepository interface {
 	CountByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error)
 	CountByIPSince(ctx context.Context, ipHash string, since time.Time) (int64, error)
 	SumWrongTriesByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error)
+	// CountSentToNoListSince counts codes sent to emails on no list.
+	CountSentToNoListSince(ctx context.Context, since time.Time) (int64, error)
 	Create(ctx context.Context, code *SignInCode) error
 	FindForUpdate(ctx context.Context, id string) (*SignInCode, error)
 	RecordWrongTry(ctx context.Context, id string) error

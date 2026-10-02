@@ -149,7 +149,8 @@ The browser keeps `challenge_id`; the code works only with it. A 6-digit
 code is emailed to any email except one whose account is the principal's or
 an admin's (they sign in with Google only), or is suspended or rejected. An
 email on no list gets a code too, so its owner can prove it and send an
-Access request. Spaces around the
+Access request, up to 50 such codes a day for the whole site (past that the
+reply is the same but no code is sent). Spaces around the
 email and its case don't matter. `400` for something that isn't an email.
 `429 RATE_LIMITED` after 3 requests for one email, or 60 from one IP address,
 within 15 minutes, or after 10 requests for one email in a day; the limits

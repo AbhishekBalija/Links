@@ -41,6 +41,10 @@ type CodeSettings struct {
 	// new codes going to it until the day is over, so nobody can keep
 	// guessing by asking for code after code.
 	WrongTriesPerDay int
+	// NotOnListDailyLimit caps codes sent to emails on no list across the
+	// whole site within a day, so nobody can use LINKS to flood inboxes or
+	// use up the email quota. Members are never caught by it.
+	NotOnListDailyLimit int
 	// MinReplyTime pads every code request to at least this long, so the
 	// time taken to send an email doesn't tell a known email from an
 	// unknown one.
@@ -51,14 +55,15 @@ type CodeSettings struct {
 // high enough for a class signing in together behind one campus address.
 func DefaultCodeSettings() CodeSettings {
 	return CodeSettings{
-		TTL:                10 * time.Minute,
-		MaxAttempts:        5,
-		PerEmailLimit:      3,
-		PerIPLimit:         60,
-		Window:             15 * time.Minute,
-		PerEmailDailyLimit: 10,
-		WrongTriesPerDay:   10,
-		MinReplyTime:       time.Second,
+		TTL:                 10 * time.Minute,
+		MaxAttempts:         5,
+		PerEmailLimit:       3,
+		PerIPLimit:          60,
+		Window:              15 * time.Minute,
+		PerEmailDailyLimit:  10,
+		WrongTriesPerDay:    10,
+		NotOnListDailyLimit: 50,
+		MinReplyTime:        time.Second,
 	}
 }
 
@@ -147,6 +152,14 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 			}
 			challenge.UserID = &user.ID
 			sendTo = *user.Email
+		} else {
+			sentToday, err := repos.SignInCodes.CountSentToNoListSince(ctx, dayAgo)
+			if err != nil {
+				return fmt.Errorf("count codes for emails on no list: %w", err)
+			}
+			if sentToday >= int64(s.codeSettings.NotOnListDailyLimit) {
+				return repos.SignInCodes.Create(ctx, challenge)
+			}
 		}
 		code, err = generateCode()
 		if err != nil {

@@ -501,6 +501,13 @@ func (r *GormSignInCodeRepository) SumWrongTriesByEmailSince(ctx context.Context
 	return total, err
 }
 
+func (r *GormSignInCodeRepository) CountSentToNoListSince(ctx context.Context, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).
+		Where("user_id IS NULL AND code_hash IS NOT NULL AND created_at > ?", since).Count(&count).Error
+	return count, err
+}
+
 func (r *GormSignInCodeRepository) Create(ctx context.Context, code *SignInCode) error {
 	return r.db.WithContext(ctx).Create(code).Error
 }
