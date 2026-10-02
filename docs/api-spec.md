@@ -414,10 +414,25 @@ sections without changing these:
   (`id`, `title`, `event_type`, `location`, `starts_at`), whoever they are for.
 - `college` appears for the principal and admins: `departments`, each with
   `code`, `name`, `students`, `staff` and `hod` (`full_name`, `username`, or
-  `null` when there is none).
+  `null` when there is none), and `departments_without_hod`, how many have none.
 - `access_requests` appears for whoever decides Access requests (the
   principal, admins and HODs, scoped as the review queue): `pending_count` and
   `oldest_requested_at`.
+- `lists` appears for whoever decides Access requests (the principal, admins
+  and HODs; an HOD sees only their own Departments): who the class lists and
+  staff invites let in and who hasn't signed in yet, and the latest imports.
+  - `waiting_count` is everyone added by an import or a staff invite whose
+    account still waits for its First sign-in. `waiting` lists the oldest 50
+    (`user_id`, `full_name`, `email`, `kind` of `student` or `staff`, `role`
+    for staff, `usn` and `batch_year` for students, `department_code`,
+    `added_at`) and `has_more` says the list was cut. An approved Access request
+    is not on it: a person asked for that.
+  - `recent_imports` is the latest five imports, newest first: `imported_at`,
+    `imported_by.full_name`, `rows` and `failed` for the whole file, and
+    `created` with `batches` (`department_code`, `batch_year`, `created`).
+    An HOD sees the imports that created students in their Departments, with
+    `created` and `batches` limited to those Departments. Imports from before
+    this field have no `batches`; only the principal and admins see them.
 - `opportunities` appears when the caller is eligible for an open
   Opportunity: the first three from `GET /api/v1/opportunities`, soonest
   deadline first, each with the caller's own Application.
@@ -553,7 +568,8 @@ Response `200`:
 ```
 
 `row` is the spreadsheet row (the header is row 1). The import writes one `students_imported` audit log
-with the counts and one `user_imported` per created user.
+with the counts and how many students it created per Department and Batch (`batches`, which Home
+reads), and one `user_imported` per created user.
 
 ### Role management
 
