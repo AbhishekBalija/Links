@@ -130,6 +130,14 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		googleVerifier = verifier
 	}
 
+	// The e2e suite reads the codes it asks for, so it can sign in the way
+	// people do. Only while the test sign-in is on (local only).
+	var codeRecorder *mailer.CodeRecorder
+	if cfg.EnableTestSignIn {
+		codeRecorder = mailer.NewCodeRecorder(m)
+		m = codeRecorder
+	}
+
 	authService := auth.NewAuthService(
 		userRepo,
 		refreshRepo,
@@ -157,6 +165,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	if cfg.EnableTestSignIn {
 		logger.Warn("ENABLE_TEST_SIGN_IN is on: anyone can sign in by email alone (e2e only)")
 		authHandler.RegisterTestSignIn(api)
+		api.GET("/v1/test/sign-in-code", lastSignInCode(codeRecorder))
 	}
 
 	v1 := api.Group("/v1")
@@ -217,5 +226,18 @@ func readinessHandler(database *db.Database) gin.HandlerFunc {
 			"database": "connected",
 			"status":   "ok",
 		})
+	}
+}
+
+// lastSignInCode answers GET /api/v1/test/sign-in-code?email=... with the
+// last sign-in code emailed to that address, for the e2e suite.
+func lastSignInCode(recorder *mailer.CodeRecorder) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		code, ok := recorder.LastCode(c.Query("email"))
+		if !ok {
+			c.JSON(http.StatusNotFound, errorResponse("NOT_FOUND", "no code was sent to that email"))
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"code": code}})
 	}
 }

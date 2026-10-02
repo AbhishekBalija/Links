@@ -2,6 +2,7 @@ package integration
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/AbhishekBalija/Links/server/pkg/config"
@@ -39,4 +40,31 @@ func TestTheTestSignInGivesAnActiveMemberANormalSession(t *testing.T) {
 	expectStatus(t, "unknown email", h.Do(t, http.MethodPost, "/api/v1/test/sign-in", "", map[string]string{"email": "nobody@apitest.local"}), http.StatusUnauthorized)
 	h.DB().Exec(`UPDATE users SET status = 'suspended' WHERE id = ?`, member.ID)
 	expectStatus(t, "suspended member", h.Do(t, http.MethodPost, "/api/v1/test/sign-in", "", map[string]string{"email": member.Email}), http.StatusUnauthorized)
+}
+
+func TestTheE2ESuiteCanReadTheLastCodeSentToAnEmail(t *testing.T) {
+	h := apitest.NewWith(t, func(cfg *config.Config) { cfg.EnableTestSignIn = true })
+	member := studentOf(t, h, "CS", 2023)
+
+	expectStatus(t, "no code yet", h.Do(t, http.MethodGet, "/api/v1/test/sign-in-code?email="+member.Email, "", nil), http.StatusNotFound)
+	askForCode(t, h, member.Email)
+
+	response := h.Do(t, http.MethodGet, "/api/v1/test/sign-in-code?email="+strings.ToUpper(member.Email), "", nil)
+	expectStatus(t, "read the code", response, http.StatusOK)
+	var reply struct {
+		Data struct {
+			Code string `json:"code"`
+		} `json:"data"`
+	}
+	response.Decode(t, &reply)
+	if want := h.Outbox.LastCodeTo(t, member.Email); reply.Data.Code != want {
+		t.Errorf("code = %q, want the emailed %q", reply.Data.Code, want)
+	}
+}
+
+func TestTheCodeReaderDoesNotExistUnlessSwitchedOn(t *testing.T) {
+	h := apitest.New(t)
+	member := studentOf(t, h, "CS", 2023)
+	askForCode(t, h, member.Email)
+	expectStatus(t, "read the code", h.Do(t, http.MethodGet, "/api/v1/test/sign-in-code?email="+member.Email, "", nil), http.StatusNotFound)
 }
