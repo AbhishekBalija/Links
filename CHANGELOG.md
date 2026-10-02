@@ -24,6 +24,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Events have an Organiser who runs them (edits once published, cancels,
+  exports participants), starting as the proposer (ADR 0028, #143).
+  Migration 024 adds `events.organiser_id`.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,
