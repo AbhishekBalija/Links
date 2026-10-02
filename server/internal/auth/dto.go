@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"io"
 	"time"
 )
 
@@ -171,23 +172,62 @@ type UpdateUserStatusResponse struct {
 const (
 	ImportCreated = "created"
 	ImportFailed  = "failed"
+	// ImportReady is a row a dry run found nothing wrong with: saving the
+	// file would create it, unless someone takes its email or USN first.
+	ImportReady = "ready"
 )
 
+// ImportInput is one upload: the CSV, the Department the import is for
+// (optional; a code) and whether to only check it.
+type ImportInput struct {
+	File           io.Reader
+	DepartmentCode string
+	DryRun         bool
+}
+
 // ImportRowResult is one CSV row's outcome. Row is its spreadsheet row number
-// (the header is row 1). Error is set when it failed, or when it was created
-// but its Activation email couldn't be sent.
+// (the header is row 1). DepartmentCode and BatchYear are read from the USN
+// when it is well formed. Outside marks a row whose USN is in a Department
+// other than the import's. Error says why a row failed.
 type ImportRowResult struct {
-	Row    int    `json:"row"`
-	Email  string `json:"email"`
-	Status string `json:"status"`
-	UserID string `json:"user_id,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Row            int    `json:"row"`
+	Email          string `json:"email"`
+	USN            string `json:"usn"`
+	DepartmentCode string `json:"department_code,omitempty"`
+	BatchYear      int    `json:"batch_year,omitempty"`
+	Status         string `json:"status"`
+	Outside        bool   `json:"outside,omitempty"`
+	UserID         string `json:"user_id,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
+// ImportDepartment is the Department an import is for.
+type ImportDepartment struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// ImportGroup counts the rows whose USNs name one Department and Batch.
+// DepartmentName is empty when no Department has the code.
+type ImportGroup struct {
+	DepartmentCode string `json:"department_code"`
+	DepartmentName string `json:"department_name"`
+	BatchYear      int    `json:"batch_year"`
+	Rows           int    `json:"rows"`
+	Ready          int    `json:"ready"`
+	Created        int    `json:"created"`
+	Failed         int    `json:"failed"`
+	Outside        bool   `json:"outside"`
 }
 
 type ImportResponse struct {
-	Created int               `json:"created"`
-	Failed  int               `json:"failed"`
-	Rows    []ImportRowResult `json:"rows"`
+	DryRun     bool              `json:"dry_run"`
+	Department *ImportDepartment `json:"department"`
+	Ready      int               `json:"ready"`
+	Created    int               `json:"created"`
+	Failed     int               `json:"failed"`
+	Groups     []ImportGroup     `json:"groups"`
+	Rows       []ImportRowResult `json:"rows"`
 }
 
 type GrantRoleInput struct {

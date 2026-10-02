@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"io"
 	"time"
 )
 
@@ -214,7 +213,7 @@ type AuthService interface {
 	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)
 	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
 	EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error)
-	ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error)
+	ImportStudents(ctx context.Context, actorID string, input ImportInput) (*ImportResponse, error)
 }
 
 // AuditLog represents the audit_logs table per docs/database-design.md § audit_logs.

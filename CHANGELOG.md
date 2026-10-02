@@ -6,6 +6,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- The student import can check a file before saving it (#126): send
+  `dry_run=true` to see every row's result and the rows grouped by the
+  Department and Batch read from each USN, with nothing saved. An optional
+  `department` field ties the import to one Department and flags rows
+  outside it; an HOD's import is held to their own Department.
+
 ### Removed
 - Passwords and activation (#136): password login, the password Request
   access form, Activation emails and links, and Resend activation are gone,

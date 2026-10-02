@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"sort"
 	"strings"
 	"time"
 
@@ -118,17 +119,27 @@ type importer struct {
 	actorID     string
 	anywhere    bool
 	departments map[string]bool
-	byCode      map[string]*Department
-	emails      map[string]bool
-	usns        map[string]bool
+	// chosen is the Department the import is for, or nil when it may hold
+	// any Department in the actor's scope.
+	chosen *Department
+	dryRun bool
+	byCode map[string]*Department
+	emails map[string]bool
+	usns   map[string]bool
 }
 
-func (s *authService) ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error) {
-	rows, err := parseImportCSV(file)
+// ImportStudents checks every row of the file and, unless it is a dry run,
+// creates the good ones. A dry run writes nothing, not even an audit log.
+func (s *authService) ImportStudents(ctx context.Context, actorID string, input ImportInput) (*ImportResponse, error) {
+	rows, err := parseImportCSV(input.File)
 	if err != nil {
 		return nil, err
 	}
 	anywhere, departments, err := s.importScope(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	chosen, err := s.importDepartment(ctx, input.DepartmentCode, anywhere, departments)
 	if err != nil {
 		return nil, err
 	}
@@ -138,28 +149,43 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		actorID:     actorID,
 		anywhere:    anywhere,
 		departments: departments,
+		chosen:      chosen,
+		dryRun:      input.DryRun,
 		byCode:      map[string]*Department{},
 		emails:      map[string]bool{},
 		usns:        map[string]bool{},
 	}
-	result := &ImportResponse{Rows: make([]ImportRowResult, 0, len(rows))}
+	result := &ImportResponse{DryRun: input.DryRun, Rows: make([]ImportRowResult, 0, len(rows))}
+	if chosen != nil {
+		result.Department = &ImportDepartment{Code: chosen.Code, Name: chosen.Name}
+	}
 	for _, row := range rows {
 		outcome := run.importRow(ctx, row)
-		if outcome.Status == ImportCreated {
+		switch outcome.Status {
+		case ImportCreated:
 			result.Created++
-		} else {
+		case ImportReady:
+			result.Ready++
+		default:
 			result.Failed++
 		}
 		result.Rows = append(result.Rows, outcome)
 	}
+	result.Groups = run.groups(ctx, result.Rows)
+	if input.DryRun {
+		return result, nil
+	}
 
-	now := time.Now()
+	metadata := map[string]any{"rows": len(rows), "created": result.Created, "failed": result.Failed}
+	if chosen != nil {
+		metadata["department_code"] = chosen.Code
+	}
 	summary := &AuditLog{
 		ActorID:      &actorID,
 		Action:       "students_imported",
 		ResourceType: "user_import",
-		CreatedAt:    now,
-		Metadata:     map[string]int{"rows": len(rows), "created": result.Created, "failed": result.Failed},
+		CreatedAt:    time.Now(),
+		Metadata:     metadata,
 	}
 	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		return repos.AuditLogs.Create(ctx, summary)
@@ -167,6 +193,36 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		return nil, fmt.Errorf("audit import: %w", err)
 	}
 	return result, nil
+}
+
+// importDepartment finds the Department the import is for. An admin may name
+// any Department or none; an HOD may name only their own, and an HOD of one
+// Department is held to it without naming it.
+func (s *authService) importDepartment(ctx context.Context, code string, anywhere bool, departments map[string]bool) (*Department, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	if code == "" {
+		if anywhere || len(departments) != 1 {
+			return nil, nil
+		}
+		for id := range departments {
+			department, err := s.userRepo.FindDepartmentByID(ctx, id)
+			if err != nil {
+				return nil, fmt.Errorf("find department: %w", err)
+			}
+			return department, nil
+		}
+	}
+	department, err := s.userRepo.FindDepartmentByCode(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("find department: %w", err)
+	}
+	if department == nil {
+		return nil, apperrors.NewValidation("unknown department", map[string]string{"department": "no department has the code " + code})
+	}
+	if !anywhere && !departments[department.ID] {
+		return nil, apperrors.NewForbidden("you can only import students of your own department")
+	}
+	return department, nil
 }
 
 // importScope reads the actor's roles from the database: an admin or the
@@ -201,10 +257,29 @@ func (s *authService) departmentScope(ctx context.Context, actorID, refusal stri
 }
 
 func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResult {
-	outcome := ImportRowResult{Row: row.Line, Email: row.Email, Status: ImportFailed}
-	department, problem := run.check(ctx, row)
+	outcome := ImportRowResult{Row: row.Line, Email: row.Email, USN: row.USN, Status: ImportFailed}
+	if code, err := ValidateUSNFormat(row.USN); err == nil {
+		outcome.DepartmentCode = code
+		outcome.BatchYear, _ = BatchYearFromUSN(row.USN)
+	}
+	department, problem, outside := run.check(ctx, row)
 	if problem != "" {
 		outcome.Error = problem
+		outcome.Outside = outside
+		return outcome
+	}
+
+	if run.dryRun {
+		problem, err := run.registered(ctx, row)
+		if err != nil {
+			outcome.Error = "could not be checked; try this row again"
+			return outcome
+		}
+		if problem != "" {
+			outcome.Error = problem
+			return outcome
+		}
+		outcome.Status = ImportReady
 		return outcome
 	}
 
@@ -223,47 +298,133 @@ func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResu
 }
 
 // check applies the rules that need no transaction and returns why the row
-// can't be imported, or its Department.
-func (run *importer) check(ctx context.Context, row importRow) (*Department, string) {
+// can't be imported, or its Department. outside is set when the row fails
+// for being in a Department other than the import's.
+func (run *importer) check(ctx context.Context, row importRow) (*Department, string, bool) {
 	address, err := mail.ParseAddress(row.Email)
 	if row.Email == "" || err != nil || address.Address != row.Email || address.Name != "" {
-		return nil, "email is not a valid address"
+		return nil, "email is not a valid address", false
 	}
 	if row.FullName == "" {
-		return nil, "full_name is empty"
+		return nil, "full_name is empty", false
 	}
 	if len([]rune(row.FullName)) > maxNameLength {
-		return nil, fmt.Sprintf("full_name is longer than %d characters", maxNameLength)
+		return nil, fmt.Sprintf("full_name is longer than %d characters", maxNameLength), false
 	}
 	if row.USN == "" {
-		return nil, "usn is empty"
+		return nil, "usn is empty", false
 	}
 	code, err := ValidateUSNFormat(row.USN)
 	if err != nil {
-		return nil, "invalid USN: " + err.Error()
+		return nil, "invalid USN: " + err.Error(), false
 	}
 
 	department, err := run.department(ctx, code)
 	if err != nil {
-		return nil, "could not check the department; try this row again"
+		return nil, "could not check the department; try this row again", false
 	}
 	if department == nil {
-		return nil, "no department has the code " + code
+		return nil, "no department has the code " + code, false
 	}
-	if !run.anywhere && !run.departments[department.ID] {
-		return nil, "you can only import students of your own department"
+	if run.outside(department) {
+		if run.chosen != nil {
+			return nil, fmt.Sprintf("the USN is in %s, not %s", department.Code, run.chosen.Code), true
+		}
+		return nil, "you can only import students of your own department", true
 	}
 
 	email := strings.ToLower(row.Email)
 	if run.emails[email] {
-		return nil, "the email appears earlier in this file"
+		return nil, "the email appears earlier in this file", false
 	}
 	if run.usns[row.USN] {
-		return nil, "the USN appears earlier in this file"
+		return nil, "the USN appears earlier in this file", false
 	}
 	run.emails[email] = true
 	run.usns[row.USN] = true
-	return department, ""
+	return department, "", false
+}
+
+// outside reports whether a Department is outside the import: not the chosen
+// one, or, with none chosen, not one the actor may import into.
+func (run *importer) outside(department *Department) bool {
+	if department == nil {
+		return false
+	}
+	if run.chosen != nil {
+		return department.ID != run.chosen.ID
+	}
+	return !run.anywhere && !run.departments[department.ID]
+}
+
+// registered is the dry run's stand-in for create: it says whether the
+// email or USN is already taken, without writing anything.
+func (run *importer) registered(ctx context.Context, row importRow) (string, error) {
+	existing, err := run.service.userRepo.FindByEmail(ctx, row.Email)
+	if err != nil {
+		return "", fmt.Errorf("find email: %w", err)
+	}
+	if existing != nil {
+		return "the email is already registered", nil
+	}
+	taken, err := run.service.userRepo.USNExists(ctx, row.USN)
+	if err != nil {
+		return "", fmt.Errorf("find USN: %w", err)
+	}
+	if taken {
+		return "the USN is already registered", nil
+	}
+	return "", nil
+}
+
+// groups counts the rows by the Department and Batch read from each USN,
+// rows outside the import first, then by Department code and Batch. Rows
+// without a well-formed USN belong to no group.
+func (run *importer) groups(ctx context.Context, rows []ImportRowResult) []ImportGroup {
+	type key struct {
+		code  string
+		batch int
+	}
+	index := map[key]int{}
+	groups := []ImportGroup{}
+	for _, row := range rows {
+		if row.DepartmentCode == "" {
+			continue
+		}
+		k := key{row.DepartmentCode, row.BatchYear}
+		i, ok := index[k]
+		if !ok {
+			group := ImportGroup{DepartmentCode: row.DepartmentCode, BatchYear: row.BatchYear}
+			// The lookup is cached from the row checks; a failed one only
+			// leaves the name empty.
+			if department, err := run.department(ctx, row.DepartmentCode); err == nil && department != nil {
+				group.DepartmentName = department.Name
+				group.Outside = run.outside(department)
+			}
+			i = len(groups)
+			index[k] = i
+			groups = append(groups, group)
+		}
+		groups[i].Rows++
+		switch row.Status {
+		case ImportCreated:
+			groups[i].Created++
+		case ImportReady:
+			groups[i].Ready++
+		default:
+			groups[i].Failed++
+		}
+	}
+	sort.SliceStable(groups, func(a, b int) bool {
+		if groups[a].Outside != groups[b].Outside {
+			return groups[a].Outside
+		}
+		if groups[a].DepartmentCode != groups[b].DepartmentCode {
+			return groups[a].DepartmentCode < groups[b].DepartmentCode
+		}
+		return groups[a].BatchYear < groups[b].BatchYear
+	})
+	return groups
 }
 
 func (run *importer) department(ctx context.Context, code string) (*Department, error) {
