@@ -19,3 +19,4 @@ The service checks this from roles read from the database, not the token, the sa
 
 - An admin can still appoint coordinators, as the fallback; the screens keep that quiet (the "can vs normally does" principle).
 - The principal can no longer grant or end `student_coordinator` or `principal`.
+- Adding a new staff account (a staff invite) is a separate path with its own rule (#160, ADR 0029), not this table: it creates the account and its first role together, so there is no existing member to manage.
