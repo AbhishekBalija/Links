@@ -33,6 +33,28 @@ type WaitingPerson struct {
 	DepartmentCode string    `json:"department_code" gorm:"column:department_code"`
 	BatchYear      int       `json:"batch_year,omitempty" gorm:"column:batch_year"`
 	AddedAt        time.Time `json:"added_at" gorm:"column:added_at"`
+	AddedBy        AddedBy   `json:"added_by" gorm:"-"`
+	AddedByName    string    `json:"-" gorm:"column:added_by_name"`
+}
+
+// AddedBy is who imported or invited someone.
+type AddedBy struct {
+	FullName string `json:"full_name"`
+}
+
+// NotSignedInFilter narrows the people waiting for a first sign-in: the
+// actor's scope, students or staff, and the page after a cursor.
+type NotSignedInFilter struct {
+	Anywhere      bool
+	DepartmentIDs []string
+	Kind          string
+	After         *NotSignedInCursor
+	Limit         int
+}
+
+type NotSignedInCursor struct {
+	At time.Time
+	ID string
 }
 
 // WaitingList is the people waiting for a first sign-in, oldest first.

@@ -22,6 +22,8 @@ func NewAdminHandler(service AuthService, policy *Policy) *AdminHandler {
 func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin := rg.Group("/admin/users")
 	admin.GET("/review-queue", h.ReviewQueue)
+	admin.GET("/not-signed-in", h.NotSignedIn)
+	admin.GET("/not-signed-in/emails", h.NotSignedInEmails)
 	admin.POST("", h.InviteStaff)
 	admin.PATCH("/:id/verify", h.VerifyUser)
 	admin.PATCH("/:id/status", h.UpdateUserStatus)
@@ -281,4 +283,54 @@ func (h *AdminHandler) ImportStudents(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusOK, resp, nil)
+}
+
+// NotSignedIn lists who class lists and staff invites let in and who hasn't
+// signed in yet. Whoever decides Access requests may see it; the service
+// keeps an HOD to their own Department.
+func (h *AdminHandler) NotSignedIn(c *gin.Context) {
+	if !h.authorizeAccessDecider(c) {
+		return
+	}
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	page, err := h.service.NotSignedIn(c.Request.Context(), GetActor(c).UserID, NotSignedInQuery{
+		Department: c.Query("department"), Kind: c.Query("kind"), Cursor: c.Query("cursor"), Limit: limit,
+	})
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	meta := gin.H{"total": page.Total}
+	if page.NextCursor != "" {
+		meta["next_cursor"] = page.NextCursor
+	}
+	response.Success(c, http.StatusOK, page.People, meta)
+}
+
+// NotSignedInEmails gives every matching email, for a reminder sent from
+// the college's own mail.
+func (h *AdminHandler) NotSignedInEmails(c *gin.Context) {
+	if !h.authorizeAccessDecider(c) {
+		return
+	}
+	emails, err := h.service.NotSignedInEmails(c.Request.Context(), GetActor(c).UserID, NotSignedInQuery{
+		Department: c.Query("department"), Kind: c.Query("kind"),
+	})
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, gin.H{"emails": emails}, nil)
+}
+
+func (h *AdminHandler) authorizeAccessDecider(c *gin.Context) bool {
+	if GetActor(c) == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return false
+	}
+	if err := AuthorizeActor(c, h.policy, PermissionApproveAccess); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return false
+	}
+	return true
 }

@@ -167,7 +167,9 @@ gets a new access token:
   refresh tokens in the same transaction. Their next refresh fails and they
   must sign in again, which reads their roles fresh.
 - Until then, an access token issued before the change keeps working for up
-  to 15 minutes with the old roles.
+  to 15 minutes with the old roles. Suspending or rejecting an account takes
+  effect at once, though: every request reads the account's status, and a
+  suspended or rejected account gets `401` (#175).
 - Checks that matter most already re-read roles from the database instead of
   the token: Announcement publishing authority and approval (ADR 0017), and
   granting or ending the admin role. A newly granted role shows up at the
@@ -217,5 +219,7 @@ Department, the principal grants and ends `faculty`, `hod` and
 `principal` and `admin`. Beyond appointing coordinators and adding faculty, HODs don't manage
 users; they decide Access requests (`approve_access`) for their own Department only
 (ADR 0025): approve, or reject with a note. Suspending and reactivating
-accounts stay with the principal and admins.
+accounts stay with the principal and admins, with three guards: nobody
+suspends themselves, only an admin suspends an admin or the principal, and
+the last active admin can't be suspended.
 

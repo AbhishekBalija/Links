@@ -340,6 +340,11 @@ Works without a token. A public profile is visible to everyone, a private one
 only to its owner (`404` for anyone else). Email and phone appear only for the
 owner or when the owner opted in.
 
+Like the directory, only listed members are shown: an account that is
+pending (imported or invited but not yet signed in), suspended or rejected,
+or whose roles have all ended, answers `404` (#176). Its owner still sees
+it, and so do admins and the principal, who manage people.
+
 Signed-in viewers also get who the member is at the college, described exactly
 as a directory entry describes them: `roles` (in effect, most senior first),
 `department` (`{code, name}`) and, for students, `batch_year`. Anonymous
@@ -467,6 +472,8 @@ sections without changing these:
 
 ```text
 GET    /api/v1/admin/users/review-queue
+GET    /api/v1/admin/users/not-signed-in
+GET    /api/v1/admin/users/not-signed-in/emails
 POST   /api/v1/admin/users
 POST   /api/v1/admin/users/import
 PATCH  /api/v1/admin/users/:id/verify
@@ -519,9 +526,33 @@ created, so a concurrent department delete either waits and returns `409` or
 runs first and the approval returns `400`.
 
 `PATCH /api/v1/admin/users/:id/status` with `{"status": "suspended" | "rejected" | "active", "note": "..."}`.
+Suspending yourself is `403`; only an admin may suspend someone holding the
+admin or principal role (`403` otherwise); suspending the last active admin
+is `409`.
 Moving a user to `suspended` or `rejected` also revokes all their refresh
 tokens in the same transaction, so every signed-in device is signed out at its
 next refresh.
+
+### Not signed in yet
+
+`GET /api/v1/admin/users/not-signed-in` lists who a class list or a staff
+invite let in and who hasn't signed in yet, oldest first, for whoever
+decides Access requests (`approve_access`): everyone for the principal and
+admins, only their own Departments for an HOD. Each row is as on Home's
+`lists.waiting` (`user_id`, `full_name`, `email`, `kind`, `role`, `usn`,
+`batch_year`, `department_code`, `added_at`) plus `added_by.full_name`, who
+imported or invited them.
+
+- `department` (a code) and `kind` (`student` or `staff`) narrow the list.
+  An unknown code or kind is `400`; an HOD naming another Department gets
+  `403`.
+- `limit` (default 50, at most 100) and `cursor` page it; `meta.total` is how
+  many match in all and `meta.next_cursor` is set while there are more.
+
+`GET /api/v1/admin/users/not-signed-in/emails` takes the same `department`
+and `kind` and returns `{"emails": [...]}`, every matching email oldest
+first, for a reminder sent from the college's own mail (LINKS doesn't email
+them).
 
 ### Staff invites
 

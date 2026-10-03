@@ -28,6 +28,21 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Server errors now reach the logs and Sentry: a 500's cause is logged with
+  the request ID and reported, and Sentry covers every route (it was added
+  after the routes, so it covered none).
+- After a role ends and an event is handed to a new Organiser (ADR 0028),
+  the former proposer no longer sees who answered or exports the
+  participant list (names, emails, USNs); both follow the Organiser.
+- Suspending is guarded (#177): nobody suspends themselves, only an admin
+  suspends an admin or the principal, and the last active admin can't be
+  suspended.
+- Suspending or rejecting an account takes effect at once (#175): its
+  access tokens stop working on the next request instead of up to 15
+  minutes later.
+- Profiles of accounts that haven't signed in yet, or are suspended or
+  rejected, are no longer readable by others, including anonymous visitors
+  (#176). Admins and the principal still see them.
 - Importing a class list no longer fails a row when two students share a
   name (#166). Usernames get a random suffix instead of the clock's, and a
   username clash is retried in a savepoint instead of aborting the row. The
@@ -40,6 +55,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Not signed in list API (#127): `GET /api/v1/admin/users/not-signed-in`
+  with department and student/staff filters, paging and who added each
+  person, and `/not-signed-in/emails` for copying every matching email.
 - Import students screen (#126): admins import a class list for any
   department from the Admin workspace, HODs for their own at `/import`.
   Every row is checked first (nothing saved), grouped by the department and
