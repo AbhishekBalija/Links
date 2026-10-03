@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"log/slog"
 	"net/http"
 
@@ -77,6 +78,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		}))
 	}
 	router.Use(
+		// First, so every route below gets a Sentry hub (middleware added
+		// after a route is registered doesn't apply to it).
+		sentrygin.New(sentrygin.Options{Repanic: false}),
 		securityHeaders(cfg.AppEnv == "production"),
 		requestBodyLimit(cfg.RequestBodyLimit),
 		requestLogger(logger),

@@ -219,5 +219,7 @@ Department, the principal grants and ends `faculty`, `hod` and
 `principal` and `admin`. Beyond appointing coordinators and adding faculty, HODs don't manage
 users; they decide Access requests (`approve_access`) for their own Department only
 (ADR 0025): approve, or reject with a note. Suspending and reactivating
-accounts stay with the principal and admins.
+accounts stay with the principal and admins, with three guards: nobody
+suspends themselves, only an admin suspends an admin or the principal, and
+the last active admin can't be suspended.
 
