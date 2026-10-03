@@ -90,13 +90,42 @@ test.describe('Home for reviewers', () => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await loginViaUI(page, hod.email)
     await page.goto('/')
-    const panel = page.getByRole('region', { name: 'Waiting for your review' })
-    await expect(panel).toContainText('1')
+    const panel = page.getByRole('region', { name: 'Waiting for you' })
+    await expect(panel.getByRole('link', { name: /Announcements and events/ })).toContainText('1')
     await expect(panel).not.toContainText('Nothing is waiting for you')
     await expect(page.getByRole('navigation', { name: 'Main' }).first().getByRole('link', { name: /Approval queue/ })).toContainText('1')
 
-    await panel.getByRole('link', { name: /Data science bootcamp/ }).click()
+    await panel.getByRole('link', { name: /Announcements and events/ }).click()
+    await page.waitForURL('**/approvals')
+    await page.getByRole('link', { name: /Data science bootcamp/ }).first().click()
     await page.waitForURL('**/approvals/*')
     await expect(page.getByRole('heading', { name: 'Data science bootcamp' })).toBeVisible()
+  })
+})
+
+test.describe('Homes for the HOD, the principal and admins', () => {
+  test('each sees the Home built around their job', async ({ page, request }) => {
+    // AI has no other HOD in the e2e specs before this one runs its own.
+    const hod = await seedMember(request, { role: 'hod', fullName: 'Kavitha Rao', department: 'AI' })
+    const principal = await seedMember(request, { role: 'principal', fullName: 'Suresh Kumar' })
+    const admin = await seedMember(request, { role: 'admin', fullName: 'Nikhil Bhat' })
+
+    await page.setViewportSize({ width: 1440, height: 960 })
+    await loginViaUI(page, hod.email)
+    const department = page.getByRole('region', { name: /Computer Science and Engineering \(AI and ML\)/ })
+    await expect(department.getByRole('link', { name: 'Import students →' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Waiting for you' })).toBeVisible()
+    await page.getByRole('button', { name: 'Log out' }).first().click()
+
+    await loginViaUI(page, principal.email)
+    const college = page.getByRole('region', { name: 'The college' })
+    await expect(college.getByRole('link', { name: 'Computer Science and Engineering', exact: true })).toBeVisible()
+    // Other specs give every department an HOD, so check the column, not a gap.
+    await expect(college.getByRole('columnheader', { name: 'HOD' })).toBeVisible()
+    await page.getByRole('button', { name: 'Log out' }).first().click()
+
+    await loginViaUI(page, admin.email)
+    await expect(page.getByRole('region', { name: 'To do' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Import students' }).first()).toBeVisible()
   })
 })

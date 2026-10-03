@@ -25,6 +25,44 @@ export type Dashboard = {
   opportunities?: { items: Opportunity[]; has_more: boolean }
   // Only for placement staff.
   placement?: PlacementSummary
+  // An HOD's own Department.
+  department?: DepartmentPanel
+  // The principal's and admins' view of every Department.
+  college?: { departments: CollegeDepartment[]; departments_without_hod: number }
+  // For whoever decides Access requests (HODs for their Department).
+  access_requests?: { pending_count: number; oldest_requested_at: string | null }
+  // Who class lists and staff invites let in, and the latest imports.
+  lists?: Lists
+}
+
+export type DepartmentPanel = {
+  code: string
+  name: string
+  students: number
+  staff: number
+  students_by_batch: { batch_year: number; count: number }[]
+  upcoming_events: { id: string; title: string; event_type: string; location: string; starts_at: string }[]
+}
+
+export type CollegeDepartment = {
+  code: string
+  name: string
+  students: number
+  staff: number
+  hod: { full_name: string; username: string } | null
+}
+
+export type Lists = {
+  waiting_count: number
+  has_more: boolean
+  recent_imports: {
+    imported_at: string
+    imported_by: { full_name: string }
+    rows: number
+    created: number
+    failed: number
+    batches: { department_code: string; batch_year: number; created: number }[] | null
+  }[]
 }
 
 export function useDashboard(enabled = true) {
