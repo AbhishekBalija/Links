@@ -207,9 +207,15 @@ func (h *AdminHandler) authorizeRoleManager(c *gin.Context) bool {
 	return true
 }
 
-// InviteStaff adds a staff member by email and role (principal and admin).
+// InviteStaff adds a staff member by email and role (admins, and HODs for
+// faculty of their own Department).
 func (h *AdminHandler) InviteStaff(c *gin.Context) {
-	if !h.authorizeManager(c) {
+	if GetActor(c) == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return
+	}
+	if err := AuthorizeActor(c, h.policy, PermissionInviteStaff); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
 		return
 	}
 	var input InviteStaffInput

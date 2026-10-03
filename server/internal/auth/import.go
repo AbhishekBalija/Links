@@ -1,6 +1,6 @@
 package auth
 
-// Bulk import: an admin, the principal or an HOD uploads a CSV of students
+// Bulk import: an admin or an HOD uploads a CSV of students
 // (the class list), and each valid row becomes a student waiting for their
 // first sign-in, with Google or an email code (#17, ADR 0026). No email is
 // sent.
@@ -225,10 +225,35 @@ func (s *authService) importDepartment(ctx context.Context, code string, anywher
 	return department, nil
 }
 
-// importScope reads the actor's roles from the database: an admin or the
-// principal may import anyone, an HOD only students of their Departments.
+// importScope reads the actor's roles from the database: an admin may import
+// anyone, an HOD only students of their Departments (ADR 0029).
 func (s *authService) importScope(ctx context.Context, actorID string) (bool, map[string]bool, error) {
-	return s.departmentScope(ctx, actorID, "only an admin, the principal or an HOD can import students")
+	return s.adminOrHODScope(ctx, actorID, "only an admin or an HOD can import students")
+}
+
+// adminOrHODScope says where the actor may add people: anywhere for an admin,
+// otherwise the Departments they are HOD of. Being the principal doesn't
+// count (ADR 0029). Anyone else is refused with the given message.
+func (s *authService) adminOrHODScope(ctx context.Context, actorID, refusal string) (bool, map[string]bool, error) {
+	grants, err := s.userRepo.GetRoleAssignments(ctx, actorID)
+	if err != nil {
+		return false, nil, fmt.Errorf("get actor roles: %w", err)
+	}
+	departments := map[string]bool{}
+	for _, grant := range grants {
+		switch grant.Role {
+		case RoleAdmin:
+			return true, nil, nil
+		case RoleHOD:
+			if grant.ScopeType == ScopeDepartment && grant.ScopeID != nil {
+				departments[*grant.ScopeID] = true
+			}
+		}
+	}
+	if len(departments) == 0 {
+		return false, nil, apperrors.NewForbidden(refusal)
+	}
+	return false, departments, nil
 }
 
 // departmentScope says where the actor may act on students: anywhere for

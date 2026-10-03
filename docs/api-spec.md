@@ -490,8 +490,8 @@ next refresh.
 
 ### Staff invites
 
-`POST /api/v1/admin/users` (principal and admin, `manage_users_and_roles`)
-adds a staff member by email and role:
+`POST /api/v1/admin/users` (admins, and HODs for faculty of their own
+Department; `invite_staff`, ADR 0029) adds a staff member by email and role:
 
 ```json
 {
@@ -509,13 +509,14 @@ follows role management's rules (below): only an admin invites an admin,
 a Department has one HOD at a time, and the Scope must fit the role. `201`
 with `{"user_id": "...", "status": "pending"}`. `400` for an invalid email,
 an empty name or a role and Scope that don't fit; `409` for an email already
-registered or a role that clashes. Nothing is created on any error. Audited
-as `user_invited` and `role_granted`.
+registered or a role that clashes; `403` for the principal, or an HOD
+inviting any role but faculty or any Department but their own. Nothing is
+created on any error. Audited as `user_invited` and `role_granted`.
 
 ### Student import
 
-`POST /api/v1/admin/users/import` (admin, principal, or an HOD for their own
-Department) takes a multipart upload with the CSV in the field `file`:
+`POST /api/v1/admin/users/import` (admin, or an HOD for their own Department;
+not the principal, ADR 0029) takes a multipart upload with the CSV in the field `file`:
 
 ```csv
 email,full_name,usn

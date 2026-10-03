@@ -35,7 +35,7 @@ The first time someone signs into an account waiting for it (a class list row, a
 _Avoid_: activation, onboarding
 
 **Staff invite**:
-An admin or the principal adding a staff member by email and role. The account waits for its First sign-in.
+An admin adding a staff member by email and role, or an HOD adding faculty to their own Department. The account waits for its First sign-in.
 
 **Sign-in code**:
 A 6-digit code emailed to someone signing in without Google. It works once, for 10 minutes, in the browser that asked for it. The principal and admins can't use one.
