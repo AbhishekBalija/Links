@@ -239,3 +239,29 @@ func TestAFullImportFinishesWellInsideTheWriteTimeout(t *testing.T) {
 		t.Errorf("200 rows took %s, want well under the 30 s WriteTimeout", took)
 	}
 }
+
+// Two students with the same name in one class list both get in: their
+// usernames differ (#166).
+func TestImportAddsStudentsWhoShareAName(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	csv := "email,full_name,usn\n"
+	for i := 0; i < 30; i++ {
+		csv += fmt.Sprintf("rahul%02d@gmail.com,Rahul K,4MN23CS%03d\n", i, 200+i)
+	}
+
+	result := imported(t, importCSV(h, admin.Token, csv))
+	if result.Created != 30 || result.Failed != 0 {
+		for _, row := range result.Rows {
+			if row.Error != "" {
+				t.Logf("row %d: %s", row.Row, row.Error)
+			}
+		}
+		t.Fatalf("created %d, failed %d; want all 30 Rahul Ks created", result.Created, result.Failed)
+	}
+	var usernames int
+	h.DB().Raw(`SELECT count(DISTINCT p.username) FROM profiles p JOIN users u ON u.id = p.user_id WHERE u.email LIKE 'rahul%@gmail.com'`).Scan(&usernames)
+	if usernames != 30 {
+		t.Errorf("distinct usernames = %d, want 30", usernames)
+	}
+}
