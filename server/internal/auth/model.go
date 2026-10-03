@@ -209,11 +209,13 @@ type AuthService interface {
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
 	ReviewQueue(ctx context.Context, actorID string) (*ReviewQueueResponse, error)
 	AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error)
+	ListsSummary(ctx context.Context, actorID string) (*ListsSummary, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
-	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)
+	ListUserRoles(ctx context.Context, actorID, userID string) ([]RoleAssignmentResponse, error)
 	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
-	EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error)
+	EndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*EndRoleResponse, error)
+	PreviewEndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*HandoverSummary, error)
 	ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error)
 }
 
@@ -258,6 +260,8 @@ type UserRepository interface {
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)
 	ReviewDepartments(ctx context.Context) ([]ReviewDepartment, error)
 	ReportedAt(ctx context.Context, userIDs []string) (map[string]time.Time, error)
+	WaitingForFirstSignIn(ctx context.Context, anywhere bool, departmentIDs []string, limit int) (WaitingList, error)
+	RecentImportAudits(ctx context.Context, anywhere bool, departmentIDs []string, limit int) ([]ImportAuditRow, map[string]bool, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
 	HasAdmin(ctx context.Context) (bool, error)
 	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
@@ -325,6 +329,8 @@ type AuthRepositories struct {
 	RefreshTokens RefreshTokenRepository
 	SignInCodes   SignInCodeRepository
 	AuditLogs     AuditLogRepository
+	// Work is the other modules' share of ending a role (ADR 0028).
+	Work []UnfinishedWork
 }
 
 // AuthUnitOfWork executes related auth writes atomically.

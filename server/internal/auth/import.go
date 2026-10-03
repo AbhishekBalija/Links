@@ -1,6 +1,6 @@
 package auth
 
-// Bulk import: an admin, the principal or an HOD uploads a CSV of students
+// Bulk import: an admin or an HOD uploads a CSV of students
 // (the class list), and each valid row becomes a student waiting for their
 // first sign-in, with Google or an email code (#17, ADR 0026). No email is
 // sent.
@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"sort"
 	"strings"
 	"time"
 
@@ -121,6 +122,13 @@ type importer struct {
 	byCode      map[string]*Department
 	emails      map[string]bool
 	usns        map[string]bool
+	created     map[importKey]int
+}
+
+// importKey is a Department and Batch an import created students in.
+type importKey struct {
+	department string
+	batchYear  int
 }
 
 func (s *authService) ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error) {
@@ -141,6 +149,7 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		byCode:      map[string]*Department{},
 		emails:      map[string]bool{},
 		usns:        map[string]bool{},
+		created:     map[importKey]int{},
 	}
 	result := &ImportResponse{Rows: make([]ImportRowResult, 0, len(rows))}
 	for _, row := range rows {
@@ -159,7 +168,10 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 		Action:       "students_imported",
 		ResourceType: "user_import",
 		CreatedAt:    now,
-		Metadata:     map[string]int{"rows": len(rows), "created": result.Created, "failed": result.Failed},
+		Metadata: map[string]any{
+			"rows": len(rows), "created": result.Created, "failed": result.Failed,
+			"batches": run.batches(),
+		},
 	}
 	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		return repos.AuditLogs.Create(ctx, summary)
@@ -169,10 +181,35 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, file i
 	return result, nil
 }
 
-// importScope reads the actor's roles from the database: an admin or the
-// principal may import anyone, an HOD only students of their Departments.
+// importScope reads the actor's roles from the database: an admin may import
+// anyone, an HOD only students of their Departments (ADR 0029).
 func (s *authService) importScope(ctx context.Context, actorID string) (bool, map[string]bool, error) {
-	return s.departmentScope(ctx, actorID, "only an admin, the principal or an HOD can import students")
+	return s.adminOrHODScope(ctx, actorID, "only an admin or an HOD can import students")
+}
+
+// adminOrHODScope says where the actor may add people: anywhere for an admin,
+// otherwise the Departments they are HOD of. Being the principal doesn't
+// count (ADR 0029). Anyone else is refused with the given message.
+func (s *authService) adminOrHODScope(ctx context.Context, actorID, refusal string) (bool, map[string]bool, error) {
+	grants, err := s.userRepo.GetRoleAssignments(ctx, actorID)
+	if err != nil {
+		return false, nil, fmt.Errorf("get actor roles: %w", err)
+	}
+	departments := map[string]bool{}
+	for _, grant := range grants {
+		switch grant.Role {
+		case RoleAdmin:
+			return true, nil, nil
+		case RoleHOD:
+			if grant.ScopeType == ScopeDepartment && grant.ScopeID != nil {
+				departments[*grant.ScopeID] = true
+			}
+		}
+	}
+	if len(departments) == 0 {
+		return false, nil, apperrors.NewForbidden(refusal)
+	}
+	return false, departments, nil
 }
 
 // departmentScope says where the actor may act on students: anywhere for
@@ -219,7 +256,26 @@ func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResu
 	}
 	outcome.Status = ImportCreated
 	outcome.UserID = userID
+	// The USN was valid or the row would have failed above.
+	batchYear, _ := BatchYearFromUSN(row.USN)
+	run.created[importKey{department: department.Code, batchYear: batchYear}]++
 	return outcome
+}
+
+// batches lists how many students the import created in each Department and
+// Batch, for the audit row Home reads.
+func (run *importer) batches() []ImportBatch {
+	batches := make([]ImportBatch, 0, len(run.created))
+	for key, count := range run.created {
+		batches = append(batches, ImportBatch{DepartmentCode: key.department, BatchYear: key.batchYear, Created: count})
+	}
+	sort.Slice(batches, func(i, j int) bool {
+		if batches[i].DepartmentCode != batches[j].DepartmentCode {
+			return batches[i].DepartmentCode < batches[j].DepartmentCode
+		}
+		return batches[i].BatchYear < batches[j].BatchYear
+	})
+	return batches
 }
 
 // check applies the rules that need no transaction and returns why the row

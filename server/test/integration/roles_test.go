@@ -121,19 +121,112 @@ func TestPrincipalGrantsGlobalRoleButNotAdmin(t *testing.T) {
 
 func TestRoleManagementIsForbiddenToOtherRoles(t *testing.T) {
 	h := apitest.New(t)
-	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
-	target := h.SeedUser(t, apitest.UserSeed{})
+	teacher := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
+	target := student(t, h, "CS", 2023)
 
 	checks := []apitest.Response{
-		grantRole(t, h, hod.Token, target.ID, map[string]any{"role": "faculty", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS")}),
-		h.Do(t, http.MethodGet, "/api/v1/admin/users/"+target.ID+"/roles", hod.Token, nil),
-		h.Do(t, http.MethodDelete, "/api/v1/admin/users/"+target.ID+"/roles/00000000-0000-0000-0000-000000000000", hod.Token, nil),
+		grantRole(t, h, teacher.Token, target.ID, map[string]any{"role": "student_coordinator", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS")}),
+		h.Do(t, http.MethodGet, "/api/v1/admin/users/"+target.ID+"/roles", teacher.Token, nil),
+		h.Do(t, http.MethodDelete, "/api/v1/admin/users/"+target.ID+"/roles/00000000-0000-0000-0000-000000000000", teacher.Token, nil),
 	}
 	for i, response := range checks {
 		if response.Status != http.StatusForbidden {
 			t.Errorf("call %d status = %d, want %d: %s", i, response.Status, http.StatusForbidden, response.Body)
 		}
 	}
+}
+
+func TestHODAppointsAndRemovesACoordinatorInTheirDepartment(t *testing.T) {
+	h := apitest.New(t)
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	csStudent := student(t, h, "CS", 2023)
+
+	id := grantedID(t, grantRole(t, h, hod.Token, csStudent.ID, map[string]any{
+		"role": "student_coordinator", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS"),
+	}))
+	roles := listRoles(t, h, hod.Token, csStudent.ID)
+	if !hasActiveRole(roles, id) {
+		t.Fatalf("roles = %+v, want the coordinator assignment active", roles)
+	}
+
+	response := h.Do(t, http.MethodDelete, "/api/v1/admin/users/"+csStudent.ID+"/roles/"+id, hod.Token, nil)
+	if response.Status != http.StatusOK {
+		t.Fatalf("HOD ending a coordinator status = %d, want %d: %s", response.Status, http.StatusOK, response.Body)
+	}
+	if auditCount(t, h, "role_ended", csStudent.ID) != 1 {
+		t.Fatal("ending a coordinator wrote no audit log")
+	}
+}
+
+func TestHODManagesOnlyCoordinatorsOfTheirOwnDepartment(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	csStudent := student(t, h, "CS", 2023)
+	ecStudent := student(t, h, "EC", 2023)
+	cs, ec := h.DepartmentID(t, "CS"), h.DepartmentID(t, "EC")
+	ecCoordinator := grantedID(t, grantRole(t, h, admin.Token, ecStudent.ID, map[string]any{"role": "student_coordinator", "scope_type": "department", "scope_id": ec}))
+
+	forbidden := map[string]apitest.Response{
+		"grant faculty to own student": grantRole(t, h, hod.Token, csStudent.ID, map[string]any{"role": "faculty", "scope_type": "department", "scope_id": cs}),
+		"grant HOD":                    grantRole(t, h, hod.Token, csStudent.ID, map[string]any{"role": "hod", "scope_type": "department", "scope_id": cs}),
+	}
+	for name, response := range forbidden {
+		if response.Status != http.StatusForbidden {
+			t.Errorf("%s status = %d, want %d: %s", name, response.Status, http.StatusForbidden, response.Body)
+		}
+	}
+
+	hidden := map[string]apitest.Response{
+		"grant to another department's student": grantRole(t, h, hod.Token, ecStudent.ID, map[string]any{"role": "student_coordinator", "scope_type": "department", "scope_id": ec}),
+		"list another department's student":     h.Do(t, http.MethodGet, "/api/v1/admin/users/"+ecStudent.ID+"/roles", hod.Token, nil),
+		"end another department's coordinator":  h.Do(t, http.MethodDelete, "/api/v1/admin/users/"+ecStudent.ID+"/roles/"+ecCoordinator, hod.Token, nil),
+	}
+	for name, response := range hidden {
+		if response.Status != http.StatusNotFound {
+			t.Errorf("%s status = %d, want %d: %s", name, response.Status, http.StatusNotFound, response.Body)
+		}
+	}
+	if roles := listRoles(t, h, admin.Token, ecStudent.ID); !hasActiveRole(roles, ecCoordinator) {
+		t.Fatalf("roles = %+v, the EC coordinator should still be active", roles)
+	}
+}
+
+func TestPrincipalAppointsSeniorStaffButNotCoordinators(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	principal := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
+	csStudent := student(t, h, "CS", 2023)
+	teacher := h.SeedUser(t, apitest.UserSeed{})
+	cs := h.DepartmentID(t, "CS")
+
+	grantedID(t, grantRole(t, h, principal.Token, teacher.ID, map[string]any{"role": "faculty", "scope_type": "department", "scope_id": cs}))
+	grantedID(t, grantRole(t, h, principal.Token, teacher.ID, map[string]any{"role": "hod", "scope_type": "department", "scope_id": cs}))
+	coordinator := grantedID(t, grantRole(t, h, admin.Token, csStudent.ID, map[string]any{"role": "student_coordinator", "scope_type": "department", "scope_id": cs}))
+
+	forbidden := map[string]apitest.Response{
+		"grant coordinator": grantRole(t, h, principal.Token, csStudent.ID, map[string]any{"role": "student_coordinator", "scope_type": "department", "scope_id": cs}),
+		"grant principal":   grantRole(t, h, principal.Token, teacher.ID, map[string]any{"role": "principal", "scope_type": "global"}),
+		"end coordinator":   h.Do(t, http.MethodDelete, "/api/v1/admin/users/"+csStudent.ID+"/roles/"+coordinator, principal.Token, nil),
+	}
+	for name, response := range forbidden {
+		if response.Status != http.StatusForbidden {
+			t.Errorf("%s status = %d, want %d: %s", name, response.Status, http.StatusForbidden, response.Body)
+		}
+	}
+	// The principal still sees every role on a profile.
+	if roles := listRoles(t, h, principal.Token, csStudent.ID); !hasActiveRole(roles, coordinator) {
+		t.Fatalf("roles = %+v, want the coordinator listed for the principal", roles)
+	}
+}
+
+func hasActiveRole(roles []roleAssignment, id string) bool {
+	for _, role := range roles {
+		if role.ID == id && role.State == "active" {
+			return true
+		}
+	}
+	return false
 }
 
 func TestGrantRejectsBadRolesScopesAndDates(t *testing.T) {

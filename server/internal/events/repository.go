@@ -108,10 +108,11 @@ func (r *GormRepository) FindForUpdate(ctx context.Context, id string) (*Event, 
 	return &event, err
 }
 
-const viewColumns = `e.*, p.full_name AS proposer_name, d.code AS department_code, mp.full_name AS mentor_name`
+const viewColumns = `e.*, p.full_name AS proposer_name, op.full_name AS organiser_name, d.code AS department_code, mp.full_name AS mentor_name`
 
 const viewFrom = `FROM events e
 	JOIN profiles p ON p.user_id = e.proposer_id
+	JOIN profiles op ON op.user_id = e.organiser_id
 	LEFT JOIN departments d ON d.id = e.department_id
 	LEFT JOIN profiles mp ON mp.user_id = e.faculty_mentor_id`
 

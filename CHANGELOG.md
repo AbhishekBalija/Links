@@ -6,6 +6,21 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Only admins and HODs add people (ADR 0029): the principal can no longer
+  import students or add staff. HODs can now add faculty to their own
+  Department, and an HOD who is also the principal imports only their own
+  Department's students.
+- Ending someone's role now handles their unfinished work (ADR 0028, #143):
+  announcements waiting for approval or sent back are withdrawn, event
+  proposals under review return to drafts, and upcoming events they organise
+  move to the Department's HOD or someone picked. A preview endpoint lists
+  this before anything happens.
+- HODs appoint and remove Student coordinators for their own Department
+  (ADR 0027, #143). The principal now grants and ends faculty, HOD and
+  placement officer roles only; granting the principal or Student coordinator
+  role moves to admins (and HODs for coordinators).
+
 ### Removed
 - Passwords and activation (#136): password login, the password Request
   access form, Activation emails and links, and Resend activation are gone,
@@ -18,6 +33,20 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Roles on a profile (#125): the principal and admins see a person's roles
+  (active, scheduled, ended), grant a role with dates and end or cancel one.
+  An HOD makes their own students student coordinators and ends that role.
+  Ending a role first shows what happens to the person's unfinished work and
+  who takes over their upcoming events.
+- Events have an Organiser who runs them (edits once published, cancels,
+  exports participants), starting as the proposer (ADR 0028, #143).
+  Migration 024 adds `events.organiser_id`.
+- Home data for HODs, the principal and admins (#127): `GET /api/v1/dashboard`
+  gets `lists` (who the class lists and staff invites let in who hasn't
+  signed in yet, with the list, and the latest five imports with who ran them
+  and how many students each created per Department and Batch) and
+  `college.departments_without_hod`. HODs see their own Departments only.
+  Imports now record their Department and Batch counts in the audit log.
 - Home for authors (#142): `GET /api/v1/dashboard` gets `my_work` with the
   caller's Announcements and Events a reviewer sent back (with the note and who
   sent it) and those waiting on a reviewer (who, and since when). Faculty and

@@ -269,6 +269,7 @@ events (
   description text not null default '',
   event_type text not null,       -- talk | workshop | competition | cultural | sports | training | other
   proposer_id uuid not null references users(id),
+  organiser_id uuid not null references users(id),   -- runs it; starts as the proposer (ADR 0028)
   department_id uuid references departments(id),   -- null: college-wide
   faculty_mentor_id uuid references users(id),
   location text not null,
@@ -594,6 +595,7 @@ create index idx_audience_rules_target on audience_rules (target_type, target_id
 create index idx_events_published_starts on events (starts_at, id) where status = 'published';
 create index idx_events_status_submitted on events (status, submitted_at);
 create index idx_events_proposer on events (proposer_id, created_at desc);
+create index idx_events_organiser on events (organiser_id);
 create index idx_events_department_starts on events (department_id, starts_at);
 create index idx_event_reviews_event on event_reviews (event_id, created_at);
 create unique index idx_event_rsvps_event_user on event_rsvps (event_id, user_id);

@@ -5,7 +5,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,7 +31,7 @@ var grantableScopes = map[Role]ScopeType{
 // look like a date in the past.
 const startsAtTolerance = time.Minute
 
-func (s *authService) ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error) {
+func (s *authService) ListUserRoles(ctx context.Context, actorID, userID string) ([]RoleAssignmentResponse, error) {
 	if _, err := uuid.Parse(userID); err != nil {
 		return nil, apperrors.NewNotFound("user not found")
 	}
@@ -38,6 +40,13 @@ func (s *authService) ListUserRoles(ctx context.Context, userID string) ([]RoleA
 		return nil, fmt.Errorf("find user: %w", err)
 	}
 	if user == nil {
+		return nil, apperrors.NewNotFound("user not found")
+	}
+	manager, err := readRoleManager(ctx, s.userRepo, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !manager.sees(user) {
 		return nil, apperrors.NewNotFound("user not found")
 	}
 	views, err := s.userRepo.ListRoleAssignments(ctx, userID)
@@ -76,7 +85,7 @@ func (s *authService) GrantRole(ctx context.Context, actorID, userID string, inp
 	var created RoleAssignmentResponse
 	err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		var err error
-		created, err = grantRoleIn(ctx, repos, actorID, userID, input, startsAt, now)
+		created, err = grantRoleIn(ctx, repos, actorID, userID, input, startsAt, now, requireRoleManager)
 		return err
 	})
 	if err != nil {
@@ -85,14 +94,16 @@ func (s *authService) GrantRole(ctx context.Context, actorID, userID string, inp
 	return &created, nil
 }
 
+// roleCheck decides whether the actor may grant the role to the user.
+type roleCheck func(ctx context.Context, users UserRepository, actorID string, user *User, role Role) error
+
 // grantRoleIn grants a role inside the caller's transaction. The caller has
 // validated the role, Scope and dates.
-func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID string, input GrantRoleInput, startsAt, now time.Time) (RoleAssignmentResponse, error) {
+// mayGrant is the caller's rule: role management on a profile checks who
+// the actor manages (requireRoleManager); a staff invite has its own rule.
+func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID string, input GrantRoleInput, startsAt, now time.Time, mayGrant roleCheck) (RoleAssignmentResponse, error) {
 	role := Role(input.Role)
 	scopeType := ScopeType(input.ScopeType)
-	if err := requireAdminFor(ctx, repos, actorID, role); err != nil {
-		return RoleAssignmentResponse{}, err
-	}
 	// Locking the user makes two identical grants run one after another,
 	// so the duplicate check below sees the first one.
 	user, err := repos.Users.FindByIDForUpdate(ctx, userID)
@@ -101,6 +112,9 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 	}
 	if user == nil {
 		return RoleAssignmentResponse{}, apperrors.NewNotFound("user not found")
+	}
+	if err := mayGrant(ctx, repos.Users, actorID, user, role); err != nil {
+		return RoleAssignmentResponse{}, err
 	}
 	if user.Status == UserStatusRejected {
 		return RoleAssignmentResponse{}, apperrors.NewConflict("a rejected user can't be given a role")
@@ -166,15 +180,39 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 
 // EndRole ends a Role assignment now, keeping the row as history, and signs
 // the user out everywhere so their next access token carries the new roles.
-func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error) {
+// In the same transaction it withdraws or hands over the work they can no
+// longer author (ADR 0028); organiserID takes over their upcoming Events.
+func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*EndRoleResponse, error) {
+	return s.endRole(ctx, actorID, userID, assignmentID, organiserID, false)
+}
+
+// PreviewEndRole runs EndRole in a transaction it rolls back, so the
+// confirmation shows exactly what ending the role would do.
+func (s *authService) PreviewEndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*HandoverSummary, error) {
+	ended, err := s.endRole(ctx, actorID, userID, assignmentID, organiserID, true)
+	if err != nil {
+		return nil, err
+	}
+	return &ended.Handover, nil
+}
+
+// errPreviewDone rolls back a preview's transaction once it has its answer.
+var errPreviewDone = errors.New("preview done")
+
+func (s *authService) endRole(ctx context.Context, actorID, userID, assignmentID, organiserID string, preview bool) (*EndRoleResponse, error) {
 	if _, err := uuid.Parse(userID); err != nil {
 		return nil, apperrors.NewNotFound("role assignment not found")
 	}
 	if _, err := uuid.Parse(assignmentID); err != nil {
 		return nil, apperrors.NewNotFound("role assignment not found")
 	}
+	if organiserID != "" {
+		if _, err := uuid.Parse(organiserID); err != nil {
+			return nil, apperrors.NewValidation("invalid organiser", map[string]string{"organiser_id": "must be a user ID"})
+		}
+	}
 	now := time.Now()
-	var ended RoleAssignmentResponse
+	var ended EndRoleResponse
 	err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		assignment, err := repos.Users.FindRoleAssignmentForUpdate(ctx, userID, assignmentID)
 		if err != nil {
@@ -183,7 +221,11 @@ func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID
 		if assignment == nil {
 			return apperrors.NewNotFound("role assignment not found")
 		}
-		if err := requireAdminFor(ctx, repos, actorID, assignment.Role); err != nil {
+		user, err := repos.Users.FindByID(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("find user: %w", err)
+		}
+		if err := requireRoleManager(ctx, repos.Users, actorID, user, assignment.Role); err != nil {
 			return err
 		}
 		if roleState(*assignment, now) == "ended" {
@@ -193,6 +235,12 @@ func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID
 			if err := requireAnotherAdmin(ctx, repos, assignment.ID); err != nil {
 				return err
 			}
+		}
+		// Read before ending: inside a transaction Postgres' now() is its start
+		// time, so the ended assignment would still look in effect afterwards.
+		remaining, err := remainingRoles(ctx, repos.Users, userID, assignment.ID)
+		if err != nil {
+			return err
 		}
 
 		// A scheduled assignment ends before it starts, so it never takes effect.
@@ -209,19 +257,48 @@ func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID
 				return fmt.Errorf("clear department HOD: %w", err)
 			}
 		}
+		summary, err := handOver(ctx, repos.Work, Handover{
+			PersonID: userID, ActorID: actorID, Remaining: remaining, OrganiserID: organiserID, At: now,
+		})
+		if err != nil {
+			return err
+		}
+		ended.Handover = summary
+		if preview {
+			return errPreviewDone
+		}
+		if summary.OrganiserNeeded {
+			return apperrors.NewValidation("pick who runs their upcoming events", map[string]string{"organiser_id": "no one takes over their upcoming events by default; pick an organiser"})
+		}
+
 		if err := repos.RefreshTokens.RevokeAllByUserID(ctx, userID); err != nil {
 			return fmt.Errorf("revoke refresh tokens: %w", err)
 		}
 		if err := repos.AuditLogs.Create(ctx, roleAuditLog("role_ended", actorID, *assignment, "", now)); err != nil {
 			return fmt.Errorf("create audit log: %w", err)
 		}
-		ended = roleAssignmentResponse(RoleAssignmentView{RoleAssignment: *assignment}, now)
+		ended.RoleAssignmentResponse = roleAssignmentResponse(RoleAssignmentView{RoleAssignment: *assignment}, now)
 		return nil
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, errPreviewDone) {
 		return nil, err
 	}
 	return &ended, nil
+}
+
+// remainingRoles are the user's roles in effect other than the one ending.
+func remainingRoles(ctx context.Context, users UserRepository, userID, endingID string) ([]RoleAssignment, error) {
+	assignments, err := users.GetRoleAssignments(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user roles: %w", err)
+	}
+	remaining := make([]RoleAssignment, 0, len(assignments))
+	for _, assignment := range assignments {
+		if assignment.ID != endingID {
+			remaining = append(remaining, assignment)
+		}
+	}
+	return remaining, nil
 }
 
 func validateGrant(role Role, scopeType ScopeType, scopeID string) error {
@@ -243,22 +320,79 @@ func validateGrant(role Role, scopeType ScopeType, scopeID string) error {
 	return nil
 }
 
-// requireAdminFor reads the actor's roles from the database: the principal
-// manages staff roles, but only an admin grants or ends the admin role.
-func requireAdminFor(ctx context.Context, repos AuthRepositories, actorID string, role Role) error {
-	if role != RoleAdmin {
-		return nil
-	}
-	grants, err := repos.Users.GetRoleAssignments(ctx, actorID)
+// roleManager is what the actor may do in role management, read from the
+// database rather than the token (ADR 0027).
+type roleManager struct {
+	admin     bool
+	principal bool
+	// hodOf lists the Departments the actor is HOD of.
+	hodOf []string
+}
+
+func readRoleManager(ctx context.Context, users UserRepository, actorID string) (roleManager, error) {
+	grants, err := users.GetRoleAssignments(ctx, actorID)
 	if err != nil {
-		return fmt.Errorf("get actor roles: %w", err)
+		return roleManager{}, fmt.Errorf("get actor roles: %w", err)
 	}
+	var manager roleManager
 	for _, grant := range grants {
-		if grant.Role == RoleAdmin {
-			return nil
+		switch grant.Role {
+		case RoleAdmin:
+			manager.admin = true
+		case RolePrincipal:
+			manager.principal = true
+		case RoleHOD:
+			if grant.ScopeID != nil {
+				manager.hodOf = append(manager.hodOf, *grant.ScopeID)
+			}
 		}
 	}
-	return apperrors.NewForbidden("only an admin can grant or end the admin role")
+	return manager, nil
+}
+
+// sees reports whether the actor may look at the user's roles: the principal
+// and admins see everyone, an HOD only the students of their Department.
+func (m roleManager) sees(user *User) bool {
+	if m.admin || m.principal {
+		return true
+	}
+	if user.StudentIdentity == nil {
+		return false
+	}
+	return slices.Contains(m.hodOf, user.StudentIdentity.DepartmentID)
+}
+
+// mayManage reports whether the actor grants and ends the role: an HOD the
+// Student coordinator role, the principal senior staff roles, an admin all.
+func (m roleManager) mayManage(role Role) bool {
+	switch {
+	case m.admin:
+		return true
+	case m.principal && (role == RoleFaculty || role == RoleHOD || role == RolePlacementOfficer):
+		return true
+	case len(m.hodOf) > 0 && role == RoleStudentCoordinator:
+		return true
+	}
+	return false
+}
+
+// requireRoleManager checks the actor may grant or end the role for the
+// user. A user the actor can't see answers as if they didn't exist.
+func requireRoleManager(ctx context.Context, users UserRepository, actorID string, user *User, role Role) error {
+	manager, err := readRoleManager(ctx, users, actorID)
+	if err != nil {
+		return err
+	}
+	if user == nil || !manager.sees(user) {
+		return apperrors.NewNotFound("user not found")
+	}
+	if !manager.mayManage(role) {
+		if role == RoleAdmin {
+			return apperrors.NewForbidden("only an admin can grant or end the admin role")
+		}
+		return apperrors.NewForbidden(fmt.Sprintf("you can't grant or end the %s role", role))
+	}
+	return nil
 }
 
 // lockScopeDepartment checks the department exists and locks it: a share lock

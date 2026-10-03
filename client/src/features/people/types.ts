@@ -27,6 +27,7 @@ export type Filters = {
 // PublicProfile is a member's profile page. Signed-in viewers get roles,
 // Department and Batch; email and phone only when the member shares them.
 export type PublicProfile = {
+  user_id: string
   username: string
   full_name: string
   headline?: string

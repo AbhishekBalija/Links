@@ -90,8 +90,13 @@ func (s *authService) RequestAccessWithProof(ctx context.Context, input ProvenAc
 }
 
 // InviteStaff adds a staff member by email and role. The account waits for
-// its first sign-in; the role follows role management's rules, so only an
-// admin can invite an admin.
+// its first sign-in. An admin invites any role; an HOD invites only faculty
+// of their own Department (ADR 0029).
+// checkedBeforehand is InviteStaff's rule inside the grant: who may add which
+// staff is already checked before the transaction (ADR 0029), and the new
+// account has nothing for role management's rule to look at.
+func checkedBeforehand(context.Context, UserRepository, string, *User, Role) error { return nil }
+
 func (s *authService) InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*RequestAccessResponse, error) {
 	email := strings.TrimSpace(input.Email)
 	if address, err := mail.ParseAddress(email); err != nil || address.Address != email {
@@ -105,17 +110,24 @@ func (s *authService) InviteStaff(ctx context.Context, actorID string, input Inv
 	if err := validateGrant(Role(grant.Role), ScopeType(grant.ScopeType), grant.ScopeID); err != nil {
 		return nil, err
 	}
+	anywhere, departments, err := s.adminOrHODScope(ctx, actorID, "only an admin or an HOD can add staff")
+	if err != nil {
+		return nil, err
+	}
+	if !anywhere && (Role(grant.Role) != RoleFaculty || !departments[grant.ScopeID]) {
+		return nil, apperrors.NewForbidden("an HOD can only add faculty to their own department")
+	}
 
 	now := time.Now()
 	user := &User{Email: &email, Status: UserStatusPending, IsVerified: true, CreatedBy: &actorID, CreatedAt: now, UpdatedAt: now}
-	err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+	err = s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		if err := requireNewEmail(ctx, repos.Users, email); err != nil {
 			return err
 		}
 		if err := s.createAccount(ctx, repos.Users, user, fullName, now); err != nil {
 			return err
 		}
-		if _, err := grantRoleIn(ctx, repos, actorID, user.ID, grant, now, now); err != nil {
+		if _, err := grantRoleIn(ctx, repos, actorID, user.ID, grant, now, now, checkedBeforehand); err != nil {
 			return err
 		}
 		return repos.AuditLogs.Create(ctx, &AuditLog{

@@ -93,6 +93,7 @@ type Response struct {
 	Department      *DepartmentSection              `json:"department,omitempty"`
 	College         *CollegeSection                 `json:"college,omitempty"`
 	AccessRequests  *auth.AccessSummary             `json:"access_requests,omitempty"`
+	Lists           *auth.ListsSummary              `json:"lists,omitempty"`
 }
 
 // Repository reads the profile details Home shows.
@@ -168,7 +169,12 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	lists, err := s.access.ListsSummary(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	return &Response{
+		Lists:           lists,
 		Department:      department,
 		College:         college,
 		AccessRequests:  access,
