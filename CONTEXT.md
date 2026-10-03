@@ -67,7 +67,7 @@ A current B.E. student of the college with a Student identity.
 A former student whose Graduation was confirmed. Students who left without graduating are not Alumni.
 
 **Student coordinator**:
-A Student who can propose events and post limited announcements within their Scope.
+A Student who can propose events and post limited announcements within their Scope. Appointed and removed by their Department's HOD (ADR 0027).
 
 **HOD**:
 Head of a Department. Reviews that Department's access requests and events, and sees only summaries of its students' placement applications.

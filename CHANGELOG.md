@@ -6,6 +6,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- HODs appoint and remove Student coordinators for their own Department
+  (ADR 0027, #143). The principal now grants and ends faculty, HOD and
+  placement officer roles only; granting the principal or Student coordinator
+  role moves to admins (and HODs for coordinators).
+
 ### Removed
 - Passwords and activation (#136): password login, the password Request
   access form, Activation emails and links, and Resend activation are gone,

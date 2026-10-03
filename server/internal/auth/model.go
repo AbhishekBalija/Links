@@ -211,7 +211,7 @@ type AuthService interface {
 	AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
-	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)
+	ListUserRoles(ctx context.Context, actorID, userID string) ([]RoleAssignmentResponse, error)
 	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
 	EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error)
 	ImportStudents(ctx context.Context, actorID string, file io.Reader) (*ImportResponse, error)
