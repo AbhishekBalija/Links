@@ -15,6 +15,18 @@ describe('apiRequest', () => {
   })
 })
 
+describe('apiRequest with a file', () => {
+  it('lets the browser set the multipart type for a FormData body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"data":{"ok":true}}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const form = new FormData()
+    form.append('file', new Blob(['email,full_name,usn\n']), 'class.csv')
+    await apiRequest('/api/v1/admin/users/import', { method: 'POST', body: form })
+    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>
+    expect(headers['Content-Type']).toBeUndefined()
+  })
+})
+
 describe('apiDownload', () => {
   it('returns the file with its name from the server', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
