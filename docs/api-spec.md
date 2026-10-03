@@ -1239,8 +1239,10 @@ unknown Opportunity, `400` for an unknown status.
 ```text
 GET /api/v1/departments
 GET /api/v1/departments/:code
+GET /api/v1/admin/departments
 POST /api/v1/admin/departments
 PUT /api/v1/admin/departments/:code
+PATCH /api/v1/admin/departments/:code
 DELETE /api/v1/admin/departments/:code
 GET /api/v1/departments/:code/announcements
 GET /api/v1/departments/:code/events
@@ -1250,6 +1252,35 @@ GET /api/v1/departments/:code/reports
 The list and detail routes require authentication (the code-and-name list for
 the sign-up form is `GET /api/v1/public/departments`, above). Department mutations require
 the `admin` role. Department codes are immutable uppercase VTU course codes.
+
+`GET /api/v1/admin/departments` (admins, `manage_departments`; `403` for
+anyone else) is the admin's Departments screen, every Department by name:
+
+```json
+{
+  "data": {
+    "departments": [
+      {
+        "id": "uuid",
+        "code": "CS",
+        "name": "Computer Science and Engineering",
+        "description": null,
+        "hod": { "user_id": "uuid", "full_name": "Meera Iyer", "username": "meera.iyer" },
+        "students": 412,
+        "staff": 23
+      }
+    ]
+  }
+}
+```
+
+- `hod` is whoever holds the `hod` role for the Department now, whether or
+  not their profile is public or they have signed in yet, or `null` for "No
+  HOD yet". Assigning one is a role grant (`POST /admin/users/:id/roles` with
+  `role: hod` and the Department's `id` as `scope_id`).
+- `students` and `staff` count active members the way Home's college panel
+  and the Department page do: users with the `student` role and a Student
+  identity in the Department, and users with the `faculty` role scoped to it.
 
 Create request:
 
@@ -1262,7 +1293,23 @@ Create request:
 }
 ```
 
-Update replaces the editable fields for the department identified by `:code`:
+A new Department's `code` must be the two letters its USNs carry (any case,
+stored upper case); anything else is `400`, since no USN could name it. A
+code already used is `409`.
+
+`PATCH /api/v1/admin/departments/:code` renames a Department and changes
+nothing else (description and HOD stay):
+
+```json
+{ "name": "Computer Science and Engineering" }
+```
+
+`200` with the Department. `400` for a name under 2 or over 120 characters
+after trimming, `404` for an unknown code, `403` for anyone but an admin.
+Audited as `department.updated` with the old and new names.
+
+Update (`PUT`) replaces the editable fields for the department identified by
+`:code`, so a field left out is cleared:
 
 ```json
 {
@@ -1271,6 +1318,10 @@ Update replaces the editable fields for the department identified by `:code`:
   "hodUserId": null
 }
 ```
+
+Codes never change once created (ADR 0021). `PATCH` and `PUT` accept a
+`code` only when it is the Department's own code; any other code is `400`
+and nothing changes.
 
 `GET /api/v1/departments/:code/overview` (any signed-in member; `401` without
 a token, `404` for an unknown code, the code is case-insensitive) is the
