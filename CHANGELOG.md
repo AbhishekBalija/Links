@@ -28,6 +28,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Profiles of accounts that haven't signed in yet, or are suspended or
+  rejected, are no longer readable by others, including anonymous visitors
+  (#176). Admins and the principal still see them.
 - Importing a class list no longer fails a row when two students share a
   name (#166). Usernames get a random suffix instead of the clock's, and a
   username clash is retried in a savepoint instead of aborting the row. The
