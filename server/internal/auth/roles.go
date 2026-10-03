@@ -84,7 +84,7 @@ func (s *authService) GrantRole(ctx context.Context, actorID, userID string, inp
 	var created RoleAssignmentResponse
 	err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		var err error
-		created, err = grantRoleIn(ctx, repos, actorID, userID, input, startsAt, now)
+		created, err = grantRoleIn(ctx, repos, actorID, userID, input, startsAt, now, requireRoleManager)
 		return err
 	})
 	if err != nil {
@@ -93,9 +93,14 @@ func (s *authService) GrantRole(ctx context.Context, actorID, userID string, inp
 	return &created, nil
 }
 
+// roleCheck decides whether the actor may grant the role to the user.
+type roleCheck func(ctx context.Context, users UserRepository, actorID string, user *User, role Role) error
+
 // grantRoleIn grants a role inside the caller's transaction. The caller has
 // validated the role, Scope and dates.
-func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID string, input GrantRoleInput, startsAt, now time.Time) (RoleAssignmentResponse, error) {
+// mayGrant is the caller's rule: role management on a profile checks who
+// the actor manages (requireRoleManager); a staff invite has its own rule.
+func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID string, input GrantRoleInput, startsAt, now time.Time, mayGrant roleCheck) (RoleAssignmentResponse, error) {
 	role := Role(input.Role)
 	scopeType := ScopeType(input.ScopeType)
 	// Locking the user makes two identical grants run one after another,
@@ -107,7 +112,7 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 	if user == nil {
 		return RoleAssignmentResponse{}, apperrors.NewNotFound("user not found")
 	}
-	if err := requireRoleManager(ctx, repos.Users, actorID, user, role); err != nil {
+	if err := mayGrant(ctx, repos.Users, actorID, user, role); err != nil {
 		return RoleAssignmentResponse{}, err
 	}
 	if user.Status == UserStatusRejected {
@@ -309,6 +314,22 @@ func (m roleManager) mayManage(role Role) bool {
 		return true
 	}
 	return false
+}
+
+// requireInviter checks the actor may give a new staff account this role.
+// Unlike requireRoleManager there is no one to see yet: the account is new.
+func requireInviter(ctx context.Context, users UserRepository, actorID string, _ *User, role Role) error {
+	manager, err := readRoleManager(ctx, users, actorID)
+	if err != nil {
+		return err
+	}
+	if !manager.mayManage(role) {
+		if role == RoleAdmin {
+			return apperrors.NewForbidden("only an admin can grant or end the admin role")
+		}
+		return apperrors.NewForbidden(fmt.Sprintf("you can't add staff with the %s role", role))
+	}
+	return nil
 }
 
 // requireRoleManager checks the actor may grant or end the role for the
