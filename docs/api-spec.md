@@ -557,9 +557,18 @@ with the counts and one `user_imported` per created user.
 
 ### Role management
 
-Principal and admin (`manage_users_and_roles`). Only an admin may grant or end
-the `admin` role; the principal gets `403` for it. The caller's roles for that
-check are read from the database, not the token.
+HODs, the principal and admins (`manage_roles`), each for different roles
+(ADR 0027):
+
+- An HOD grants and ends `student_coordinator` only, and sees and manages only
+  the students of their own Department. Any other user answers `404`, as if
+  they didn't exist.
+- The principal grants and ends `faculty`, `hod` and `placement_officer`, and
+  sees everyone's roles.
+- An admin grants and ends every role, including `principal` and `admin`.
+
+Granting or ending a role the caller doesn't manage is `403`. The caller's
+roles for these checks are read from the database, not the token.
 
 `GET /api/v1/admin/users/:id/roles` lists all of a user's Role assignments,
 newest start first: in effect now (`active`), starting later (`scheduled`) and
@@ -614,12 +623,51 @@ the assignment in the shape above:
   overlapping time, or when the user is `rejected`.
 
 `DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId` ends the assignment
-now and returns it with `state: "ended"`. The row is kept as history. A
+now and returns it with `state: "ended"` and a `handover` (below). The row is kept as history. A
 scheduled assignment is ended at its start, so it never takes effect. In the
 same transaction it revokes all the user's refresh tokens, clears the
 Department's named HOD when an HOD role ends, and writes the audit log. `404`
 when the assignment isn't this user's, `409` when it has already ended or when
 it is the last admin role in effect.
+
+Ending a role also handles the person's unfinished work, in the same
+transaction (ADR 0028). Only work their remaining roles can't author is
+touched: a former HOD who is still faculty of that Department keeps theirs.
+
+- Announcements waiting for approval or sent back become `withdrawn`; an edit
+  waiting on a published one is closed and the published version stays.
+- Event proposals under review or sent back return to private `draft`s
+  (review notes kept). Drafts stay drafts; submitting one needs the role again.
+- Published Events they organise that aren't over move to a new Organiser:
+  `?organiser_id=<user id>` when given (an active member who could propose
+  that Event, `400` on `organiser_id` otherwise), or else the Event's
+  Department HOD. When neither applies (a college-wide Event, or the HOD's own
+  role ending), the request is `400` on `organiser_id` and nothing changes.
+  RSVPs are kept.
+
+```json
+"handover": {
+  "withdrawn_announcements": [{ "id": "uuid", "title": "Coding club meet moved to Thursday" }],
+  "closed_edits": [],
+  "returned_events": [{ "id": "uuid", "title": "Open source sprint" }],
+  "moved_events": [
+    { "id": "uuid", "title": "Robotics meetup", "starts_at": "...", "organiser": { "user_id": "uuid", "full_name": "Dr. Rao" } }
+  ],
+  "organiser_needed": false,
+  "organiser_options": [{ "user_id": "uuid", "full_name": "Dr. Rao" }]
+}
+```
+
+`organiser_options` lists, by name, the active people who could run every
+moved Event (their Department's HOD and faculty, the principal, the
+placement officer for training), for the picker. Admins could too but are
+left out, as the quiet fallback. Every list is `[]` when empty.
+
+`GET /api/v1/admin/users/:id/roles/:roleAssignmentId/ending` (same
+`organiser_id` query) returns that `handover` for the confirmation without
+changing anything: it runs the same code in a transaction that is rolled back.
+`organiser_needed: true`, with `organiser: null` on the Events nobody takes
+over, means the confirmation must ask who runs them.
 
 Both grant and end write an audit log (`role_granted`, `role_ended`) with the
 role, Scope, dates and optional note.
@@ -783,7 +831,7 @@ notes. Each carries `rsvp: {counts: {going, interested, not_going},
 my_status}`, read for the whole page at once, so a list needs no call per
 Event.
 
-`GET /api/v1/events/:id` returns one Event to its proposer (any status); to
+`GET /api/v1/events/:id` returns one Event to its proposer or Organiser (any status); to
 the principal, admins and the HOD of its Department once it has left draft,
 with its `reviews`; and to a reader in its Audience once it has been
 published (including after it is cancelled), without review notes. Anyone
@@ -798,7 +846,7 @@ so two people can't take the last seat. Returns the counts and `my_status`.
 
 `GET /api/v1/events/:id/rsvps` returns `{"counts": {"going", "interested",
 "not_going"}, "my_status"}` to anyone who can see the Event. Its organisers
-(the proposer, the Department's HOD, the principal and admins) also get
+(the Organiser, the Department's HOD, the principal and admins) also get
 `people` (`user_id`, `full_name`, `username`, `status`, `responded_at`),
 earliest answer first, cursor-paginated with `meta.next_cursor`.
 
@@ -842,7 +890,9 @@ review, or saves it as a draft with `"draft": true`:
   `training` events only. Anything else is `400` naming `department_id` or
   `event_type`; `403` without `propose_event`.
 - Returns `201` with the Event: `id`, `title`, `description`, `event_type`,
-  `status`, `proposer_id`, `proposer_name`, `department {id, code}`,
+  `status`, `proposer_id`, `proposer_name`, `organiser {user_id, full_name}`
+  (who runs it; the proposer until it is handed over, ADR 0028),
+  `department {id, code}`,
   `faculty_mentor {user_id, full_name}`, `location`, `starts_at`, `ends_at`,
   `capacity`, `audience` (with `department_code`), timestamps.
 
@@ -887,7 +937,7 @@ admins. Each item carries `stage` (`hod` or `final`) and the earlier
 `reviews`. The caller's own Events are never listed.
 
 A `published` Event that isn't over takes logistics edits through
-`PATCH /api/v1/events/:id` from its organisers (the proposer, the Department's
+`PATCH /api/v1/events/:id` from its organisers (the Organiser, the Department's
 HOD, the principal, admins; `404` for anyone else): `description`,
 `location`, `starts_at` (in the future), `ends_at` and `capacity` (not below
 the number already going; `null` removes the limit). Sending `title`,
@@ -902,7 +952,7 @@ it, so it is cancelled instead and its history kept.
 
 `POST /api/v1/events/:id/cancel` with `{"reason": "..."}` (required, up to 500
 characters) cancels an Event that isn't over, rejected or already cancelled
-(`409`). Allowed for its proposer and its reviewers (Department HOD, principal,
+(`409`). Allowed for its Organiser and its reviewers (Department HOD, principal,
 admins); `403` for others who can see it, `404` for anyone else. RSVPs are
 kept; the Event leaves the feed but its Audience can still open it and see
 `cancel_reason`. Audited as `event_cancelled`.

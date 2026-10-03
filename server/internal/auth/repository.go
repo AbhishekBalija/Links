@@ -14,22 +14,29 @@ import (
 
 var errRefreshTokenUnavailable = errors.New("refresh token is unavailable")
 
-// GormAuthUnitOfWork creates transaction-scoped auth repositories.
+// GormAuthUnitOfWork creates transaction-scoped auth repositories, and the
+// other modules' share of ending a role on the same transaction.
 type GormAuthUnitOfWork struct {
-	db *gorm.DB
+	db   *gorm.DB
+	work []UnfinishedWorkOn
 }
 
-func NewGormAuthUnitOfWork(db *gorm.DB) *GormAuthUnitOfWork {
-	return &GormAuthUnitOfWork{db: db}
+func NewGormAuthUnitOfWork(db *gorm.DB, work ...UnfinishedWorkOn) *GormAuthUnitOfWork {
+	return &GormAuthUnitOfWork{db: db, work: work}
 }
 
 func (u *GormAuthUnitOfWork) WithinTransaction(ctx context.Context, fn func(AuthRepositories) error) error {
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		work := make([]UnfinishedWork, 0, len(u.work))
+		for _, on := range u.work {
+			work = append(work, on(tx))
+		}
 		return fn(AuthRepositories{
 			Users:         NewGormUserRepository(tx),
 			RefreshTokens: NewGormRefreshTokenRepository(tx),
 			SignInCodes:   NewGormSignInCodeRepository(tx),
 			AuditLogs:     NewGormAuditLogRepository(tx),
+			Work:          work,
 		})
 	})
 }

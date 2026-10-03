@@ -230,6 +230,20 @@ func (r *GormRepository) UpdateRevision(ctx context.Context, revision *Revision)
 	return r.db.WithContext(ctx).Save(revision).Error
 }
 
+func (r *GormRepository) UnfinishedOf(ctx context.Context, authorID string) ([]Announcement, error) {
+	var unfinished []Announcement
+	err := r.db.WithContext(ctx).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where(`publisher_id = ? AND (status IN ? OR (status = ? AND EXISTS (
+			SELECT 1 FROM announcement_revisions ar
+			WHERE ar.announcement_id = announcements.id AND ar.status IN ?)))`,
+			authorID, []Status{StatusPending, StatusRejected}, StatusPublished,
+			[]RevisionStatus{RevisionPending, RevisionRejected}).
+		Order("created_at").
+		Find(&unfinished).Error
+	return unfinished, err
+}
+
 // OpenRevision returns the Announcement's draft, pending or rejected revision, if any.
 func (r *GormRepository) OpenRevision(ctx context.Context, announcementID string) (*Revision, error) {
 	var revision Revision

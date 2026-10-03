@@ -6,16 +6,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- Departments API for the admin screen (#141): `GET /admin/departments` lists
-  each Department with its HOD (or none) and student and staff counts, and
-  `PATCH /admin/departments/:code` renames one without touching anything
-  else.
-
-### Fixed
-- Updating a Department with a different `code` in the body changed its name
-  and quietly kept the old code; it is now refused, since codes never change
-  (ADR 0021). A new Department's code must be two letters, as in a USN.
+### Changed
+- Ending someone's role now handles their unfinished work (ADR 0028, #143):
+  announcements waiting for approval or sent back are withdrawn, event
+  proposals under review return to drafts, and upcoming events they organise
+  move to the Department's HOD or someone picked. A preview endpoint lists
+  this before anything happens.
+- HODs appoint and remove Student coordinators for their own Department
+  (ADR 0027, #143). The principal now grants and ends faculty, HOD and
+  placement officer roles only; granting the principal or Student coordinator
+  role moves to admins (and HODs for coordinators).
 
 ### Removed
 - Passwords and activation (#136): password login, the password Request
@@ -24,11 +24,21 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Updating a Department with a different `code` in the body changed its name
+  and quietly kept the old code; it is now refused, since codes never change
+  (ADR 0021). A new Department's code must be two letters, as in a USN.
 - Approving a class list row reported with "Not you?" no longer gives the
   student a second student role.
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Departments API for the admin screen (#141): `GET /admin/departments` lists
+  each Department with its HOD (or none) and student and staff counts, and
+  `PATCH /admin/departments/:code` renames one without touching anything
+  else.
+- Events have an Organiser who runs them (edits once published, cancels,
+  exports participants), starting as the proposer (ADR 0028, #143).
+  Migration 024 adds `events.organiser_id`.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,
