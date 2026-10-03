@@ -31,6 +31,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Server errors now reach the logs and Sentry: a 500's cause is logged with
   the request ID and reported, and Sentry covers every route (it was added
   after the routes, so it covered none).
+- After a role ends and an event is handed to a new Organiser (ADR 0028),
+  the former proposer no longer sees who answered or exports the
+  participant list (names, emails, USNs); both follow the Organiser.
 - Importing a class list no longer fails a row when two students share a
   name (#166). Usernames get a random suffix instead of the clock's, and a
   username clash is retried in a savepoint instead of aborting the row. The
