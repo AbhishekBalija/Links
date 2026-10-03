@@ -258,5 +258,5 @@ func writeError(c *gin.Context, err error) {
 		response.Error(c, appErr.HTTPStatus, appErr.Code, appErr.Message, appErr.Details)
 		return
 	}
-	response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+	response.InternalError(c, err)
 }

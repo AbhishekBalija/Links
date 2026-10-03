@@ -16,7 +16,6 @@ import (
 	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"github.com/AbhishekBalija/Links/server/pkg/db"
 	"github.com/getsentry/sentry-go"
-	sentrygin "github.com/getsentry/sentry-go/gin"
 )
 
 func main() {
@@ -61,8 +60,6 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
 	}
-
-	handler.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

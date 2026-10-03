@@ -43,7 +43,7 @@ func (h *Handler) GetPublicProfile(c *gin.Context) {
 			response.Error(c, appErr.HTTPStatus, appErr.Code, appErr.Message, appErr.Details)
 			return
 		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+		response.InternalError(c, err)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *Handler) UpdateMyProfile(c *gin.Context) {
 			response.Error(c, appErr.HTTPStatus, appErr.Code, appErr.Message, appErr.Details)
 			return
 		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+		response.InternalError(c, err)
 		return
 	}
 

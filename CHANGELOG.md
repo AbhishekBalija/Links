@@ -28,6 +28,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Server errors now reach the logs and Sentry: a 500's cause is logged with
+  the request ID and reported, and Sentry covers every route (it was added
+  after the routes, so it covered none).
 - Importing a class list no longer fails a row when two students share a
   name (#166). Usernames get a random suffix instead of the clock's, and a
   username clash is retried in a savepoint instead of aborting the row. The
