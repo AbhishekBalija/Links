@@ -63,6 +63,13 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Every row is checked first (nothing saved), grouped by the department and
   batch in each USN, then imported; rows that weren't added can be
   downloaded, fixed and uploaded again.
+- Homes for the HOD, the principal and admins (#127). An HOD sees what waits
+  for them and their Department (students by batch, who hasn't signed in,
+  what's coming up, links to the Department page and Import students). The
+  principal sees the college: every Department with its students, staff and
+  HOD (or "Assign HOD"), and what waits for their approval. An admin sees a
+  to-do list (access requests, departments with no HOD, who hasn't signed
+  in, the approval queue) and recent imports.
 - The student import can check a file before saving it (#126): send
   `dry_run=true` to see every row's result and the rows grouped by the
   Department and Batch read from each USN, with nothing saved. An optional

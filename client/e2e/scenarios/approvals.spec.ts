@@ -45,8 +45,11 @@ test.describe('Approving announcements', () => {
     const hodPage = await hodContext.newPage()
     await loginViaUI(hodPage, hod.email)
     await expectHome(hodPage)
-    const review = hodPage.getByRole('region', { name: 'Waiting for your review' })
-    await review.getByRole('link', { name: /Lab 2 opens at 9 am/ }).click()
+    // An HOD's Home counts what waits and opens the queue (#127).
+    const review = hodPage.getByRole('region', { name: 'Waiting for you' })
+    await review.getByRole('link', { name: /Announcements and events/ }).click()
+    await hodPage.waitForURL('**/approvals')
+    await hodPage.getByRole('link', { name: /Lab 2 opens at 9 am/ }).first().click()
     await hodPage.waitForURL(/\/approvals\/[0-9a-f-]+$/)
     await expect(hodPage.getByRole('heading', { level: 2, name: 'Lab 2 opens at 9 am' })).toBeVisible()
     await expect(hodPage.getByText('Approving publishes it to')).toBeVisible()

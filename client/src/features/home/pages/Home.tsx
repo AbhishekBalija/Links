@@ -19,6 +19,8 @@ import { JobRow } from '../../jobs/components/JobRow'
 import { daysLeft, isUrgent } from '../../jobs/format'
 import { Pipeline } from '../../placement/components/Pipeline'
 import { placementLine, reviewFirst, showOpenJobs, type PlacementSummary } from '../placement'
+import { RoleHome } from '../components/RoleHomes'
+import { homeKind } from '../roleHome'
 
 function greeting(now: Date) {
   const hour = now.getHours()
@@ -71,10 +73,10 @@ function PhoneBar() {
 function HomeView({ data, now }: { data: Dashboard; now: Date }) {
   const { user, notices, approvals, my_announcements: mine, opportunities, placement } = data
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+  const kind = homeKind(user.roles)
 
-  return (
+  const greetingLines = (
     <>
-      <header className="flex flex-col gap-1.5 px-1 lg:gap-2 lg:px-0">
         <p className="font-mono text-[11px] uppercase tracking-[1.2px] text-ink-3 lg:text-xs">
           {dateLine}
           {user.department && (
@@ -89,7 +91,26 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
         <h1 className="font-serif text-[30px] leading-[1.1] font-medium tracking-[-0.5px] lg:text-[44px] lg:leading-[1.08] lg:tracking-[-0.8px]">
           {greeting(now)}, {firstName(user.full_name)}
         </h1>
-      </header>
+    </>
+  )
+
+  // The HOD, the principal and admins get a Home built around their job.
+  if (kind !== 'everyone') {
+    return (
+      <RoleHome
+        kind={kind}
+        data={data}
+        now={now}
+        greeting={greetingLines}
+        notices={<LatestNotices notices={notices.items} />}
+        comingUp={kind === 'principal' ? <ComingUp /> : undefined}
+      />
+    )
+  }
+
+  return (
+    <>
+      <header className="flex flex-col gap-1.5 px-1 lg:gap-2 lg:px-0">{greetingLines}</header>
 
       {/* Phones stack review, your announcements, then notices. Desktop moves
           your announcements into a side column. */}
