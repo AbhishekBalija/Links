@@ -394,15 +394,7 @@ func (s *Service) grants(ctx context.Context, userID string) ([]Grant, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load roles: %w", err)
 	}
-	grants := make([]Grant, 0, len(assignments))
-	for _, assignment := range assignments {
-		grant := Grant{Role: assignment.Role}
-		if assignment.ScopeType == auth.ScopeDepartment && assignment.ScopeID != nil {
-			grant.DepartmentID = *assignment.ScopeID
-		}
-		grants = append(grants, grant)
-	}
-	return grants, nil
+	return grantsOf(assignments), nil
 }
 
 func (s *Service) response(ctx context.Context, id string) (*EventResponse, error) {

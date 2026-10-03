@@ -11,6 +11,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   import students or add staff. HODs can now add faculty to their own
   Department, and an HOD who is also the principal imports only their own
   Department's students.
+- Ending someone's role now handles their unfinished work (ADR 0028, #143):
+  announcements waiting for approval or sent back are withdrawn, event
+  proposals under review return to drafts, and upcoming events they organise
+  move to the Department's HOD or someone picked. A preview endpoint lists
+  this before anything happens.
 - HODs appoint and remove Student coordinators for their own Department
   (ADR 0027, #143). The principal now grants and ends faculty, HOD and
   placement officer roles only; granting the principal or Student coordinator

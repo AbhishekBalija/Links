@@ -624,12 +624,51 @@ the assignment in the shape above:
   overlapping time, or when the user is `rejected`.
 
 `DELETE /api/v1/admin/users/:id/roles/:roleAssignmentId` ends the assignment
-now and returns it with `state: "ended"`. The row is kept as history. A
+now and returns it with `state: "ended"` and a `handover` (below). The row is kept as history. A
 scheduled assignment is ended at its start, so it never takes effect. In the
 same transaction it revokes all the user's refresh tokens, clears the
 Department's named HOD when an HOD role ends, and writes the audit log. `404`
 when the assignment isn't this user's, `409` when it has already ended or when
 it is the last admin role in effect.
+
+Ending a role also handles the person's unfinished work, in the same
+transaction (ADR 0028). Only work their remaining roles can't author is
+touched: a former HOD who is still faculty of that Department keeps theirs.
+
+- Announcements waiting for approval or sent back become `withdrawn`; an edit
+  waiting on a published one is closed and the published version stays.
+- Event proposals under review or sent back return to private `draft`s
+  (review notes kept). Drafts stay drafts; submitting one needs the role again.
+- Published Events they organise that aren't over move to a new Organiser:
+  `?organiser_id=<user id>` when given (an active member who could propose
+  that Event, `400` on `organiser_id` otherwise), or else the Event's
+  Department HOD. When neither applies (a college-wide Event, or the HOD's own
+  role ending), the request is `400` on `organiser_id` and nothing changes.
+  RSVPs are kept.
+
+```json
+"handover": {
+  "withdrawn_announcements": [{ "id": "uuid", "title": "Coding club meet moved to Thursday" }],
+  "closed_edits": [],
+  "returned_events": [{ "id": "uuid", "title": "Open source sprint" }],
+  "moved_events": [
+    { "id": "uuid", "title": "Robotics meetup", "starts_at": "...", "organiser": { "user_id": "uuid", "full_name": "Dr. Rao" } }
+  ],
+  "organiser_needed": false,
+  "organiser_options": [{ "user_id": "uuid", "full_name": "Dr. Rao" }]
+}
+```
+
+`organiser_options` lists, by name, the active people who could run every
+moved Event (their Department's HOD and faculty, the principal, the
+placement officer for training), for the picker. Admins could too but are
+left out, as the quiet fallback. Every list is `[]` when empty.
+
+`GET /api/v1/admin/users/:id/roles/:roleAssignmentId/ending` (same
+`organiser_id` query) returns that `handover` for the confirmation without
+changing anything: it runs the same code in a transaction that is rolled back.
+`organiser_needed: true`, with `organiser: null` on the Events nobody takes
+over, means the confirmation must ask who runs them.
 
 Both grant and end write an audit log (`role_granted`, `role_ended`) with the
 role, Scope, dates and optional note.

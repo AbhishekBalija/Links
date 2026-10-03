@@ -121,6 +121,9 @@ func validMineFilter(filter MineFilter) bool {
 
 // Repository is the Announcements data access used by the service.
 type Repository interface {
+	// UnfinishedOf locks the author's Announcements waiting for approval or
+	// sent back, and their published ones with an edit waiting or sent back.
+	UnfinishedOf(ctx context.Context, authorID string) ([]Announcement, error)
 	Create(ctx context.Context, announcement *Announcement, audience []AudienceRule) error
 	Feed(ctx context.Context, reader Reader, category Category, cursor *FeedCursor, limit int) ([]FeedEntry, error)
 	VisibleTo(ctx context.Context, reader Reader, id string) (*FeedEntry, error)

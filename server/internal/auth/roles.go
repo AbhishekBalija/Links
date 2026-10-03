@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -179,15 +180,39 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 
 // EndRole ends a Role assignment now, keeping the row as history, and signs
 // the user out everywhere so their next access token carries the new roles.
-func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error) {
+// In the same transaction it withdraws or hands over the work they can no
+// longer author (ADR 0028); organiserID takes over their upcoming Events.
+func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*EndRoleResponse, error) {
+	return s.endRole(ctx, actorID, userID, assignmentID, organiserID, false)
+}
+
+// PreviewEndRole runs EndRole in a transaction it rolls back, so the
+// confirmation shows exactly what ending the role would do.
+func (s *authService) PreviewEndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*HandoverSummary, error) {
+	ended, err := s.endRole(ctx, actorID, userID, assignmentID, organiserID, true)
+	if err != nil {
+		return nil, err
+	}
+	return &ended.Handover, nil
+}
+
+// errPreviewDone rolls back a preview's transaction once it has its answer.
+var errPreviewDone = errors.New("preview done")
+
+func (s *authService) endRole(ctx context.Context, actorID, userID, assignmentID, organiserID string, preview bool) (*EndRoleResponse, error) {
 	if _, err := uuid.Parse(userID); err != nil {
 		return nil, apperrors.NewNotFound("role assignment not found")
 	}
 	if _, err := uuid.Parse(assignmentID); err != nil {
 		return nil, apperrors.NewNotFound("role assignment not found")
 	}
+	if organiserID != "" {
+		if _, err := uuid.Parse(organiserID); err != nil {
+			return nil, apperrors.NewValidation("invalid organiser", map[string]string{"organiser_id": "must be a user ID"})
+		}
+	}
 	now := time.Now()
-	var ended RoleAssignmentResponse
+	var ended EndRoleResponse
 	err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		assignment, err := repos.Users.FindRoleAssignmentForUpdate(ctx, userID, assignmentID)
 		if err != nil {
@@ -211,6 +236,12 @@ func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID
 				return err
 			}
 		}
+		// Read before ending: inside a transaction Postgres' now() is its start
+		// time, so the ended assignment would still look in effect afterwards.
+		remaining, err := remainingRoles(ctx, repos.Users, userID, assignment.ID)
+		if err != nil {
+			return err
+		}
 
 		// A scheduled assignment ends before it starts, so it never takes effect.
 		endsAt := now
@@ -226,19 +257,48 @@ func (s *authService) EndRole(ctx context.Context, actorID, userID, assignmentID
 				return fmt.Errorf("clear department HOD: %w", err)
 			}
 		}
+		summary, err := handOver(ctx, repos.Work, Handover{
+			PersonID: userID, ActorID: actorID, Remaining: remaining, OrganiserID: organiserID, At: now,
+		})
+		if err != nil {
+			return err
+		}
+		ended.Handover = summary
+		if preview {
+			return errPreviewDone
+		}
+		if summary.OrganiserNeeded {
+			return apperrors.NewValidation("pick who runs their upcoming events", map[string]string{"organiser_id": "no one takes over their upcoming events by default; pick an organiser"})
+		}
+
 		if err := repos.RefreshTokens.RevokeAllByUserID(ctx, userID); err != nil {
 			return fmt.Errorf("revoke refresh tokens: %w", err)
 		}
 		if err := repos.AuditLogs.Create(ctx, roleAuditLog("role_ended", actorID, *assignment, "", now)); err != nil {
 			return fmt.Errorf("create audit log: %w", err)
 		}
-		ended = roleAssignmentResponse(RoleAssignmentView{RoleAssignment: *assignment}, now)
+		ended.RoleAssignmentResponse = roleAssignmentResponse(RoleAssignmentView{RoleAssignment: *assignment}, now)
 		return nil
 	})
-	if err != nil {
+	if err != nil && !errors.Is(err, errPreviewDone) {
 		return nil, err
 	}
 	return &ended, nil
+}
+
+// remainingRoles are the user's roles in effect other than the one ending.
+func remainingRoles(ctx context.Context, users UserRepository, userID, endingID string) ([]RoleAssignment, error) {
+	assignments, err := users.GetRoleAssignments(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user roles: %w", err)
+	}
+	remaining := make([]RoleAssignment, 0, len(assignments))
+	for _, assignment := range assignments {
+		if assignment.ID != endingID {
+			remaining = append(remaining, assignment)
+		}
+	}
+	return remaining, nil
 }
 
 func validateGrant(role Role, scopeType ScopeType, scopeID string) error {

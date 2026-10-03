@@ -28,6 +28,7 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin.GET("/:id/roles", h.ListRoles)
 	admin.POST("/:id/roles", h.GrantRole)
 	admin.DELETE("/:id/roles/:roleAssignmentId", h.EndRole)
+	admin.GET("/:id/roles/:roleAssignmentId/ending", h.PreviewEndRole)
 }
 
 func (h *AdminHandler) ReviewQueue(c *gin.Context) {
@@ -155,7 +156,21 @@ func (h *AdminHandler) EndRole(c *gin.Context) {
 	if !h.authorizeRoleManager(c) {
 		return
 	}
-	resp, err := h.service.EndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"))
+	resp, err := h.service.EndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"), c.Query("organiser_id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+// PreviewEndRole says what ending the role would do, for the confirmation,
+// without changing anything.
+func (h *AdminHandler) PreviewEndRole(c *gin.Context) {
+	if !h.authorizeRoleManager(c) {
+		return
+	}
+	resp, err := h.service.PreviewEndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"), c.Query("organiser_id"))
 	if err != nil {
 		writeError(c, err)
 		return
