@@ -152,6 +152,19 @@ func (r *GormUserRepository) FindByID(ctx context.Context, id string) (*User, er
 	return &user, err
 }
 
+// FindStatus reads only an account's status; found is false when there is
+// no such user.
+func (r *GormUserRepository) FindStatus(ctx context.Context, id string) (UserStatus, bool, error) {
+	var statuses []UserStatus
+	if err := r.db.WithContext(ctx).Raw(`SELECT status FROM users WHERE id = ?`, id).Scan(&statuses).Error; err != nil {
+		return "", false, err
+	}
+	if len(statuses) == 0 {
+		return "", false, nil
+	}
+	return statuses[0], true, nil
+}
+
 func (r *GormUserRepository) FindByIDForUpdate(ctx context.Context, id string) (*User, error) {
 	var user User
 	err := r.db.WithContext(ctx).
