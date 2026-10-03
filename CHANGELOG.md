@@ -55,6 +55,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Not signed in list API (#127): `GET /api/v1/admin/users/not-signed-in`
+  with department and student/staff filters, paging and who added each
+  person, and `/not-signed-in/emails` for copying every matching email.
 - The student import can check a file before saving it (#126): send
   `dry_run=true` to see every row's result and the rows grouped by the
   Department and Batch read from each USN, with nothing saved. An optional
