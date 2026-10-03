@@ -45,7 +45,7 @@ _Avoid_: OTP, magic code, PIN
 Where an account is in its lifecycle: `pending`, `active`, `rejected` or `suspended`. Only `active` accounts can use protected features.
 
 **Role assignment**:
-A Role granted to a user with a Scope. A user can hold several. Ending one withdraws the person's unfinished work they can no longer author and hands their upcoming Events to a new Organiser (ADR 0028).
+A Role granted to a user with a Scope. A user can hold several. Ending one withdraws the person's unfinished work they can no longer author and hands their upcoming Events to a new Organiser (ADR 0028). A current Student can't hold a staff role (faculty, HOD, placement officer, principal); a graduate can.
 _Avoid_: user role, user type
 
 **Scope**:

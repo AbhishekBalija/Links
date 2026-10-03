@@ -28,6 +28,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A current student could be given a staff role (faculty, HOD, placement
+  officer, principal). That is now refused; a graduate can still join the
+  staff.
 - Server errors now reach the logs and Sentry: a 500's cause is logged with
   the request ID and reported, and Sentry covers every route (it was added
   after the routes, so it covered none).
