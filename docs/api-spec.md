@@ -718,6 +718,9 @@ the assignment in the shape above:
   and must be after `starts_at` and in the future.
 - A `student_coordinator` must be a current Student (student role in effect)
   whose Student identity is in that Department.
+- `faculty`, `hod`, `placement_officer` and `principal` are staff roles: they
+  are refused for someone who is still a Student when the role starts (a
+  student role not ended by then). A graduate may join the staff.
 - `400 VALIDATION_ERROR` for the rules above or an unknown Department (with
   field `details`); `404` for an unknown user.
 - `409 CONFLICT` when the user already holds the same role and Scope for an

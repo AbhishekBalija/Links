@@ -293,6 +293,39 @@ func TestCoordinatorRoleNeedsAStudentOfThatDepartment(t *testing.T) {
 	grantedID(t, grantRole(t, h, admin.Token, csStudent.ID, map[string]any{"role": "student_coordinator", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS")}))
 }
 
+func TestStaffRolesAreNotForCurrentStudents(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	csStudent := student(t, h, "CS", 2023)
+	cs := h.DepartmentID(t, "CS")
+
+	for _, body := range []map[string]any{
+		{"role": "faculty", "scope_type": "department", "scope_id": cs},
+		{"role": "hod", "scope_type": "department", "scope_id": cs},
+		{"role": "placement_officer", "scope_type": "global"},
+		{"role": "principal", "scope_type": "global"},
+	} {
+		if response := grantRole(t, h, admin.Token, csStudent.ID, body); response.Status != http.StatusBadRequest {
+			t.Errorf("%s for a current student status = %d, want %d: %s", body["role"], response.Status, http.StatusBadRequest, response.Body)
+		}
+	}
+	if roles := listRoles(t, h, admin.Token, csStudent.ID); len(roles) != 1 {
+		t.Fatalf("roles = %+v, want only the student role", roles)
+	}
+}
+
+func TestAGraduateCanJoinTheStaff(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	graduate := student(t, h, "CS", 2020)
+	studentRole := listRoles(t, h, admin.Token, graduate.ID)[0].ID
+	if response := h.Do(t, http.MethodDelete, "/api/v1/admin/users/"+graduate.ID+"/roles/"+studentRole, admin.Token, nil); response.Status != http.StatusOK && response.Status != http.StatusNoContent {
+		t.Fatalf("end student role status = %d: %s", response.Status, response.Body)
+	}
+
+	grantedID(t, grantRole(t, h, admin.Token, graduate.ID, map[string]any{"role": "faculty", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS")}))
+}
+
 func TestFutureRoleIsListedButNotInEffect(t *testing.T) {
 	h := apitest.New(t)
 	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})

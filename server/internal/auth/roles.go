@@ -134,6 +134,11 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 			return RoleAssignmentResponse{}, err
 		}
 	}
+	if staffRoles[role] {
+		if err := requireNotStudentAt(ctx, repos, user.ID, startsAt); err != nil {
+			return RoleAssignmentResponse{}, err
+		}
+	}
 
 	overlap := OverlapFilter{UserID: userID, Role: role, ScopeType: scopeType, ScopeID: scopeID, StartsAt: startsAt, EndsAt: input.EndsAt}
 	duplicate, err := repos.Users.HasOverlappingAssignment(ctx, overlap)
@@ -436,6 +441,24 @@ func requireStudentOf(ctx context.Context, repos AuthRepositories, user *User, d
 		}
 	}
 	return notStudent
+}
+
+// staffRoles are the college's staff jobs, which a current student can't hold.
+var staffRoles = map[Role]bool{RoleFaculty: true, RoleHOD: true, RolePlacementOfficer: true, RolePrincipal: true}
+
+// requireNotStudentAt refuses a staff role for someone who is still a student
+// when it starts. A graduate, whose student role has ended, may join the staff.
+func requireNotStudentAt(ctx context.Context, repos AuthRepositories, userID string, startsAt time.Time) error {
+	grants, err := repos.Users.GetRoleAssignments(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user roles: %w", err)
+	}
+	for _, grant := range grants {
+		if grant.Role == RoleStudent && (grant.EndsAt == nil || grant.EndsAt.After(startsAt)) {
+			return apperrors.NewValidation("invalid role", map[string]string{"role": "a current student can't be given a staff role"})
+		}
+	}
+	return nil
 }
 
 // requireAnotherAdmin refuses to end the last admin assignment in effect, so
