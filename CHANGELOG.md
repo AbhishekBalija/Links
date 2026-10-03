@@ -36,6 +36,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- The student import can check a file before saving it (#126): send
+  `dry_run=true` to see every row's result and the rows grouped by the
+  Department and Batch read from each USN, with nothing saved. An optional
+  `department` field ties the import to one Department and flags rows
+  outside it; an HOD's import is held to their own Department.
 - Departments API for the admin screen (#141): `GET /admin/departments` lists
   each Department with its HOD (or none) and student and staff counts, and
   `PATCH /admin/departments/:code` renames one without touching anything

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
 	"github.com/gin-gonic/gin"
@@ -230,6 +231,10 @@ func (h *AdminHandler) InviteStaff(c *gin.Context) {
 	response.Success(c, http.StatusCreated, resp, nil)
 }
 
+// maxDepartmentCodeLength bounds the import's department field; codes are
+// 2 to 10 letters.
+const maxDepartmentCodeLength = 10
+
 func (h *AdminHandler) ImportStudents(c *gin.Context) {
 	actor := GetActor(c)
 	if actor == nil {
@@ -256,7 +261,21 @@ func (h *AdminHandler) ImportStudents(c *gin.Context) {
 	}
 	defer file.Close()
 
-	resp, err := h.service.ImportStudents(c.Request.Context(), actor.UserID, file)
+	dryRun := false
+	if value := c.PostForm("dry_run"); value != "" {
+		if dryRun, err = strconv.ParseBool(value); err != nil {
+			response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "dry_run must be true or false", map[string]string{"dry_run": "must be true or false"})
+			return
+		}
+	}
+	department := c.PostForm("department")
+	if len(department) > maxDepartmentCodeLength {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "unknown department", map[string]string{"department": "not a department code"})
+		return
+	}
+
+	input := ImportInput{File: file, DepartmentCode: department, DryRun: dryRun}
+	resp, err := h.service.ImportStudents(c.Request.Context(), actor.UserID, input)
 	if err != nil {
 		writeError(c, err)
 		return

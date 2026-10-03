@@ -60,7 +60,7 @@ func importFile(rows int) string {
 func TestImportSendsNoEmail(t *testing.T) {
 	h := importHarness(t)
 
-	result, err := h.service.ImportStudents(context.Background(), "admin-1", strings.NewReader(importFile(maxImportRows)))
+	result, err := h.service.ImportStudents(context.Background(), "admin-1", ImportInput{File: strings.NewReader(importFile(maxImportRows))})
 	if err != nil {
 		t.Fatalf("import: %v", err)
 	}

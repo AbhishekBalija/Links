@@ -559,6 +559,16 @@ asha.rao@gmail.com,Asha Rao,4MN23CS101
 ravi.k@gmail.com,"Kumar, Ravi",4MN24EC102
 ```
 
+Two optional form fields go with it:
+
+- `department`: the Department code the import is for (`CS`, any case). An
+  admin picks it first, or leaves it out to import any Department. An HOD may
+  name only their own Department (`403` otherwise); an HOD of one Department
+  is held to it without naming it. An unknown code is `400`.
+- `dry_run`: `true` checks every row and saves nothing, not even an audit
+  log. This is the check step before saving. Any value other than `true` or
+  `false` is `400`.
+
 - The header must have exactly `email`, `full_name` and `usn`, in any order.
   Excel's UTF-8 byte order mark and CRLF line ends are fine.
 - At most 200 rows and 1 MB. An empty file, a wrong header, a malformed CSV,
@@ -570,27 +580,50 @@ ravi.k@gmail.com,"Kumar, Ravi",4MN24EC102
   email code, and that first sign-in makes the account active.
 - A row fails for: an invalid email, an empty or overlong name, a missing or
   malformed USN, a Department code with no Department, an email or USN
-  already registered or earlier in the same file, or (for an HOD) a
-  Department other than theirs.
+  already registered or earlier in the same file, or a USN outside the
+  import's Department (the one named in `department`, or for an HOD who names
+  none, their own). Those last rows also carry `"outside": true`.
+- In a dry run a row that would be created has the status `ready`. Saving the
+  same file afterwards can still fail a `ready` row if someone registers its
+  email or USN in between.
 
 Response `200`:
 
 ```json
 {
   "data": {
-    "created": 1,
+    "dry_run": true,
+    "department": { "code": "CS", "name": "Computer Science and Engineering" },
+    "ready": 1,
+    "created": 0,
     "failed": 1,
+    "groups": [
+      { "department_code": "EC", "department_name": "Electronics and Communication Engineering", "batch_year": 2024,
+        "rows": 1, "ready": 0, "created": 0, "failed": 1, "outside": true },
+      { "department_code": "CS", "department_name": "Computer Science and Engineering", "batch_year": 2023,
+        "rows": 1, "ready": 1, "created": 0, "failed": 0, "outside": false }
+    ],
     "rows": [
-      { "row": 2, "email": "asha.rao@gmail.com", "status": "created", "user_id": "uuid" },
-      { "row": 3, "email": "ravi.k@gmail.com", "status": "failed", "error": "the USN is already registered" }
+      { "row": 2, "email": "asha.rao@gmail.com", "usn": "4MN23CS101", "department_code": "CS", "batch_year": 2023, "status": "ready" },
+      { "row": 3, "email": "ravi.k@gmail.com", "usn": "4MN24EC102", "department_code": "EC", "batch_year": 2024,
+        "status": "failed", "outside": true, "error": "the USN is in EC, not CS" }
     ]
   }
 }
 ```
 
-`row` is the spreadsheet row (the header is row 1). The import writes one `students_imported` audit log
-with the counts and how many students it created per Department and Batch (`batches`, which Home
-reads), and one `user_imported` per created user.
+- `row` is the spreadsheet row (the header is row 1). `department_code` and
+  `batch_year` are read from the USN and are left out when it is malformed.
+  A saved row has `status: "created"` and its `user_id`.
+- `department` is the import's Department, or `null` when there is none.
+- `groups` counts the rows by the Department and Batch read from each USN:
+  groups outside the import's Department first, then by code and Batch.
+  Rows without a well-formed USN are in no group. `department_name` is empty
+  for a code with no Department.
+- A saved import writes one `students_imported` audit log with the counts,
+  how many students it created per Department and Batch (`batches`, which
+  Home reads) and the `department_code` when one was named, and one
+  `user_imported` per created user.
 
 ### Role management
 
