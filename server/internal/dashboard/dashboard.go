@@ -282,7 +282,7 @@ func (h *Handler) Get(c *gin.Context) {
 	}
 	result, err := h.service.Get(c.Request.Context(), actor.UserID)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+		response.InternalError(c, err)
 		return
 	}
 	response.Success(c, http.StatusOK, result, nil)
