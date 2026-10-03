@@ -58,6 +58,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Not signed in list API (#127): `GET /api/v1/admin/users/not-signed-in`
   with department and student/staff filters, paging and who added each
   person, and `/not-signed-in/emails` for copying every matching email.
+- Import students screen (#126): admins import a class list for any
+  department from the Admin workspace, HODs for their own at `/import`.
+  Every row is checked first (nothing saved), grouped by the department and
+  batch in each USN, then imported; rows that weren't added can be
+  downloaded, fixed and uploaded again.
 - The student import can check a file before saving it (#126): send
   `dry_run=true` to see every row's result and the rows grouped by the
   Department and Batch read from each USN, with nothing saved. An optional
