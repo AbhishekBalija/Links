@@ -293,7 +293,7 @@ func (s *authService) departmentScope(ctx context.Context, actorID, refusal stri
 }
 
 func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResult {
-	outcome := ImportRowResult{Row: row.Line, Email: row.Email, USN: row.USN, Status: ImportFailed}
+	outcome := ImportRowResult{Row: row.Line, Email: row.Email, FullName: row.FullName, USN: row.USN, Status: ImportFailed}
 	if code, err := ValidateUSNFormat(row.USN); err == nil {
 		outcome.DepartmentCode = code
 		outcome.BatchYear, _ = BatchYearFromUSN(row.USN)
