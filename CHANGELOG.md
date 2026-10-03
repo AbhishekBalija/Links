@@ -28,6 +28,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Home said "Good morning" after midnight; it now says good evening until
+  5 AM, and a Home left open updates its greeting and date on its own.
 - Server errors now reach the logs and Sentry: a 500's cause is logged with
   the request ID and reported, and Sentry covers every route (it was added
   after the routes, so it covered none).
