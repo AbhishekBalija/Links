@@ -55,7 +55,7 @@ Goal: Make LINKS useful as a daily information hub. Milestone "Phase 2: Campus H
 
 Deliverables:
 
-- [x] Department management API (#10, v0.2.0); department pages come with #15
+- [x] Department management API (#10, v0.2.0); department pages come with #15; the admin list with HODs and counts, and renaming, for the Departments screen (#141, API only)
 - [ ] Role-based dashboard endpoints (#11); the Home summary is built (#39, v0.3.0) and counts waiting Event reviews
 - [x] Campus directory and search (#12): the People screen with filters and typo-tolerant search (v0.4.0)
 - [x] Targeted announcements API with approval, editing and withdrawal (#13, spec #25, v0.2.0)

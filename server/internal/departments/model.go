@@ -29,6 +29,21 @@ type Repository interface {
 	Delete(ctx context.Context, department *Department) error
 	IsReferenced(ctx context.Context, departmentID string) (bool, error)
 	CanAssignHOD(ctx context.Context, userID, departmentID string) (bool, error)
+	ListForAdmin(ctx context.Context) ([]AdminRow, error)
+}
+
+// AdminRow is one Department as the admin's Departments screen shows it:
+// its HOD from the Role assignment in effect, if any, and its counts.
+type AdminRow struct {
+	ID          string
+	Code        string
+	Name        string
+	Description *string
+	HODUserID   *string
+	HODFullName *string
+	HODUsername *string
+	Students    int
+	Staff       int
 }
 
 type Repositories struct {

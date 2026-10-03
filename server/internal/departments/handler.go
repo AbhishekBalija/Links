@@ -25,8 +25,10 @@ func (h *Handler) RegisterRoutes(v1 *gin.RouterGroup) {
 	departments.GET("/:code", h.GetByCode)
 
 	admin := v1.Group("/admin/departments")
+	admin.GET("", h.ListForAdmin)
 	admin.POST("", h.Create)
 	admin.PUT("/:code", h.Update)
+	admin.PATCH("/:code", h.Rename)
 	admin.DELETE("/:code", h.Delete)
 }
 
@@ -51,6 +53,18 @@ func (h *Handler) ListPublic(c *gin.Context) {
 
 func (h *Handler) List(c *gin.Context) {
 	result, err := h.service.List(c.Request.Context())
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+func (h *Handler) ListForAdmin(c *gin.Context) {
+	if h.authorizeAdmin(c) == nil {
+		return
+	}
+	result, err := h.service.ListForAdmin(c.Request.Context())
 	if err != nil {
 		writeError(c, err)
 		return
@@ -96,6 +110,24 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	result, err := h.service.Update(c.Request.Context(), actor.UserID, c.Param("code"), input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, result, nil)
+}
+
+func (h *Handler) Rename(c *gin.Context) {
+	actor := h.authorizeAdmin(c)
+	if actor == nil {
+		return
+	}
+	var input RenameDepartmentInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	result, err := h.service.Rename(c.Request.Context(), actor.UserID, c.Param("code"), input)
 	if err != nil {
 		writeError(c, err)
 		return

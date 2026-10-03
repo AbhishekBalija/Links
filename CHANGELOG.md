@@ -28,11 +28,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Updating a Department with a different `code` in the body changed its name
+  and quietly kept the old code; it is now refused, since codes never change
+  (ADR 0021). A new Department's code must be two letters, as in a USN.
 - Approving a class list row reported with "Not you?" no longer gives the
   student a second student role.
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Departments API for the admin screen (#141): `GET /admin/departments` lists
+  each Department with its HOD (or none) and student and staff counts, and
+  `PATCH /admin/departments/:code` renames one without touching anything
+  else.
 - Roles on a profile (#125): the principal and admins see a person's roles
   (active, scheduled, ended), grant a role with dates and end or cancel one.
   An HOD makes their own students student coordinators and ends that role.
