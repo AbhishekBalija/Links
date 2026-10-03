@@ -210,9 +210,10 @@ type AuthService interface {
 	AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
-	ListUserRoles(ctx context.Context, userID string) ([]RoleAssignmentResponse, error)
+	ListUserRoles(ctx context.Context, actorID, userID string) ([]RoleAssignmentResponse, error)
 	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
-	EndRole(ctx context.Context, actorID, userID, assignmentID string) (*RoleAssignmentResponse, error)
+	EndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*EndRoleResponse, error)
+	PreviewEndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*HandoverSummary, error)
 	ImportStudents(ctx context.Context, actorID string, input ImportInput) (*ImportResponse, error)
 }
 
@@ -324,6 +325,8 @@ type AuthRepositories struct {
 	RefreshTokens RefreshTokenRepository
 	SignInCodes   SignInCodeRepository
 	AuditLogs     AuditLogRepository
+	// Work is the other modules' share of ending a role (ADR 0028).
+	Work []UnfinishedWork
 }
 
 // AuthUnitOfWork executes related auth writes atomically.

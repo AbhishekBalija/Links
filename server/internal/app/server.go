@@ -97,7 +97,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 
 	userRepo := auth.NewGormUserRepository(database.GORM())
 	refreshRepo := auth.NewGormRefreshTokenRepository(database.GORM())
-	authUnitOfWork := auth.NewGormAuthUnitOfWork(database.GORM())
+	// Ending a role also withdraws or hands over the person's announcements
+	// and events, in the same transaction (ADR 0028).
+	authUnitOfWork := auth.NewGormAuthUnitOfWork(database.GORM(), announcements.HandOverOn, events.HandOverOn)
 
 	tokenCfg := auth.TokenConfig{
 		AccessSecret:  cfg.Auth.JWTAccessSecret,

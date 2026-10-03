@@ -29,6 +29,7 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin.GET("/:id/roles", h.ListRoles)
 	admin.POST("/:id/roles", h.GrantRole)
 	admin.DELETE("/:id/roles/:roleAssignmentId", h.EndRole)
+	admin.GET("/:id/roles/:roleAssignmentId/ending", h.PreviewEndRole)
 }
 
 func (h *AdminHandler) ReviewQueue(c *gin.Context) {
@@ -124,10 +125,10 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListRoles(c *gin.Context) {
-	if !h.authorizeManager(c) {
+	if !h.authorizeRoleManager(c) {
 		return
 	}
-	resp, err := h.service.ListUserRoles(c.Request.Context(), c.Param("id"))
+	resp, err := h.service.ListUserRoles(c.Request.Context(), GetActor(c).UserID, c.Param("id"))
 	if err != nil {
 		writeError(c, err)
 		return
@@ -136,7 +137,7 @@ func (h *AdminHandler) ListRoles(c *gin.Context) {
 }
 
 func (h *AdminHandler) GrantRole(c *gin.Context) {
-	if !h.authorizeManager(c) {
+	if !h.authorizeRoleManager(c) {
 		return
 	}
 	var input GrantRoleInput
@@ -153,10 +154,24 @@ func (h *AdminHandler) GrantRole(c *gin.Context) {
 }
 
 func (h *AdminHandler) EndRole(c *gin.Context) {
-	if !h.authorizeManager(c) {
+	if !h.authorizeRoleManager(c) {
 		return
 	}
-	resp, err := h.service.EndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"))
+	resp, err := h.service.EndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"), c.Query("organiser_id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+// PreviewEndRole says what ending the role would do, for the confirmation,
+// without changing anything.
+func (h *AdminHandler) PreviewEndRole(c *gin.Context) {
+	if !h.authorizeRoleManager(c) {
+		return
+	}
+	resp, err := h.service.PreviewEndRole(c.Request.Context(), GetActor(c).UserID, c.Param("id"), c.Param("roleAssignmentId"), c.Query("organiser_id"))
 	if err != nil {
 		writeError(c, err)
 		return
@@ -172,6 +187,20 @@ func (h *AdminHandler) authorizeManager(c *gin.Context) bool {
 		return false
 	}
 	if err := AuthorizeActor(c, h.policy, PermissionManageUsersAndRoles); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return false
+	}
+	return true
+}
+
+// authorizeRoleManager lets in everyone who manages some roles; the service
+// checks which roles and which users (ADR 0027).
+func (h *AdminHandler) authorizeRoleManager(c *gin.Context) bool {
+	if GetActor(c) == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return false
+	}
+	if err := AuthorizeActor(c, h.policy, PermissionManageRoles); err != nil {
 		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
 		return false
 	}

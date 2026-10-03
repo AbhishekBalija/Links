@@ -45,7 +45,7 @@ _Avoid_: OTP, magic code, PIN
 Where an account is in its lifecycle: `pending`, `active`, `rejected` or `suspended`. Only `active` accounts can use protected features.
 
 **Role assignment**:
-A Role granted to a user with a Scope. A user can hold several.
+A Role granted to a user with a Scope. A user can hold several. Ending one withdraws the person's unfinished work they can no longer author and hands their upcoming Events to a new Organiser (ADR 0028).
 _Avoid_: user role, user type
 
 **Scope**:
@@ -67,7 +67,7 @@ A current B.E. student of the college with a Student identity.
 A former student whose Graduation was confirmed. Students who left without graduating are not Alumni.
 
 **Student coordinator**:
-A Student who can propose events and post limited announcements within their Scope.
+A Student who can propose events and post limited announcements within their Scope. Appointed and removed by their Department's HOD (ADR 0027).
 
 **HOD**:
 Head of a Department. Reviews that Department's access requests and events, and sees only summaries of its students' placement applications.
@@ -117,6 +117,10 @@ An Event before it is published: drafted by a Student coordinator, faculty membe
 **HOD review**:
 The first review of a Student coordinator's or faculty member's Event proposal, by the HOD of its Department (the principal or an admin when the Department has no HOD): approve, request changes or reject.
 _Avoid_: department approval
+
+**Organiser**:
+The person who runs an Event: edits it, cancels it and exports its participants. Starts as its proposer and moves to someone else when their role ends.
+_Avoid_: owner, host
 
 **Final approval**:
 The principal's or an admin's review of an Event proposal after HOD review (or straight away for an HOD's own Event or a training Event). Approving publishes it.

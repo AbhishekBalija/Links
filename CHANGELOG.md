@@ -6,12 +6,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- The student import can check a file before saving it (#126): send
-  `dry_run=true` to see every row's result and the rows grouped by the
-  Department and Batch read from each USN, with nothing saved. An optional
-  `department` field ties the import to one Department and flags rows
-  outside it; an HOD's import is held to their own Department.
+### Changed
+- Ending someone's role now handles their unfinished work (ADR 0028, #143):
+  announcements waiting for approval or sent back are withdrawn, event
+  proposals under review return to drafts, and upcoming events they organise
+  move to the Department's HOD or someone picked. A preview endpoint lists
+  this before anything happens.
+- HODs appoint and remove Student coordinators for their own Department
+  (ADR 0027, #143). The principal now grants and ends faculty, HOD and
+  placement officer roles only; granting the principal or Student coordinator
+  role moves to admins (and HODs for coordinators).
 
 ### Removed
 - Passwords and activation (#136): password login, the password Request
@@ -25,6 +29,14 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- The student import can check a file before saving it (#126): send
+  `dry_run=true` to see every row's result and the rows grouped by the
+  Department and Batch read from each USN, with nothing saved. An optional
+  `department` field ties the import to one Department and flags rows
+  outside it; an HOD's import is held to their own Department.
+- Events have an Organiser who runs them (edits once published, cancels,
+  exports participants), starting as the proposer (ADR 0028, #143).
+  Migration 024 adds `events.organiser_id`.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,
