@@ -91,8 +91,7 @@ func RefuseInactive(statuses StatusReader) gin.HandlerFunc {
 		}
 		status, found, err := statuses.FindStatus(c.Request.Context(), actor.UserID)
 		if err != nil {
-			_ = c.Error(fmt.Errorf("read account status: %w", err))
-			response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error", nil)
+			response.InternalError(c, fmt.Errorf("read account status: %w", err))
 			c.Abort()
 			return
 		}
