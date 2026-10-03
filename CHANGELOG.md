@@ -47,6 +47,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   and how many students each created per Department and Batch) and
   `college.departments_without_hod`. HODs see their own Departments only.
   Imports now record their Department and Batch counts in the audit log.
+- Home for authors (#142): `GET /api/v1/dashboard` gets `my_work` with the
+  caller's Announcements and Events a reviewer sent back (with the note and who
+  sent it) and those waiting on a reviewer (who, and since when). Faculty and
+  student coordinators get the same section.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,

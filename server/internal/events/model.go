@@ -161,6 +161,8 @@ type Repository interface {
 	IsFaculty(ctx context.Context, userID string) (bool, error)
 	CreateReview(ctx context.Context, review *Review) error
 	Reviews(ctx context.Context, eventIDs []string) ([]ReviewView, error)
+	SentBack(ctx context.Context, proposerID string, limit int) ([]SentBackRow, error)
+	Waiting(ctx context.Context, proposerID string, limit int) ([]WaitingRow, error)
 	DepartmentHasHOD(ctx context.Context, departmentID string) (bool, error)
 	Queue(ctx context.Context, scope ReviewerScope, after *Cursor, limit int) ([]View, error)
 	QueueSummary(ctx context.Context, scope ReviewerScope) (int, *time.Time, error)
