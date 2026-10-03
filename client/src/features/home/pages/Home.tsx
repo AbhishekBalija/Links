@@ -96,7 +96,16 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
 
   // The HOD, the principal and admins get a Home built around their job.
   if (kind !== 'everyone') {
-    return <RoleHome kind={kind} data={data} now={now} greeting={greetingLines} notices={<LatestNotices notices={notices.items} />} />
+    return (
+      <RoleHome
+        kind={kind}
+        data={data}
+        now={now}
+        greeting={greetingLines}
+        notices={<LatestNotices notices={notices.items} />}
+        comingUp={kind === 'principal' ? <ComingUp /> : undefined}
+      />
+    )
   }
 
   return (

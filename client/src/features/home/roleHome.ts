@@ -64,3 +64,16 @@ export function summaryLine(kind: HomeKind, data: Dashboard): string {
 
   return ''
 }
+
+// yourPosts is the person's own posts that need them: drafts not yet sent
+// and posts sent back with a note. Posts waiting on someone else don't
+// count, so most days it is null and the row stays hidden.
+export function yourPosts(mine: Dashboard['my_announcements']): { count: number; detail: string } | null {
+  if (!mine) return null
+  const count = mine.draft + mine.rejected
+  if (count === 0) return null
+  const parts: string[] = []
+  if (mine.draft > 0) parts.push(`${mine.draft} ${mine.draft === 1 ? 'draft' : 'drafts'}`)
+  if (mine.rejected > 0) parts.push(`${mine.rejected} sent back with a note`)
+  return { count, detail: parts.join(', ') }
+}

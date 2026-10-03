@@ -5,13 +5,15 @@ import { cn } from '@/lib/utils'
 import { buttonStyles } from '../../announcements/buttons'
 import { waited } from '../../announcements/status'
 import type { CollegeDepartment, Dashboard, DepartmentPanel, Lists } from '../api'
-import { summaryLine, type HomeKind } from '../roleHome'
+import { summaryLine, yourPosts, type HomeKind } from '../roleHome'
 
 type Props = {
   kind: Exclude<HomeKind, 'everyone'>
   data: Dashboard
   greeting: ReactNode
   notices: ReactNode
+  // The principal's side column also shows what's coming up in the college.
+  comingUp?: ReactNode
   now: Date
 }
 
@@ -19,7 +21,7 @@ type Props = {
 // their normal job (the "can vs normally does" principle): an HOD runs a
 // Department, the principal oversees the college, an admin keeps people and
 // lists in order. Latest notices sit beside it.
-export function RoleHome({ kind, data, greeting, notices, now }: Props) {
+export function RoleHome({ kind, data, greeting, notices, comingUp, now }: Props) {
   return (
     <>
       <header className="flex flex-col gap-3 px-1 lg:flex-row lg:items-end lg:justify-between lg:px-0">
@@ -48,7 +50,10 @@ export function RoleHome({ kind, data, greeting, notices, now }: Props) {
                 <div className="max-lg:order-first max-lg:-mt-0">
                   <WaitingForYou rows={principalWaiting(data, now)} />
                 </div>
-                <div className="max-lg:order-last">{notices}</div>
+                <div className="flex flex-col gap-5 max-lg:order-last lg:gap-6">
+                  {notices}
+                  {comingUp}
+                </div>
               </div>
             </Side>
           </>
@@ -124,6 +129,12 @@ function requestsRow(data: Dashboard, now: Date, to: string): WaitingRow[] {
   ]
 }
 
+// postsRow is the person's own drafts and posts sent back, when there are any.
+function postsRow(data: Dashboard): WaitingRow[] {
+  const posts = yourPosts(data.my_announcements)
+  return posts ? [{ count: posts.count, title: 'Your posts', detail: posts.detail, to: '/mine', action: 'Open' }] : []
+}
+
 function hodWaiting(data: Dashboard, now: Date): WaitingRow[] {
   const rows = requestsRow(data, now, '/approvals/access')
   const a = data.approvals
@@ -136,7 +147,7 @@ function hodWaiting(data: Dashboard, now: Date): WaitingRow[] {
       to: '/approvals',
     })
   }
-  return rows
+  return [...rows, ...postsRow(data)]
 }
 
 function principalWaiting(data: Dashboard, now: Date): WaitingRow[] {
@@ -159,7 +170,7 @@ function principalWaiting(data: Dashboard, now: Date): WaitingRow[] {
       to: '/approvals',
     })
   }
-  return rows
+  return [...rows, ...postsRow(data)]
 }
 
 function WaitingForYou({ rows }: { rows: WaitingRow[] }) {
@@ -385,6 +396,7 @@ function ToDo({ data, now }: { data: Dashboard; now: Date }) {
   if (queued > 0) {
     rows.push({ count: queued, title: 'In the approval queue', detail: "usually the principal's to approve", to: '/approvals', action: 'Open' })
   }
+  rows.push(...postsRow(data))
 
   return (
     <CountSection id="todo-h" title="To do" rows={rows} empty="Nothing needs you. Every department has an HOD and nobody is waiting to get in." />

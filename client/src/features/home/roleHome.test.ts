@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Dashboard } from './api'
-import { homeKind, summaryLine } from './roleHome'
+import { homeKind, summaryLine, yourPosts } from './roleHome'
 
 const base: Dashboard = {
   user: { full_name: 'Asha Rao', roles: ['hod'], department: { id: 'd1', code: 'CS', name: 'Computer Science' } },
@@ -71,5 +71,19 @@ describe('summaryLine', () => {
 
   it('tells an admin who is waiting to get in', () => {
     expect(summaryLine('admin', { ...base, access_requests: { pending_count: 3, oldest_requested_at: null } })).toBe('Three people are waiting to get in.')
+  })
+})
+
+describe('yourPosts', () => {
+  const mine = (draft: number, rejected: number, edits = 0) => ({ draft, pending: 3, rejected, edits_waiting: edits })
+
+  it('shows what needs the person: drafts and posts sent back', () => {
+    expect(yourPosts(mine(1, 1))).toEqual({ count: 2, detail: '1 draft, 1 sent back with a note' })
+    expect(yourPosts(mine(2, 0))).toEqual({ count: 2, detail: '2 drafts' })
+  })
+
+  it('stays hidden when nothing needs them, even with posts waiting on others', () => {
+    expect(yourPosts(mine(0, 0, 2))).toBeNull()
+    expect(yourPosts(undefined)).toBeNull()
   })
 })
