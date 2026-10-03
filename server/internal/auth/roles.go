@@ -376,22 +376,6 @@ func (m roleManager) mayManage(role Role) bool {
 	return false
 }
 
-// requireInviter checks the actor may give a new staff account this role.
-// Unlike requireRoleManager there is no one to see yet: the account is new.
-func requireInviter(ctx context.Context, users UserRepository, actorID string, _ *User, role Role) error {
-	manager, err := readRoleManager(ctx, users, actorID)
-	if err != nil {
-		return err
-	}
-	if !manager.mayManage(role) {
-		if role == RoleAdmin {
-			return apperrors.NewForbidden("only an admin can grant or end the admin role")
-		}
-		return apperrors.NewForbidden(fmt.Sprintf("you can't add staff with the %s role", role))
-	}
-	return nil
-}
-
 // requireRoleManager checks the actor may grant or end the role for the
 // user. A user the actor can't see answers as if they didn't exist.
 func requireRoleManager(ctx context.Context, users UserRepository, actorID string, user *User, role Role) error {

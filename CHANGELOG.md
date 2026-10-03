@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Only admins and HODs add people (ADR 0029): the principal can no longer
+  import students or add staff. HODs can now add faculty to their own
+  Department, and an HOD who is also the principal imports only their own
+  Department's students.
 - Ending someone's role now handles their unfinished work (ADR 0028, #143):
   announcements waiting for approval or sent back are withdrawn, event
   proposals under review return to drafts, and upcoming events they organise
