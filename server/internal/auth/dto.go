@@ -192,6 +192,7 @@ type ImportInput struct {
 type ImportRowResult struct {
 	Row            int    `json:"row"`
 	Email          string `json:"email"`
+	FullName       string `json:"full_name"`
 	USN            string `json:"usn"`
 	DepartmentCode string `json:"department_code,omitempty"`
 	BatchYear      int    `json:"batch_year,omitempty"`

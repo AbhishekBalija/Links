@@ -604,15 +604,16 @@ Response `200`:
         "rows": 1, "ready": 1, "created": 0, "failed": 0, "outside": false }
     ],
     "rows": [
-      { "row": 2, "email": "asha.rao@gmail.com", "usn": "4MN23CS101", "department_code": "CS", "batch_year": 2023, "status": "ready" },
-      { "row": 3, "email": "ravi.k@gmail.com", "usn": "4MN24EC102", "department_code": "EC", "batch_year": 2024,
+      { "row": 2, "email": "asha.rao@gmail.com", "full_name": "Asha Rao", "usn": "4MN23CS101", "department_code": "CS", "batch_year": 2023, "status": "ready" },
+      { "row": 3, "email": "ravi.k@gmail.com", "full_name": "Kumar, Ravi", "usn": "4MN24EC102", "department_code": "EC", "batch_year": 2024,
         "status": "failed", "outside": true, "error": "the USN is in EC, not CS" }
     ]
   }
 }
 ```
 
-- `row` is the spreadsheet row (the header is row 1). `department_code` and
+- `row` is the spreadsheet row (the header is row 1), with its `email`,
+  `full_name` and `usn` as read from the file. `department_code` and
   `batch_year` are read from the USN and are left out when it is malformed.
   A saved row has `status: "created"` and its `user_id`.
 - `department` is the import's Department, or `null` when there is none.

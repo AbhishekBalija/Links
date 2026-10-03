@@ -34,6 +34,7 @@ type checkedImport struct {
 		Row            int    `json:"row"`
 		Email          string `json:"email"`
 		USN            string `json:"usn"`
+		FullName       string `json:"full_name"`
 		DepartmentCode string `json:"department_code"`
 		BatchYear      int    `json:"batch_year"`
 		Status         string `json:"status"`
@@ -95,7 +96,7 @@ func TestImportDryRunChecksEveryRowAndSavesNothing(t *testing.T) {
 		t.Fatalf("result = %+v, want a dry run with 2 ready, 0 created and 2 failed", result)
 	}
 	first := result.Rows[0]
-	if first.Status != "ready" || first.USN != "4MN23CS101" || first.DepartmentCode != "CS" || first.BatchYear != 2023 {
+	if first.Status != "ready" || first.USN != "4MN23CS101" || first.FullName != "Asha Rao" || first.DepartmentCode != "CS" || first.BatchYear != 2023 {
 		t.Errorf("row 2 = %+v, want ready, 4MN23CS101, CS, Batch 2023", first)
 	}
 	if result.Rows[2].Error != "the USN is already registered" || result.Rows[3].Error != "the email is already registered" {
