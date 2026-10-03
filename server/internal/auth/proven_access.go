@@ -115,7 +115,7 @@ func (s *authService) InviteStaff(ctx context.Context, actorID string, input Inv
 		if err := s.createAccount(ctx, repos.Users, user, fullName, now); err != nil {
 			return err
 		}
-		if _, err := grantRoleIn(ctx, repos, actorID, user.ID, grant, now, now); err != nil {
+		if _, err := grantRoleIn(ctx, repos, actorID, user.ID, grant, now, now, requireInviter); err != nil {
 			return err
 		}
 		return repos.AuditLogs.Create(ctx, &AuditLog{
