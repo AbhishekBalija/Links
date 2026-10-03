@@ -34,6 +34,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Department and Batch read from each USN, with nothing saved. An optional
   `department` field ties the import to one Department and flags rows
   outside it; an HOD's import is held to their own Department.
+- Roles on a profile (#125): the principal and admins see a person's roles
+  (active, scheduled, ended), grant a role with dates and end or cancel one.
+  An HOD makes their own students student coordinators and ends that role.
+  Ending a role first shows what happens to the person's unfinished work and
+  who takes over their upcoming events.
 - Events have an Organiser who runs them (edits once published, cancels,
   exports participants), starting as the proposer (ADR 0028, #143).
   Migration 024 adds `events.organiser_id`.

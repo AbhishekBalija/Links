@@ -1,9 +1,13 @@
 import { Check, Copy, Link2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { cn } from '@/lib/utils'
 import { Avatar } from '../../../app/shell/Avatar'
 import { roleLabel } from '../../../app/shell/nav'
 import { Skeleton } from '../../../shared/ui/states'
+import { useAuthStore } from '../../auth/store'
+import { RolesPanel } from '../../roles/components/RolesPanel'
+import { grantableRoles } from '../../roles/roles'
 import { useDepartmentOverview } from '../api'
 import type { PublicProfile } from '../types'
 
@@ -22,9 +26,16 @@ export function ProfileView({ profile, own = false, action }: Props) {
   const links = profileLinks(profile)
   const firstName = profile.full_name.trim().split(/\s+/)[0]
   const sparse = !own && !profile.bio && links.length === 0 && !profile.email && !profile.phone
+  // Someone who manages roles sees a Roles panel, which needs a wider column.
+  const managesRoles = useAuthStore((s) => grantableRoles(s.user?.roles ?? []).length > 0) && !own
 
   return (
-    <div className="grid items-start gap-3.5 lg:max-w-[1120px] lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-7">
+    <div
+      className={cn(
+        'grid items-start gap-3.5 lg:max-w-[1120px] lg:gap-7',
+        managesRoles ? 'lg:grid-cols-[minmax(0,1fr)_420px]' : 'lg:grid-cols-[minmax(0,1fr)_340px]',
+      )}
+    >
       <article className="flex flex-col gap-3.5 lg:gap-[22px] lg:rounded-xl lg:border lg:border-line lg:bg-surface lg:px-10 lg:pt-[30px] lg:pb-[38px]">
         {action && <div className="hidden items-center justify-between gap-4 lg:flex">{action}</div>}
         <header className="flex flex-col items-center gap-2 rounded-xl border border-line bg-surface px-[18px] py-[22px] text-center lg:flex-row lg:gap-[22px] lg:border-0 lg:p-0 lg:text-left">
@@ -61,10 +72,11 @@ export function ProfileView({ profile, own = false, action }: Props) {
         )}
       </article>
 
-      {!sparse && (
+      {(!sparse || managesRoles) && (
         <aside className="flex flex-col gap-3.5 lg:gap-4">
-          <ContactPanel profile={profile} own={own} />
-          {!own && profile.department && <DepartmentPanel code={profile.department.code} name={profile.department.name} />}
+          {managesRoles && <RolesPanel profile={profile} />}
+          {!sparse && <ContactPanel profile={profile} own={own} />}
+          {!sparse && !own && profile.department && <DepartmentPanel code={profile.department.code} name={profile.department.name} />}
         </aside>
       )}
     </div>
