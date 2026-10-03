@@ -91,6 +91,12 @@ The admin signs in with Google using that email; there is no password. The
 command refuses once the college has an admin: later admins are granted inside
 LINKS.
 
+## Another College
+
+Each college gets its own copy of LINKS (ADR 0030): a new Vercel project, a new
+Neon database and its own address, then the first admin added as above against
+that database. Nothing is shared between copies.
+
 ## Smoke Test
 
 After deploying, verify:
