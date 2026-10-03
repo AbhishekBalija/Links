@@ -3,6 +3,7 @@ package integration
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -36,8 +37,15 @@ type directoryPage struct {
 func member(t *testing.T, h *apitest.Harness, name string, seed apitest.UserSeed) apitest.User {
 	t.Helper()
 	user := h.SeedUser(t, seed)
-	// The ID suffix keeps usernames unique when two members share a name.
-	username := strings.ToLower(strings.ReplaceAll(name, " ", ".")) + "." + user.ID[:4]
+	// The suffix keeps usernames unique when two members share a name. It is
+	// the ID's first 32 bits in decimal: the ID itself is hex, and a hex word
+	// such as "de3f" is close enough to a search for "dev" to match it (#157).
+	// Digits share no trigrams with a search made of letters.
+	prefix, err := strconv.ParseUint(user.ID[:8], 16, 32)
+	if err != nil {
+		t.Fatalf("read member ID %q: %v", user.ID, err)
+	}
+	username := strings.ToLower(strings.ReplaceAll(name, " ", ".")) + "." + strconv.FormatUint(prefix, 10)
 	if err := h.DB().Exec(`UPDATE profiles SET full_name = ?, username = ? WHERE user_id = ?`, name, username, user.ID).Error; err != nil {
 		t.Fatalf("name member: %v", err)
 	}
