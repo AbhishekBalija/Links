@@ -214,8 +214,13 @@ func (r *GormUserRepository) LockDepartmentForShare(ctx context.Context, id stri
 	return len(ids) > 0, err
 }
 
+// CreateProfile inserts the profile in a savepoint (a nested transaction), so
+// a username clash undoes only this insert and the caller can retry with
+// another name. Without it Postgres aborts the whole transaction (#166).
 func (r *GormUserRepository) CreateProfile(ctx context.Context, profile *Profile) error {
-	return r.db.WithContext(ctx).Create(profile).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return tx.Create(profile).Error
+	})
 }
 
 func (r *GormUserRepository) CreateStudentIdentity(ctx context.Context, identity *StudentIdentity) error {

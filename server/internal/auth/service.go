@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
+	"math/rand/v2"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -142,5 +142,7 @@ func generateUsername(fullName string) string {
 	if len(base) > 30 {
 		base = base[:30]
 	}
-	return base + fmt.Sprintf("%d", time.Now().UnixMilli()%10000)
+	// A random suffix, not the clock: rows of one import are created in the
+	// same millisecond, and a retry must not regenerate the same name (#166).
+	return base + fmt.Sprintf("%d", rand.IntN(10000))
 }
