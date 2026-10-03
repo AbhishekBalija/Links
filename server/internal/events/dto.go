@@ -69,6 +69,12 @@ type DepartmentRef struct {
 	Code string `json:"code"`
 }
 
+// OrganiserRef names the person who runs an Event (ADR 0028).
+type OrganiserRef struct {
+	UserID   string `json:"user_id"`
+	FullName string `json:"full_name"`
+}
+
 type MentorRef struct {
 	UserID   string `json:"user_id"`
 	FullName string `json:"full_name"`
@@ -90,6 +96,7 @@ type EventResponse struct {
 	Status        Status                 `json:"status"`
 	ProposerID    string                 `json:"proposer_id"`
 	ProposerName  string                 `json:"proposer_name"`
+	Organiser     *OrganiserRef          `json:"organiser"`
 	Department    *DepartmentRef         `json:"department"`
 	FacultyMentor *MentorRef             `json:"faculty_mentor"`
 	Location      string                 `json:"location"`

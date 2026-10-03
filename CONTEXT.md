@@ -118,6 +118,10 @@ An Event before it is published: drafted by a Student coordinator, faculty membe
 The first review of a Student coordinator's or faculty member's Event proposal, by the HOD of its Department (the principal or an admin when the Department has no HOD): approve, request changes or reject.
 _Avoid_: department approval
 
+**Organiser**:
+The person who runs an Event: edits it, cancels it and exports its participants. Starts as its proposer and moves to someone else when their role ends.
+_Avoid_: owner, host
+
 **Final approval**:
 The principal's or an admin's review of an Event proposal after HOD review (or straight away for an HOD's own Event or a training Event). Approving publishes it.
 

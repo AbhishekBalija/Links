@@ -86,10 +86,11 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateEventI
 
 	now := s.now()
 	event := Event{
-		ProposerID: actorID,
-		Status:     StatusDraft,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ProposerID:  actorID,
+		OrganiserID: actorID,
+		Status:      StatusDraft,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	apply(&event, proposed)
 	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
@@ -454,6 +455,7 @@ func (s *Service) toResponses(ctx context.Context, views []View) ([]EventRespons
 			Status:       view.Status,
 			ProposerID:   view.ProposerID,
 			ProposerName: view.ProposerName,
+			Organiser:    &OrganiserRef{UserID: view.OrganiserID, FullName: view.OrganiserName},
 			Location:     view.Location,
 			StartsAt:     view.StartsAt,
 			EndsAt:       view.EndsAt,

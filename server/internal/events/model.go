@@ -48,11 +48,13 @@ func validType(eventType Type) bool {
 
 // Event is an Event proposal or a published Event.
 type Event struct {
-	ID              string     `gorm:"column:id;primaryKey"`
-	Title           string     `gorm:"column:title"`
-	Description     string     `gorm:"column:description"`
-	EventType       Type       `gorm:"column:event_type"`
-	ProposerID      string     `gorm:"column:proposer_id"`
+	ID          string `gorm:"column:id;primaryKey"`
+	Title       string `gorm:"column:title"`
+	Description string `gorm:"column:description"`
+	EventType   Type   `gorm:"column:event_type"`
+	ProposerID  string `gorm:"column:proposer_id"`
+	// OrganiserID runs the Event; it starts as the proposer (ADR 0028).
+	OrganiserID     string     `gorm:"column:organiser_id"`
 	DepartmentID    *string    `gorm:"column:department_id"`
 	FacultyMentorID *string    `gorm:"column:faculty_mentor_id"`
 	Location        string     `gorm:"column:location"`
@@ -75,6 +77,7 @@ func (Event) TableName() string { return "events" }
 type View struct {
 	Event
 	ProposerName   string  `gorm:"column:proposer_name"`
+	OrganiserName  string  `gorm:"column:organiser_name"`
 	DepartmentCode *string `gorm:"column:department_code"`
 	MentorName     *string `gorm:"column:mentor_name"`
 }

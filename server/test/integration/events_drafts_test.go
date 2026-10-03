@@ -17,6 +17,10 @@ type eventItem struct {
 	Location   string `json:"location"`
 	Capacity   *int   `json:"capacity"`
 	ProposerID string `json:"proposer_id"`
+	Organiser  *struct {
+		UserID   string `json:"user_id"`
+		FullName string `json:"full_name"`
+	} `json:"organiser"`
 	Department *struct {
 		ID   string `json:"id"`
 		Code string `json:"code"`
@@ -106,6 +110,9 @@ func TestCoordinatorSavesADraftForTheirDepartment(t *testing.T) {
 	})))
 	if event.Status != "draft" || event.ProposerID != coordinator.ID || event.Department == nil || event.Department.Code != "CS" {
 		t.Fatalf("event = %+v, want a CS draft by the coordinator", event)
+	}
+	if event.Organiser == nil || event.Organiser.UserID != coordinator.ID || event.Organiser.FullName == "" {
+		t.Fatalf("organiser = %+v, want the coordinator who proposed it", event.Organiser)
 	}
 	if event.FacultyMentor == nil || event.FacultyMentor.UserID != mentor.ID || event.Capacity == nil || *event.Capacity != 40 {
 		t.Fatalf("event = %+v, want the mentor and capacity kept", event)

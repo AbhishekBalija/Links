@@ -180,10 +180,10 @@ func (s *Service) Cancel(ctx context.Context, actorID, id string, input CancelIn
 	return s.response(ctx, id)
 }
 
-// organises is true for the proposer and for whoever reviews the Event: the
+// organises is true for the Event's Organiser and for whoever reviews it: the
 // Department's HOD, the principal and admins.
 func (s *Service) organises(ctx context.Context, actorID string, event Event) (bool, error) {
-	if event.ProposerID == actorID {
+	if event.OrganiserID == actorID {
 		return true, nil
 	}
 	grants, err := s.grants(ctx, actorID)
