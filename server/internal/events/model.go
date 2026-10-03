@@ -143,6 +143,10 @@ func validMineFilter(filter MineFilter) bool {
 
 // Repository is the Events data access used by the service.
 type Repository interface {
+	// UnfinishedOf and DepartmentHOD serve ending a role (ADR 0028).
+	UnfinishedOf(ctx context.Context, personID string, at time.Time) ([]Event, error)
+	DepartmentHOD(ctx context.Context, departmentID, exceptUserID string) (*auth.PersonRef, error)
+	OrganiserCandidates(ctx context.Context, departmentIDs []string, exceptUserID string) ([]auth.PersonRef, error)
 	UpcomingInDepartment(ctx context.Context, departmentID string, limit int) ([]View, error)
 	Create(ctx context.Context, event *Event, audience []AudienceRule) error
 	Update(ctx context.Context, event *Event) error

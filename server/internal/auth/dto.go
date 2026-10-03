@@ -199,6 +199,13 @@ type GrantRoleInput struct {
 	Note      string     `json:"note" binding:"max=500"`
 }
 
+// EndRoleResponse is the ended assignment and what happened to the person's
+// unfinished work (ADR 0028).
+type EndRoleResponse struct {
+	RoleAssignmentResponse
+	Handover HandoverSummary `json:"handover"`
+}
+
 type RoleDepartment struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
