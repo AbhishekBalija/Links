@@ -212,6 +212,8 @@ type AuthService interface {
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
 	ListUserRoles(ctx context.Context, actorID, userID string) ([]RoleAssignmentResponse, error)
+	NotSignedIn(ctx context.Context, actorID string, query NotSignedInQuery) (*NotSignedInPage, error)
+	NotSignedInEmails(ctx context.Context, actorID string, query NotSignedInQuery) ([]string, error)
 	GrantRole(ctx context.Context, actorID, userID string, input GrantRoleInput) (*RoleAssignmentResponse, error)
 	EndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*EndRoleResponse, error)
 	PreviewEndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*HandoverSummary, error)
@@ -260,6 +262,8 @@ type UserRepository interface {
 	ReviewDepartments(ctx context.Context) ([]ReviewDepartment, error)
 	ReportedAt(ctx context.Context, userIDs []string) (map[string]time.Time, error)
 	WaitingForFirstSignIn(ctx context.Context, anywhere bool, departmentIDs []string, limit int) (WaitingList, error)
+	NotSignedIn(ctx context.Context, filter NotSignedInFilter) (WaitingList, error)
+	NotSignedInEmails(ctx context.Context, filter NotSignedInFilter) ([]string, error)
 	RecentImportAudits(ctx context.Context, anywhere bool, departmentIDs []string, limit int) ([]ImportAuditRow, map[string]bool, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
 	HasAdmin(ctx context.Context) (bool, error)
