@@ -36,6 +36,10 @@ func (f *fakeProfileRepo) FindByUsername(ctx context.Context, username string) (
 	return nil, nil
 }
 
+// IsListed treats every member as listed; the listed rule is covered by the
+// API tests (profile_listed_test.go).
+func (f *fakeProfileRepo) IsListed(context.Context, string) (bool, error) { return true, nil }
+
 func (f *fakeProfileRepo) Update(ctx context.Context, profile *Profile) error {
 	if f.update != nil {
 		return f.update(ctx, profile)

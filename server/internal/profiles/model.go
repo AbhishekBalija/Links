@@ -29,6 +29,9 @@ func (Profile) TableName() string { return "profiles" }
 type ProfileRepository interface {
 	FindByUserID(ctx context.Context, userID string) (*Profile, error)
 	FindByUsername(ctx context.Context, username string) (*Profile, error)
+	// IsListed reports whether the member is listed as in the directory:
+	// active, verified and with a role in effect.
+	IsListed(ctx context.Context, userID string) (bool, error)
 	Update(ctx context.Context, profile *Profile) error
 }
 

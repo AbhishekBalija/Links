@@ -340,6 +340,11 @@ Works without a token. A public profile is visible to everyone, a private one
 only to its owner (`404` for anyone else). Email and phone appear only for the
 owner or when the owner opted in.
 
+Like the directory, only listed members are shown: an account that is
+pending (imported or invited but not yet signed in), suspended or rejected,
+or whose roles have all ended, answers `404` (#176). Its owner still sees
+it, and so do admins and the principal, who manage people.
+
 Signed-in viewers also get who the member is at the college, described exactly
 as a directory entry describes them: `roles` (in effect, most senior first),
 `department` (`{code, name}`) and, for students, `batch_year`. Anonymous
@@ -521,6 +526,9 @@ created, so a concurrent department delete either waits and returns `409` or
 runs first and the approval returns `400`.
 
 `PATCH /api/v1/admin/users/:id/status` with `{"status": "suspended" | "rejected" | "active", "note": "..."}`.
+Suspending yourself is `403`; only an admin may suspend someone holding the
+admin or principal role (`403` otherwise); suspending the last active admin
+is `409`.
 Moving a user to `suspended` or `rejected` also revokes all their refresh
 tokens in the same transaction, so every signed-in device is signed out at its
 next refresh.
