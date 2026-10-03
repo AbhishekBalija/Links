@@ -28,6 +28,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Server errors now reach the logs and Sentry: a 500's cause is logged with
+  the request ID and reported, and Sentry covers every route (it was added
+  after the routes, so it covered none).
+- After a role ends and an event is handed to a new Organiser (ADR 0028),
+  the former proposer no longer sees who answered or exports the
+  participant list (names, emails, USNs); both follow the Organiser.
 - Suspending is guarded (#177): nobody suspends themselves, only an admin
   suspends an admin or the principal, and the last active admin can't be
   suspended.
