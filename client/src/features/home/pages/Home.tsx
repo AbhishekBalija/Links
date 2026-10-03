@@ -21,13 +21,7 @@ import { Pipeline } from '../../placement/components/Pipeline'
 import { placementLine, reviewFirst, showOpenJobs, type PlacementSummary } from '../placement'
 import { RoleHome } from '../components/RoleHomes'
 import { homeKind } from '../roleHome'
-
-function greeting(now: Date) {
-  const hour = now.getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
-}
+import { greeting, useHomeClock } from '../greeting'
 
 function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] ?? ''
@@ -36,7 +30,7 @@ function firstName(fullName: string) {
 export default function Home() {
   const dashboard = useDashboard()
   useRefetchAtExpiry(dashboard.data?.notices.items.map((n) => n.expires_at) ?? [], dashboard.refetch)
-  const now = new Date()
+  const now = useHomeClock()
 
   return (
     <div className="flex flex-col gap-5 lg:gap-8">
