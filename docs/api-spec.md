@@ -558,9 +558,18 @@ with the counts and one `user_imported` per created user.
 
 ### Role management
 
-Principal and admin (`manage_users_and_roles`). Only an admin may grant or end
-the `admin` role; the principal gets `403` for it. The caller's roles for that
-check are read from the database, not the token.
+HODs, the principal and admins (`manage_roles`), each for different roles
+(ADR 0027):
+
+- An HOD grants and ends `student_coordinator` only, and sees and manages only
+  the students of their own Department. Any other user answers `404`, as if
+  they didn't exist.
+- The principal grants and ends `faculty`, `hod` and `placement_officer`, and
+  sees everyone's roles.
+- An admin grants and ends every role, including `principal` and `admin`.
+
+Granting or ending a role the caller doesn't manage is `403`. The caller's
+roles for these checks are read from the database, not the token.
 
 `GET /api/v1/admin/users/:id/roles` lists all of a user's Role assignments,
 newest start first: in effect now (`active`), starting later (`scheduled`) and
@@ -784,7 +793,7 @@ notes. Each carries `rsvp: {counts: {going, interested, not_going},
 my_status}`, read for the whole page at once, so a list needs no call per
 Event.
 
-`GET /api/v1/events/:id` returns one Event to its proposer (any status); to
+`GET /api/v1/events/:id` returns one Event to its proposer or Organiser (any status); to
 the principal, admins and the HOD of its Department once it has left draft,
 with its `reviews`; and to a reader in its Audience once it has been
 published (including after it is cancelled), without review notes. Anyone
@@ -799,7 +808,7 @@ so two people can't take the last seat. Returns the counts and `my_status`.
 
 `GET /api/v1/events/:id/rsvps` returns `{"counts": {"going", "interested",
 "not_going"}, "my_status"}` to anyone who can see the Event. Its organisers
-(the proposer, the Department's HOD, the principal and admins) also get
+(the Organiser, the Department's HOD, the principal and admins) also get
 `people` (`user_id`, `full_name`, `username`, `status`, `responded_at`),
 earliest answer first, cursor-paginated with `meta.next_cursor`.
 
@@ -843,7 +852,9 @@ review, or saves it as a draft with `"draft": true`:
   `training` events only. Anything else is `400` naming `department_id` or
   `event_type`; `403` without `propose_event`.
 - Returns `201` with the Event: `id`, `title`, `description`, `event_type`,
-  `status`, `proposer_id`, `proposer_name`, `department {id, code}`,
+  `status`, `proposer_id`, `proposer_name`, `organiser {user_id, full_name}`
+  (who runs it; the proposer until it is handed over, ADR 0028),
+  `department {id, code}`,
   `faculty_mentor {user_id, full_name}`, `location`, `starts_at`, `ends_at`,
   `capacity`, `audience` (with `department_code`), timestamps.
 
@@ -888,7 +899,7 @@ admins. Each item carries `stage` (`hod` or `final`) and the earlier
 `reviews`. The caller's own Events are never listed.
 
 A `published` Event that isn't over takes logistics edits through
-`PATCH /api/v1/events/:id` from its organisers (the proposer, the Department's
+`PATCH /api/v1/events/:id` from its organisers (the Organiser, the Department's
 HOD, the principal, admins; `404` for anyone else): `description`,
 `location`, `starts_at` (in the future), `ends_at` and `capacity` (not below
 the number already going; `null` removes the limit). Sending `title`,
@@ -903,7 +914,7 @@ it, so it is cancelled instead and its history kept.
 
 `POST /api/v1/events/:id/cancel` with `{"reason": "..."}` (required, up to 500
 characters) cancels an Event that isn't over, rejected or already cancelled
-(`409`). Allowed for its proposer and its reviewers (Department HOD, principal,
+(`409`). Allowed for its Organiser and its reviewers (Department HOD, principal,
 admins); `403` for others who can see it, `404` for anyone else. RSVPs are
 kept; the Event leaves the feed but its Audience can still open it and see
 `cancel_reason`. Audited as `event_cancelled`.

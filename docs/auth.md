@@ -208,9 +208,12 @@ invites (`invite_staff`) are open to admins, for any role, and HODs, for
 faculty of their own Department. The principal does neither (ADR 0029), and
 being the principal doesn't widen an HOD's own Department scope.
 
-"Manage users and roles" for the principal means everything but the `admin`
-role, which only an admin grants or ends. HODs don't manage users or roles;
-they decide Access requests (`approve_access`) for their own Department only
+Role management is split by who normally appoints each role (ADR 0027): an
+HOD grants and ends `student_coordinator` for students of their own
+Department, the principal grants and ends `faculty`, `hod` and
+`placement_officer`, and an admin grants and ends every role, including
+`principal` and `admin`. Beyond appointing coordinators and adding faculty, HODs don't manage
+users; they decide Access requests (`approve_access`) for their own Department only
 (ADR 0025): approve, or reject with a note. Suspending and reactivating
 accounts stay with the principal and admins.
 

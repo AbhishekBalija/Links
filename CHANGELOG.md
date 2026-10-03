@@ -11,6 +11,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   import students or add staff. HODs can now add faculty to their own
   Department, and an HOD who is also the principal imports only their own
   Department's students.
+- HODs appoint and remove Student coordinators for their own Department
+  (ADR 0027, #143). The principal now grants and ends faculty, HOD and
+  placement officer roles only; granting the principal or Student coordinator
+  role moves to admins (and HODs for coordinators).
 
 ### Removed
 - Passwords and activation (#136): password login, the password Request
@@ -24,6 +28,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Events have an Organiser who runs them (edits once published, cancels,
+  exports participants), starting as the proposer (ADR 0028, #143).
+  Migration 024 adds `events.organiser_id`.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,
