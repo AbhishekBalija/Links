@@ -17,7 +17,7 @@ import (
 var exportHeader = []string{"full_name", "email", "usn", "batch_year", "department", "rsvp_status", "responded_at"}
 
 // Export returns the Event's participants as CSV to its organisers (the
-// proposer, the Department's HOD, the principal and admins), and records the
+// Organiser, the Department's HOD, the principal and admins), and records the
 // export in the audit log in the same transaction. Others who can see the
 // Event are forbidden; anyone else gets not found.
 func (s *Service) Export(ctx context.Context, actorID, id string) ([]byte, error) {

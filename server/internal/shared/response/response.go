@@ -26,3 +26,11 @@ func Success(c *gin.Context, status int, data interface{}, meta interface{}) {
 func Error(c *gin.Context, status int, code, message string, details interface{}) {
 	c.JSON(status, ErrorEnvelope{Error: ErrorDetail{Code: code, Message: message, Details: details}})
 }
+
+// InternalError answers a plain 500 that hides the cause from the client,
+// and attaches the cause to the request so the request logger logs it and
+// reports it to Sentry.
+func InternalError(c *gin.Context, err error) {
+	_ = c.Error(err)
+	Error(c, 500, "INTERNAL_ERROR", "internal server error", nil)
+}
