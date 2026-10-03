@@ -179,6 +179,12 @@ func (f *fakeUserRepo) ReportedAt(context.Context, []string) (map[string]time.Ti
 func (f *fakeUserRepo) WaitingForFirstSignIn(context.Context, bool, []string, int) (WaitingList, error) {
 	return WaitingList{}, nil
 }
+func (f *fakeUserRepo) NotSignedIn(context.Context, NotSignedInFilter) (WaitingList, error) {
+	return WaitingList{}, nil
+}
+func (f *fakeUserRepo) NotSignedInEmails(context.Context, NotSignedInFilter) ([]string, error) {
+	return nil, nil
+}
 
 func (f *fakeUserRepo) RecentImportAudits(context.Context, bool, []string, int) ([]ImportAuditRow, map[string]bool, error) {
 	return nil, nil, nil

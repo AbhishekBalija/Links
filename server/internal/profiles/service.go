@@ -57,6 +57,13 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string, viewerI
 	if !profile.Privacy().VisibleTo(viewerID) {
 		return nil, apperrors.NewNotFound("profile not found")
 	}
+	visible, err := s.listedOrManaged(ctx, profile.UserID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if !visible {
+		return nil, apperrors.NewNotFound("profile not found")
+	}
 
 	resp := s.profileToResponse(ctx, profile, viewerID)
 	// Roles, Department and Batch are for members only, like the directory.
@@ -248,4 +255,31 @@ func applyUpdates(p *Profile, input UpdateProfileInput) {
 			p.PortfolioURL = input.PortfolioURL
 		}
 	}
+}
+
+// listedOrManaged keeps a profile to listed members, like the directory: a
+// pending, suspended or rejected account, or one whose roles have all ended,
+// is hidden (#176). Its owner still sees it, and so do admins and the
+// principal, who manage people and need to see whom they're managing.
+func (s *Service) listedOrManaged(ctx context.Context, userID string, viewerID *string) (bool, error) {
+	if viewerID != nil && *viewerID == userID {
+		return true, nil
+	}
+	listed, err := s.repo.IsListed(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("check listed: %w", err)
+	}
+	if listed || viewerID == nil {
+		return listed, nil
+	}
+	viewer, err := s.memberships.Membership(ctx, *viewerID)
+	if err != nil {
+		return false, fmt.Errorf("read viewer membership: %w", err)
+	}
+	for _, role := range viewer.Roles {
+		if role == "admin" || role == "principal" {
+			return true, nil
+		}
+	}
+	return false, nil
 }

@@ -8,6 +8,8 @@ import { PageLoading } from '../shared/ui/states'
 
 // Each page is its own chunk, so the first visit downloads only the screen
 // it opens, which matters most for students on phones.
+const AdminImport = lazy(() => import('../features/import/pages/AdminImport'))
+const HODImport = lazy(() => import('../features/import/pages/HODImport'))
 const SignIn = lazy(() => import('../features/auth/pages/SignIn'))
 const FirstSignIn = lazy(() => import('../features/auth/pages/FirstSignIn'))
 const AccountPending = lazy(() => import('../features/auth/pages/AccountPending'))
@@ -89,6 +91,10 @@ export function AppRouter() {
             <Route path="/admin" element={<Navigate to="/admin/requests" replace />} />
             <Route path="/admin/requests" element={<AdminAccessRequests />} />
             <Route path="/admin/requests/:id" element={<AdminAccessRequests />} />
+            <Route path="/admin/import" element={<AdminImport />} />
+          </Route>
+          <Route element={<HODRoute />}>
+            <Route path="/import" element={<HODImport />} />
           </Route>
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
@@ -123,6 +129,13 @@ function ApproverRoute() {
 function AdminRoute() {
   const roles = useAuthStore((s) => s.user?.roles) ?? []
   return roles.includes('admin') ? <Outlet /> : <Navigate to="/" replace />
+}
+
+// HODRoute keeps an HOD's own pages (Import students) to HODs. The server
+// holds each import to the HOD's Department.
+function HODRoute() {
+  const roles = useAuthStore((s) => s.user?.roles) ?? []
+  return roles.includes('hod') ? <Outlet /> : <Navigate to="/" replace />
 }
 
 // PlacementRoute keeps Placement to the placement officer, the principal and

@@ -51,6 +51,18 @@ func (r *GormProfileRepository) FindByUsername(ctx context.Context, username str
 	return &p, err
 }
 
+func (r *GormProfileRepository) IsListed(ctx context.Context, userID string) (bool, error) {
+	var listed bool
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT EXISTS (
+			SELECT 1 FROM users u
+			WHERE u.id = ? AND u.status = 'active' AND u.is_verified
+			  AND EXISTS (SELECT 1 FROM role_assignments r
+			              WHERE r.user_id = u.id AND r.starts_at <= now() AND (r.ends_at IS NULL OR r.ends_at > now()))
+		)`, userID).Scan(&listed).Error
+	return listed, err
+}
+
 func (r *GormProfileRepository) Update(ctx context.Context, profile *Profile) error {
 	return r.db.WithContext(ctx).Save(profile).Error
 }

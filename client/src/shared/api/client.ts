@@ -126,8 +126,10 @@ async function requestEnvelope<T, M = Record<string, unknown>>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiSuccess<T, M>> {
+  // A FormData body (a file upload) needs the browser to set its own
+  // multipart type with the boundary, so it gets no JSON type.
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> | undefined),
   }
 

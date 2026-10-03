@@ -208,6 +208,11 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		if newStatus == user.Status {
 			return apperrors.NewConflict("user already has status " + status)
 		}
+		if newStatus == UserStatusSuspended {
+			if err := requireSuspendable(ctx, repos, actorID, user.ID); err != nil {
+				return err
+			}
+		}
 
 		if newStatus == UserStatusActive && user.Status == UserStatusRejected {
 			return apperrors.NewValidation("cannot activate a rejected user", nil)
@@ -267,4 +272,53 @@ func (s *authService) AccessSummary(ctx context.Context, actorID string) (*Acces
 		summary.Oldest = &oldest
 	}
 	return summary, nil
+}
+
+// requireSuspendable guards suspending (#177): nobody suspends themselves,
+// only an admin suspends an admin or the principal, and the college keeps
+// at least one active admin. Roles are read from the database.
+func requireSuspendable(ctx context.Context, repos AuthRepositories, actorID, userID string) error {
+	if actorID == userID {
+		return apperrors.NewForbidden("you can't suspend yourself")
+	}
+	actorRoles, err := repos.Users.GetRoleAssignments(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("get actor roles: %w", err)
+	}
+	targetRoles, err := repos.Users.GetRoleAssignments(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user roles: %w", err)
+	}
+	has := func(grants []RoleAssignment, role Role) bool {
+		for _, grant := range grants {
+			if grant.Role == role {
+				return true
+			}
+		}
+		return false
+	}
+	targetAdmin := has(targetRoles, RoleAdmin)
+	if (targetAdmin || has(targetRoles, RolePrincipal)) && !has(actorRoles, RoleAdmin) {
+		return apperrors.NewForbidden("only an admin can suspend an admin or the principal")
+	}
+	if !targetAdmin {
+		return nil
+	}
+	admins, err := repos.Users.LockAdminAssignmentsInEffect(ctx)
+	if err != nil {
+		return fmt.Errorf("lock admin roles: %w", err)
+	}
+	for _, other := range admins {
+		if other.UserID == userID {
+			continue
+		}
+		person, err := repos.Users.FindByID(ctx, other.UserID)
+		if err != nil {
+			return fmt.Errorf("find admin: %w", err)
+		}
+		if person != nil && person.Status == UserStatusActive {
+			return nil
+		}
+	}
+	return apperrors.NewConflict("this is the last active admin; make someone else an admin first")
 }

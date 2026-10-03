@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -69,4 +71,35 @@ func extractBearerToken(c *gin.Context) (string, error) {
 		return "", apperrors.NewUnauthenticated("invalid authorization header format")
 	}
 	return parts[1], nil
+}
+
+// StatusReader reads an account's status.
+type StatusReader interface {
+	FindStatus(ctx context.Context, userID string) (UserStatus, bool, error)
+}
+
+// RefuseInactive runs after RequireAuth and refuses an access token whose
+// account has been suspended or rejected since it was issued (#175), so the
+// change takes effect at once rather than when the token expires. It reads
+// the status on every request: one primary-key lookup.
+func RefuseInactive(statuses StatusReader) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		actor := GetActor(c)
+		if actor == nil {
+			c.Next()
+			return
+		}
+		status, found, err := statuses.FindStatus(c.Request.Context(), actor.UserID)
+		if err != nil {
+			response.InternalError(c, fmt.Errorf("read account status: %w", err))
+			c.Abort()
+			return
+		}
+		if !found || status == UserStatusSuspended || status == UserStatusRejected {
+			response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "this account can't be used", nil)
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }

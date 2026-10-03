@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -34,13 +35,31 @@ func requestLogger(logger *slog.Logger) gin.HandlerFunc {
 		started := time.Now()
 		c.Next()
 
+		status := c.Writer.Status()
 		logger.Info("HTTP request completed",
 			"request_id", requestID,
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
-			"status_code", c.Writer.Status(),
+			"status_code", status,
 			"latency_ms", time.Since(started).Milliseconds(),
 		)
+		// A server error's cause is attached by response.InternalError; the
+		// client only saw "internal server error", so log it and report it.
+		if status >= http.StatusInternalServerError {
+			for _, failure := range c.Errors {
+				logger.Error("request failed",
+					"request_id", requestID,
+					"method", c.Request.Method,
+					"path", c.FullPath(),
+					"status_code", status,
+					"error", failure.Err.Error(),
+				)
+				if hub := sentrygin.GetHubFromContext(c); hub != nil {
+					hub.Scope().SetTag("request_id", requestID)
+					hub.CaptureException(failure.Err)
+				}
+			}
+		}
 	}
 }
 
@@ -92,6 +111,9 @@ func (w *goneWriter) WriteString(data string) (int, error) {
 func recovery(logger *slog.Logger) gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered any) {
 		logger.Error("panic while handling request", "request_id", c.GetString("request_id"), "error", recovered)
+		if hub := sentrygin.GetHubFromContext(c); hub != nil {
+			hub.RecoverWithContext(c.Request.Context(), recovered)
+		}
 		c.AbortWithStatusJSON(http.StatusInternalServerError, errorResponse("INTERNAL_ERROR", "internal server error"))
 	})
 }
