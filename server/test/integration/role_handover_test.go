@@ -185,6 +185,13 @@ func TestEndingACoordinatorHandsTheirUpcomingEventsToTheHOD(t *testing.T) {
 	if response := cancelEvent(t, h, h.TokenFor(t, coordinator.ID, "student"), id, "Not running it"); response.Status == http.StatusOK {
 		t.Error("the former coordinator still cancelled the event")
 	}
+	// Nor do they keep the people who answered: names, emails and USNs
+	// follow the Organiser, not the proposer.
+	former := h.TokenFor(t, coordinator.ID, "student")
+	if _, summary := rsvps(t, h, former, id); len(summary.People) != 0 {
+		t.Errorf("the former coordinator still sees %d people who answered", len(summary.People))
+	}
+	expectStatus(t, "former coordinator exports", h.Do(t, http.MethodGet, "/api/v1/events/"+id+"/export", former, nil), http.StatusForbidden)
 }
 
 func TestEndingARoleCanHandEventsToAnotherOrganiser(t *testing.T) {

@@ -146,7 +146,7 @@ func (s *Service) summary(ctx context.Context, actorID, id string, withPeople bo
 	return page, nil
 }
 
-// access returns whether the caller organises the Event (proposer or
+// access returns whether the caller organises the Event (Organiser or
 // reviewer), or not found when they can't see it at all.
 func (s *Service) access(ctx context.Context, actorID, id string) (bool, error) {
 	view, err := s.repository.Find(ctx, id)
@@ -156,7 +156,9 @@ func (s *Service) access(ctx context.Context, actorID, id string) (bool, error) 
 	if view == nil {
 		return false, apperrors.NewNotFound("event not found")
 	}
-	organiser, err := s.isOwnerOrReviewer(ctx, actorID, view.Event)
+	// The people who answered follow the Organiser, not the proposer: once an
+	// Event is handed over (ADR 0028) its former proposer loses them.
+	organiser, err := s.organises(ctx, actorID, view.Event)
 	if err != nil || organiser {
 		return organiser, err
 	}
