@@ -37,6 +37,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Suspending is guarded (#177): nobody suspends themselves, only an admin
   suspends an admin or the principal, and the last active admin can't be
   suspended.
+- Suspending or rejecting an account takes effect at once (#175): its
+  access tokens stop working on the next request instead of up to 15
+  minutes later.
 - Importing a class list no longer fails a row when two students share a
   name (#166). Usernames get a random suffix instead of the clock's, and a
   username clash is retried in a savepoint instead of aborting the row. The

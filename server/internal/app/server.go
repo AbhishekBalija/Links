@@ -171,7 +171,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	}
 
 	v1 := api.Group("/v1")
-	v1.Use(auth.RequireAuth(tokenCfg))
+	v1.Use(auth.RequireAuth(tokenCfg), auth.RefuseInactive(userRepo))
 	v1.GET("/me", authHandler.Me)
 	v1.POST("/auth/not-me", authHandler.NotMe)
 

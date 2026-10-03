@@ -167,7 +167,9 @@ gets a new access token:
   refresh tokens in the same transaction. Their next refresh fails and they
   must sign in again, which reads their roles fresh.
 - Until then, an access token issued before the change keeps working for up
-  to 15 minutes with the old roles.
+  to 15 minutes with the old roles. Suspending or rejecting an account takes
+  effect at once, though: every request reads the account's status, and a
+  suspended or rejected account gets `401` (#175).
 - Checks that matter most already re-read roles from the database instead of
   the token: Announcement publishing authority and approval (ADR 0017), and
   granting or ending the admin role. A newly granted role shows up at the
