@@ -278,6 +278,25 @@ refresh fails and they sign in again with fresh roles. The window in between
 is short, and the checks that matter most (who may publish or approve) read
 roles from the database, not the token.
 
+### Ending a role changes announcements and events too. How does that happen in one transaction when those modules depend on auth, not the other way round?
+
+`auth` defines a small interface, `UnfinishedWork.HandOver(handover) summary`,
+and each module that owns work (announcements, events) provides an
+implementation built on a transaction (`func(tx *gorm.DB) UnfinishedWork`).
+`app/server.go` passes those builders to auth's unit of work, which creates
+them on the same transaction it uses for the role change. So `auth` never
+imports events (no import cycle), each module keeps its own rule for "can
+this person still author this?", and everything commits or rolls back
+together. This is dependency inversion: the lower module owns the interface,
+the higher ones plug in.
+
+### How does the "what will happen" preview stay accurate?
+
+The preview (`GET .../roles/:id/ending`) runs the exact same code as ending
+the role, inside a transaction, then returns a sentinel error so the
+transaction rolls back. Nothing is saved, and the preview can't drift from the
+real behaviour because there is no second implementation to keep in sync.
+
 ### How does the directory search tolerate typos?
 
 Postgres's `pg_trgm` splits text into three-letter pieces and scores how many
