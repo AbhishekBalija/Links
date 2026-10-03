@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
+	"github.com/AbhishekBalija/Links/server/internal/shared/authorwork"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
-const principalOrAdmin = "Principal or admin"
+const principalOrAdmin = authorwork.PrincipalOrAdmin
 
 // EditResponse is an edit to a published Announcement that hasn't gone live.
 type EditResponse struct {
@@ -181,6 +182,47 @@ func (s *Service) AuthorSummary(ctx context.Context, actorID string) (*AuthorSum
 		Rejected:     counts[StatusRejected],
 		EditsWaiting: editsWaiting,
 	}, nil
+}
+
+// AuthorWork lists the author's Announcements, and edits to published ones,
+// that a reviewer sent back (newest first) or that wait for approval (longest
+// waiting first), up to limit of each.
+func (s *Service) AuthorWork(ctx context.Context, actorID string, limit int) ([]authorwork.SentBack, []authorwork.Waiting, error) {
+	rejected, err := s.repository.AuthorWork(ctx, actorID, RevisionRejected, limit)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load sent back announcements: %w", err)
+	}
+	pending, err := s.repository.AuthorWork(ctx, actorID, RevisionPending, limit)
+	if err != nil {
+		return nil, nil, fmt.Errorf("load waiting announcements: %w", err)
+	}
+	sentBack := make([]authorwork.SentBack, 0, len(rejected))
+	for _, row := range rejected {
+		item := authorwork.SentBack{
+			Kind: authorwork.KindAnnouncement, ID: row.ID, Title: row.Title, Note: row.ReviewNote,
+			SentBackBy: row.ReviewerName, IsEdit: row.AnnouncementStatus == StatusPublished,
+		}
+		if row.ReviewedAt != nil {
+			item.SentBackAt = *row.ReviewedAt
+		}
+		sentBack = append(sentBack, item)
+	}
+	waiting := make([]authorwork.Waiting, 0, len(pending))
+	for _, row := range pending {
+		approver, nameErr := s.approverName(ctx, row.ApproverDepartmentID)
+		if nameErr != nil {
+			return nil, nil, nameErr
+		}
+		item := authorwork.Waiting{
+			Kind: authorwork.KindAnnouncement, ID: row.ID, Title: row.Title,
+			WaitingOn: approver, IsEdit: row.AnnouncementStatus == StatusPublished,
+		}
+		if row.SubmittedAt != nil {
+			item.Since = *row.SubmittedAt
+		}
+		waiting = append(waiting, item)
+	}
+	return sentBack, waiting, nil
 }
 
 // Grants exposes the user's current roles for modules that build on

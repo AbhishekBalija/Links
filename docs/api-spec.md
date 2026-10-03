@@ -390,6 +390,12 @@ sections without changing these:
     "events_pending_count": 1, "oldest_event_submitted_at": "..."
   },
   "my_announcements": { "draft": 1, "pending": 1, "rejected": 1, "edits_waiting": 1 },
+  "my_work": {
+    "sent_back": [{ "kind": "event", "id": "...", "title": "...", "note": "Add the room booking.", "sent_back_by": "Asha Rao", "sent_back_at": "...", "is_edit": false }],
+    "sent_back_has_more": false,
+    "waiting": [{ "kind": "announcement", "id": "...", "title": "...", "waiting_on": "CS HOD", "since": "...", "is_edit": false }],
+    "waiting_has_more": false
+  },
   "opportunities": { "items": [/* next three open ones, as in the feed */], "has_more": true },
   "placement": {
     "open_count": 4, "awaiting_review_count": 2,
@@ -408,16 +414,45 @@ sections without changing these:
   without an HOD and every final approval; never the caller's own). An
   `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
+- `my_work` appears for users who can post (faculty, student coordinators, HODs
+  and so on) and for anyone with something sent back or waiting. It lists the
+  caller's own Announcements and Events, ten of each list at most (`*_has_more`
+  says there are more):
+  - `sent_back`: what a reviewer sent back to fix, newest first, with the
+    reviewer's `note` and name (`sent_back_by`) and `sent_back_at`. It holds
+    Announcements a reviewer rejected, edits to published Announcements that were
+    rejected (`is_edit`), and Events where changes were requested. A rejected
+    Event is final, so it is not here; fixing and resubmitting moves an item to
+    `waiting`.
+  - `waiting`: what is at a reviewer, longest waiting first: `waiting_on` (`CS HOD`,
+    or `Principal or admin` when the Department has no HOD or it is at final
+    approval) and `since`, when it was submitted (an Event at final approval
+    waits since its HOD approved it). `kind` is `announcement` or `event`.
 - `department` appears for HODs: their Department's `code`, `name`, number of
   `students` and `staff`, `students_by_batch` (`batch_year`, `count`) and
   `upcoming_events`, the next three published Events of the Department
   (`id`, `title`, `event_type`, `location`, `starts_at`), whoever they are for.
 - `college` appears for the principal and admins: `departments`, each with
   `code`, `name`, `students`, `staff` and `hod` (`full_name`, `username`, or
-  `null` when there is none).
+  `null` when there is none), and `departments_without_hod`, how many have none.
 - `access_requests` appears for whoever decides Access requests (the
   principal, admins and HODs, scoped as the review queue): `pending_count` and
   `oldest_requested_at`.
+- `lists` appears for whoever decides Access requests (the principal, admins
+  and HODs; an HOD sees only their own Departments): who the class lists and
+  staff invites let in and who hasn't signed in yet, and the latest imports.
+  - `waiting_count` is everyone added by an import or a staff invite whose
+    account still waits for its First sign-in. `waiting` lists the oldest 50
+    (`user_id`, `full_name`, `email`, `kind` of `student` or `staff`, `role`
+    for staff, `usn` and `batch_year` for students, `department_code`,
+    `added_at`) and `has_more` says the list was cut. An approved Access request
+    is not on it: a person asked for that.
+  - `recent_imports` is the latest five imports, newest first: `imported_at`,
+    `imported_by.full_name`, `rows` and `failed` for the whole file, and
+    `created` with `batches` (`department_code`, `batch_year`, `created`).
+    An HOD sees the imports that created students in their Departments, with
+    `created` and `batches` limited to those Departments. Imports from before
+    this field have no `batches`; only the principal and admins see them.
 - `opportunities` appears when the caller is eligible for an open
   Opportunity: the first three from `GET /api/v1/opportunities`, soonest
   deadline first, each with the caller's own Application.
@@ -490,8 +525,8 @@ next refresh.
 
 ### Staff invites
 
-`POST /api/v1/admin/users` (principal and admin, `manage_users_and_roles`)
-adds a staff member by email and role:
+`POST /api/v1/admin/users` (admins, and HODs for faculty of their own
+Department; `invite_staff`, ADR 0029) adds a staff member by email and role:
 
 ```json
 {
@@ -509,13 +544,14 @@ follows role management's rules (below): only an admin invites an admin,
 a Department has one HOD at a time, and the Scope must fit the role. `201`
 with `{"user_id": "...", "status": "pending"}`. `400` for an invalid email,
 an empty name or a role and Scope that don't fit; `409` for an email already
-registered or a role that clashes. Nothing is created on any error. Audited
-as `user_invited` and `role_granted`.
+registered or a role that clashes; `403` for the principal, or an HOD
+inviting any role but faculty or any Department but their own. Nothing is
+created on any error. Audited as `user_invited` and `role_granted`.
 
 ### Student import
 
-`POST /api/v1/admin/users/import` (admin, principal, or an HOD for their own
-Department) takes a multipart upload with the CSV in the field `file`:
+`POST /api/v1/admin/users/import` (admin, or an HOD for their own Department;
+not the principal, ADR 0029) takes a multipart upload with the CSV in the field `file`:
 
 ```csv
 email,full_name,usn
@@ -553,7 +589,8 @@ Response `200`:
 ```
 
 `row` is the spreadsheet row (the header is row 1). The import writes one `students_imported` audit log
-with the counts and one `user_imported` per created user.
+with the counts and how many students it created per Department and Batch (`batches`, which Home
+reads), and one `user_imported` per created user.
 
 ### Role management
 

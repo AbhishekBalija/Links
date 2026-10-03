@@ -200,17 +200,21 @@ Examples:
 | View applicant data | Own only | No | No | Department summary | Yes | Yes | Yes |
 | Shortlist applicants | No | No | No | View only | Yes | Yes | Yes |
 | Decide access requests | No | No | No | Own Department | No | Yes | Yes |
+| Import students | No | No | No | Own Department | No | No | Yes |
+| Add staff (staff invite) | No | No | No | Faculty, own Department | No | No | Yes |
 | Manage users and roles | No | No | No | Limited | No | Limited | Yes |
 
-Importing students from a CSV (`import_students`) is open to admins, the
-principal and HODs; an HOD can import only students whose USN is in their own
-Department.
+Importing students from a CSV (`import_students`) is open to admins and HODs;
+an HOD can import only students whose USN is in their own Department. Staff
+invites (`invite_staff`) are open to admins, for any role, and HODs, for
+faculty of their own Department. The principal does neither (ADR 0029), and
+being the principal doesn't widen an HOD's own Department scope.
 
 Role management is split by who normally appoints each role (ADR 0027): an
 HOD grants and ends `student_coordinator` for students of their own
 Department, the principal grants and ends `faculty`, `hod` and
 `placement_officer`, and an admin grants and ends every role, including
-`principal` and `admin`. Beyond appointing coordinators, HODs don't manage
+`principal` and `admin`. Beyond appointing coordinators and adding faculty, HODs don't manage
 users; they decide Access requests (`approve_access`) for their own Department only
 (ADR 0025): approve, or reject with a note. Suspending and reactivating
 accounts stay with the principal and admins.

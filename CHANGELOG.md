@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Only admins and HODs add people (ADR 0029): the principal can no longer
+  import students or add staff. HODs can now add faculty to their own
+  Department, and an HOD who is also the principal imports only their own
+  Department's students.
 - Ending someone's role now handles their unfinished work (ADR 0028, #143):
   announcements waiting for approval or sent back are withdrawn, event
   proposals under review return to drafts, and upcoming events they organise
@@ -44,6 +48,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Events have an Organiser who runs them (edits once published, cancels,
   exports participants), starting as the proposer (ADR 0028, #143).
   Migration 024 adds `events.organiser_id`.
+- Home data for HODs, the principal and admins (#127): `GET /api/v1/dashboard`
+  gets `lists` (who the class lists and staff invites let in who hasn't
+  signed in yet, with the list, and the latest five imports with who ran them
+  and how many students each created per Department and Batch) and
+  `college.departments_without_hod`. HODs see their own Departments only.
+  Imports now record their Department and Batch counts in the audit log.
+- Home for authors (#142): `GET /api/v1/dashboard` gets `my_work` with the
+  caller's Announcements and Events a reviewer sent back (with the note and who
+  sent it) and those waiting on a reviewer (who, and since when). Faculty and
+  student coordinators get the same section.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,

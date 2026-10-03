@@ -209,6 +209,7 @@ type AuthService interface {
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
 	ReviewQueue(ctx context.Context, actorID string) (*ReviewQueueResponse, error)
 	AccessSummary(ctx context.Context, actorID string) (*AccessSummary, error)
+	ListsSummary(ctx context.Context, actorID string) (*ListsSummary, error)
 	VerifyUser(ctx context.Context, actorID, userID, scopeType, scopeID, note string) error
 	UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error
 	ListUserRoles(ctx context.Context, actorID, userID string) ([]RoleAssignmentResponse, error)
@@ -259,6 +260,8 @@ type UserRepository interface {
 	GetRoleAssignments(ctx context.Context, userID string) ([]RoleAssignment, error)
 	ReviewDepartments(ctx context.Context) ([]ReviewDepartment, error)
 	ReportedAt(ctx context.Context, userIDs []string) (map[string]time.Time, error)
+	WaitingForFirstSignIn(ctx context.Context, anywhere bool, departmentIDs []string, limit int) (WaitingList, error)
+	RecentImportAudits(ctx context.Context, anywhere bool, departmentIDs []string, limit int) ([]ImportAuditRow, map[string]bool, error)
 	CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error
 	HasAdmin(ctx context.Context) (bool, error)
 	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
