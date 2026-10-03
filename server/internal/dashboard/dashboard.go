@@ -13,11 +13,14 @@ import (
 	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"github.com/AbhishekBalija/Links/server/internal/events"
 	"github.com/AbhishekBalija/Links/server/internal/opportunities"
+	"github.com/AbhishekBalija/Links/server/internal/shared/authorwork"
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
 	"github.com/gin-gonic/gin"
 )
 
 const (
+	// workOnHome is how many sent back and how many waiting items Home lists.
+	workOnHome          = 10
 	noticesOnHome       = 5
 	opportunitiesOnHome = 3
 )
@@ -27,12 +30,14 @@ type Announcements interface {
 	Feed(ctx context.Context, actorID, category, cursor string, limit int) ([]announcements.AnnouncementResponse, *announcements.FeedMeta, error)
 	ApprovalSummary(ctx context.Context, actorID string) (*announcements.ApprovalSummary, error)
 	AuthorSummary(ctx context.Context, actorID string) (*announcements.AuthorSummary, error)
+	AuthorWork(ctx context.Context, actorID string, limit int) ([]authorwork.SentBack, []authorwork.Waiting, error)
 	Grants(ctx context.Context, userID string) ([]announcements.Grant, error)
 }
 
 // Events is what the dashboard needs from the events module.
 type Events interface {
 	ReviewSummary(ctx context.Context, actorID string) (*events.ReviewSummary, error)
+	AuthorWork(ctx context.Context, actorID string, limit int) ([]authorwork.SentBack, []authorwork.Waiting, error)
 	UpcomingInDepartment(ctx context.Context, departmentID string, limit int) ([]events.DepartmentEvent, error)
 }
 
@@ -82,11 +87,13 @@ type Response struct {
 	Notices         NoticesSection                  `json:"notices"`
 	Approvals       *ApprovalsSection               `json:"approvals,omitempty"`
 	MyAnnouncements *announcements.AuthorSummary    `json:"my_announcements,omitempty"`
+	MyWork          *MyWorkSection                  `json:"my_work,omitempty"`
 	Opportunities   *OpportunitiesSection           `json:"opportunities,omitempty"`
 	Placement       *opportunities.PlacementSummary `json:"placement,omitempty"`
 	Department      *DepartmentSection              `json:"department,omitempty"`
 	College         *CollegeSection                 `json:"college,omitempty"`
 	AccessRequests  *auth.AccessSummary             `json:"access_requests,omitempty"`
+	Lists           *auth.ListsSummary              `json:"lists,omitempty"`
 }
 
 // Repository reads the profile details Home shows.
@@ -138,6 +145,10 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	myWork, err := s.myWork(ctx, userID, mine != nil)
+	if err != nil {
+		return nil, err
+	}
 	openings, err := s.openOpportunities(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -158,7 +169,12 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	lists, err := s.access.ListsSummary(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	return &Response{
+		Lists:           lists,
 		Department:      department,
 		College:         college,
 		AccessRequests:  access,
@@ -166,6 +182,7 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 		Notices:         NoticesSection{Items: notices, HasMore: meta.NextCursor != ""},
 		Approvals:       approvals,
 		MyAnnouncements: mine,
+		MyWork:          myWork,
 		Opportunities:   openings,
 		Placement:       placement,
 	}, nil

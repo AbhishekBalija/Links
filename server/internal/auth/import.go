@@ -121,11 +121,18 @@ type importer struct {
 	departments map[string]bool
 	// chosen is the Department the import is for, or nil when it may hold
 	// any Department in the actor's scope.
-	chosen *Department
-	dryRun bool
-	byCode map[string]*Department
-	emails map[string]bool
-	usns   map[string]bool
+	chosen  *Department
+	dryRun  bool
+	byCode  map[string]*Department
+	emails  map[string]bool
+	usns    map[string]bool
+	created map[importKey]int
+}
+
+// importKey is a Department and Batch an import created students in.
+type importKey struct {
+	department string
+	batchYear  int
 }
 
 // ImportStudents checks every row of the file and, unless it is a dry run,
@@ -154,6 +161,7 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, input 
 		byCode:      map[string]*Department{},
 		emails:      map[string]bool{},
 		usns:        map[string]bool{},
+		created:     map[importKey]int{},
 	}
 	result := &ImportResponse{DryRun: input.DryRun, Rows: make([]ImportRowResult, 0, len(rows))}
 	if chosen != nil {
@@ -176,7 +184,10 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, input 
 		return result, nil
 	}
 
-	metadata := map[string]any{"rows": len(rows), "created": result.Created, "failed": result.Failed}
+	metadata := map[string]any{
+		"rows": len(rows), "created": result.Created, "failed": result.Failed,
+		"batches": run.batches(),
+	}
 	if chosen != nil {
 		metadata["department_code"] = chosen.Code
 	}
@@ -319,7 +330,26 @@ func (run *importer) importRow(ctx context.Context, row importRow) ImportRowResu
 	}
 	outcome.Status = ImportCreated
 	outcome.UserID = userID
+	// The USN was valid or the row would have failed above.
+	batchYear, _ := BatchYearFromUSN(row.USN)
+	run.created[importKey{department: department.Code, batchYear: batchYear}]++
 	return outcome
+}
+
+// batches lists how many students the import created in each Department and
+// Batch, for the audit row Home reads.
+func (run *importer) batches() []ImportBatch {
+	batches := make([]ImportBatch, 0, len(run.created))
+	for key, count := range run.created {
+		batches = append(batches, ImportBatch{DepartmentCode: key.department, BatchYear: key.batchYear, Created: count})
+	}
+	sort.Slice(batches, func(i, j int) bool {
+		if batches[i].DepartmentCode != batches[j].DepartmentCode {
+			return batches[i].DepartmentCode < batches[j].DepartmentCode
+		}
+		return batches[i].BatchYear < batches[j].BatchYear
+	})
+	return batches
 }
 
 // check applies the rules that need no transaction and returns why the row

@@ -417,3 +417,62 @@ func (r *GormRepository) ExportRows(ctx context.Context, eventID string) ([]Expo
 		Scan(&rows).Error
 	return rows, err
 }
+
+// SentBackRow is an Event whose newest review asked its proposer for changes.
+type SentBackRow struct {
+	ID           string    `gorm:"column:id"`
+	Title        string    `gorm:"column:title"`
+	Note         *string   `gorm:"column:note"`
+	ReviewerName string    `gorm:"column:reviewer_name"`
+	DecidedAt    time.Time `gorm:"column:decided_at"`
+}
+
+// SentBack returns the proposer's Events a reviewer asked to change, newest
+// decision first. A rejected Event is final, so it isn't here.
+func (r *GormRepository) SentBack(ctx context.Context, proposerID string, limit int) ([]SentBackRow, error) {
+	var rows []SentBackRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT e.id, e.title, v.note, p.full_name AS reviewer_name, v.created_at AS decided_at
+		FROM events e
+		JOIN LATERAL (
+			SELECT * FROM event_reviews x WHERE x.event_id = e.id
+			ORDER BY x.created_at DESC, x.id DESC LIMIT 1
+		) v ON true
+		JOIN profiles p ON p.user_id = v.reviewer_id
+		WHERE e.proposer_id = ? AND e.status IN ('hod_changes_requested', 'final_changes_requested')
+		ORDER BY v.created_at DESC, e.id
+		LIMIT ?`, proposerID, limit,
+	).Scan(&rows).Error
+	return rows, err
+}
+
+// WaitingRow is an Event at a reviewer.
+type WaitingRow struct {
+	ID               string    `gorm:"column:id"`
+	Title            string    `gorm:"column:title"`
+	Status           Status    `gorm:"column:status"`
+	DepartmentCode   *string   `gorm:"column:department_code"`
+	DepartmentHasHOD bool      `gorm:"column:department_has_hod"`
+	Since            time.Time `gorm:"column:since"`
+}
+
+// Waiting returns the proposer's Events waiting for a review, longest first.
+// An Event waits since it was submitted, or at the final stage since its
+// HOD approved it.
+func (r *GormRepository) Waiting(ctx context.Context, proposerID string, limit int) ([]WaitingRow, error) {
+	var rows []WaitingRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT e.id, e.title, e.status, d.code AS department_code,
+		       (e.department_id IS NOT NULL AND `+fmt.Sprintf(hasHOD, "e.department_id")+`) AS department_has_hod,
+		       CASE WHEN e.status = 'hod_approved' THEN COALESCE(
+		           (SELECT max(x.created_at) FROM event_reviews x
+		            WHERE x.event_id = e.id AND x.stage = 'hod' AND x.decision = 'approve'), e.submitted_at)
+		       ELSE e.submitted_at END AS since
+		FROM events e
+		LEFT JOIN departments d ON d.id = e.department_id
+		WHERE e.proposer_id = ? AND e.status IN ('submitted', 'hod_approved')
+		ORDER BY since, e.id
+		LIMIT ?`, proposerID, limit,
+	).Scan(&rows).Error
+	return rows, err
+}
