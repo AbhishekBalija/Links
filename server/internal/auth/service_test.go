@@ -176,6 +176,14 @@ func (f *fakeUserRepo) ReportedAt(context.Context, []string) (map[string]time.Ti
 	return map[string]time.Time{}, nil
 }
 
+func (f *fakeUserRepo) WaitingForFirstSignIn(context.Context, bool, []string, int) (WaitingList, error) {
+	return WaitingList{}, nil
+}
+
+func (f *fakeUserRepo) RecentImportAudits(context.Context, bool, []string, int) ([]ImportAuditRow, map[string]bool, error) {
+	return nil, nil, nil
+}
+
 func (f *fakeUserRepo) CreateRoleAssignment(ctx context.Context, ra *RoleAssignment) error {
 	if f.createRoleAssignment != nil {
 		return f.createRoleAssignment(ctx, ra)

@@ -41,6 +41,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Events have an Organiser who runs them (edits once published, cancels,
   exports participants), starting as the proposer (ADR 0028, #143).
   Migration 024 adds `events.organiser_id`.
+- Home data for HODs, the principal and admins (#127): `GET /api/v1/dashboard`
+  gets `lists` (who the class lists and staff invites let in who hasn't
+  signed in yet, with the list, and the latest five imports with who ran them
+  and how many students each created per Department and Batch) and
+  `college.departments_without_hod`. HODs see their own Departments only.
+  Imports now record their Department and Batch counts in the audit log.
 - Access request screens (#124): HODs decide their Department's requests in
   a new tab of the Approval queue, and admins in a new Admin workspace. Each
   request says why it's there (not on a class list, a Department with no HOD,

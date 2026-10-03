@@ -28,6 +28,7 @@ type Departments interface {
 // Access is what the dashboard needs from auth: the Access requests waiting.
 type Access interface {
 	AccessSummary(ctx context.Context, actorID string) (*auth.AccessSummary, error)
+	ListsSummary(ctx context.Context, actorID string) (*auth.ListsSummary, error)
 }
 
 // DepartmentSection is an HOD's own Department on Home.
@@ -55,7 +56,8 @@ type HODName struct {
 }
 
 type CollegeSection struct {
-	Departments []CollegeDepartment `json:"departments"`
+	Departments           []CollegeDepartment `json:"departments"`
+	DepartmentsWithoutHOD int                 `json:"departments_without_hod"`
 }
 
 // department builds the HOD's Department section, or nil for anyone who
@@ -112,6 +114,9 @@ func (s *Service) college(ctx context.Context, userID string, roles []string) (*
 		row := CollegeDepartment{Code: d.Code, Name: d.Name, Students: overview.Counts.Students, Staff: overview.Counts.Faculty}
 		if overview.HOD != nil {
 			row.HOD = &HODName{FullName: overview.HOD.FullName, Username: overview.HOD.Username}
+		}
+		if row.HOD == nil {
+			section.DepartmentsWithoutHOD++
 		}
 		section.Departments = append(section.Departments, row)
 	}
