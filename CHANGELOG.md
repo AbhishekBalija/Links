@@ -34,6 +34,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - After a role ends and an event is handed to a new Organiser (ADR 0028),
   the former proposer no longer sees who answered or exports the
   participant list (names, emails, USNs); both follow the Organiser.
+- Suspending is guarded (#177): nobody suspends themselves, only an admin
+  suspends an admin or the principal, and the last active admin can't be
+  suspended.
 - Importing a class list no longer fails a row when two students share a
   name (#166). Usernames get a random suffix instead of the clock's, and a
   username clash is retried in a savepoint instead of aborting the row. The
