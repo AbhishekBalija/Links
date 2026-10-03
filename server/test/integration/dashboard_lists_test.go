@@ -152,7 +152,7 @@ func TestTheWaitingListIsOldestFirstAndCapped(t *testing.T) {
 	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
 	rows := "email,full_name,usn\n"
 	for i := 0; i < 52; i++ {
-		rows += "w" + pad3(i) + "@gmail.com,Student,4MN23CS" + pad3(100+i) + "\n"
+		rows += "w" + pad3(i) + "@gmail.com,Student " + pad3(i) + ",4MN23CS" + pad3(100+i) + "\n"
 	}
 	imported(t, importCSV(h, admin.Token, rows))
 
@@ -174,18 +174,19 @@ func pad3(n int) string {
 func TestHomeShowsRecentImportsWithWhoWhereAndHowMany(t *testing.T) {
 	h := apitest.New(t)
 	principal := member(t, h, "Prof Mehta", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "principal"}}})
+	admin := member(t, h, "Nikhil Bhat", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
 	csHOD := member(t, h, "Asha Rao", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
 	ecHOD := member(t, h, "Dev Nair", apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "EC"}}})
 
 	imported(t, importCSV(h, csHOD.Token, "email,full_name,usn\na@gmail.com,A,4MN23CS101\nb@gmail.com,B,4MN23CS102\nc@gmail.com,C,4MN24CS103\nbad,D,4MN23CS104\n"))
-	imported(t, importCSV(h, principal.Token, "email,full_name,usn\ne@gmail.com,E,4MN23CS105\nf@gmail.com,F,4MN23EC106\n"))
+	imported(t, importCSV(h, admin.Token, "email,full_name,usn\ne@gmail.com,E,4MN23CS105\nf@gmail.com,F,4MN23EC106\n"))
 
 	all := listsFor(t, h, principal.Token).RecentImports
 	if len(all) != 2 {
 		t.Fatalf("principal sees %d imports, want 2", len(all))
 	}
-	if all[0].ImportedBy.FullName != "Prof Mehta" || all[0].Rows != 2 || all[0].Created != 2 || all[0].Failed != 0 || len(all[0].Batches) != 2 {
-		t.Errorf("newest import = %+v, want Prof Mehta's 2 rows, 2 created, in two Departments", all[0])
+	if all[0].ImportedBy.FullName != "Nikhil Bhat" || all[0].Rows != 2 || all[0].Created != 2 || all[0].Failed != 0 || len(all[0].Batches) != 2 {
+		t.Errorf("newest import = %+v, want Nikhil Bhat's 2 rows, 2 created, in two Departments", all[0])
 	}
 	older := all[1]
 	if older.ImportedBy.FullName != "Asha Rao" || older.Rows != 4 || older.Created != 3 || older.Failed != 1 || older.ImportedAt.IsZero() {
@@ -200,11 +201,11 @@ func TestHomeShowsRecentImportsWithWhoWhereAndHowMany(t *testing.T) {
 	// limited to their own Department's batches.
 	cs := listsFor(t, h, csHOD.Token).RecentImports
 	if len(cs) != 2 || len(cs[0].Batches) != 1 || cs[0].Batches[0].DepartmentCode != "CS" || cs[0].Created != 1 {
-		t.Errorf("CS HOD imports = %+v, want both, the principal's narrowed to its 1 CS student", cs)
+		t.Errorf("CS HOD imports = %+v, want both, the admin's narrowed to its 1 CS student", cs)
 	}
 	ec := listsFor(t, h, ecHOD.Token).RecentImports
-	if len(ec) != 1 || ec[0].ImportedBy.FullName != "Prof Mehta" || ec[0].Created != 1 || ec[0].Batches[0].DepartmentCode != "EC" {
-		t.Errorf("EC HOD imports = %+v, want only the principal's, narrowed to EC", ec)
+	if len(ec) != 1 || ec[0].ImportedBy.FullName != "Nikhil Bhat" || ec[0].Created != 1 || ec[0].Batches[0].DepartmentCode != "EC" {
+		t.Errorf("EC HOD imports = %+v, want only the admin's, narrowed to EC", ec)
 	}
 }
 
