@@ -120,6 +120,15 @@ func (s *authService) NotMe(ctx context.Context, userID string) error {
 		if user.Status != UserStatusActive || user.FirstSignedInAt == nil || now.Sub(*user.FirstSignedInAt) > NotMeWindow {
 			return apperrors.NewConflict("\"Not you?\" is only offered right after a first sign-in")
 		}
+		// The principal and admins were added by name and sign in with Google;
+		// reporting one could leave the college with nobody to review it.
+		roles, err := repos.Users.GetRoleAssignments(ctx, user.ID)
+		if err != nil {
+			return fmt.Errorf("get roles: %w", err)
+		}
+		if holdsGoogleOnlyRole(roles) {
+			return apperrors.NewConflict("the principal and admins can't report their own account; ask another admin")
+		}
 		if err := repos.Users.ReturnForReview(ctx, user.ID); err != nil {
 			return fmt.Errorf("return for review: %w", err)
 		}
