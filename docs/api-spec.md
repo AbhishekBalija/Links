@@ -529,9 +529,19 @@ runs first and the approval returns `400`.
 Suspending yourself is `403`; only an admin may suspend someone holding the
 admin or principal role (`403` otherwise); suspending the last active admin
 is `409`.
-Moving a user to `suspended` or `rejected` also revokes all their refresh
-tokens in the same transaction, so every signed-in device is signed out at its
-next refresh.
+Suspending also revokes all their refresh tokens in the same transaction, so
+every signed-in device is signed out at its next refresh.
+
+`rejected` is only for an Access request (a pending account nobody approved,
+including a class-list row reported with "Not you?"); a member is `409`, so
+suspend them instead. Rejecting removes the request, so its email and USN can
+be added again (a corrected class list, or a new request); the decision is
+audited as `access_request_rejected` with the email, name, USN and note.
+`409` if the account already has activity in LINKS and can't be removed.
+
+`active` from `suspended` is `409` for an account never approved. An account
+a list or an invite added that has never signed in goes back to waiting for
+its first sign-in (`pending`), not straight to `active`.
 
 ### Not signed in yet
 

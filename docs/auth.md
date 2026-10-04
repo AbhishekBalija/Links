@@ -25,7 +25,10 @@ Rules:
 
 - `pending` users cannot access protected resources.
 - `suspended` users cannot log in or refresh tokens.
-- `rejected` users need admin/HOD intervention to retry.
+- Rejecting an Access request removes it, so the email and USN can be added
+  again (#203); only requests are rejected, members are suspended.
+- Reactivating never skips approval or a first sign-in: an account never
+  signed into goes back to waiting for its first sign-in.
 
 ## Token Strategy
 

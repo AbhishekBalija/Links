@@ -142,7 +142,7 @@ export function RequestReview({ request, focusName, onDecided }: {
                 )}
               />
               <span className={cn('text-xs', noteError ? 'text-[13px] font-semibold text-danger' : 'text-ink-3')}>
-                {noteError || failure || "It's kept with the decision."}
+                {noteError || failure || "It's kept with the decision. The request is removed, so a corrected class list can add them."}
               </span>
             </label>
           }

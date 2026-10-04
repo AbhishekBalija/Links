@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
@@ -208,6 +209,14 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		if newStatus == user.Status {
 			return apperrors.NewConflict("user already has status " + status)
 		}
+		// Rejecting is for Access requests only, and removes the request so
+		// the email and USN can be used again (#203). Members are suspended.
+		if newStatus == UserStatusRejected {
+			if user.Status != UserStatusPending || user.IsVerified {
+				return apperrors.NewConflict("only an Access request can be rejected; suspend a member instead")
+			}
+			return rejectRequest(ctx, repos, actorID, user, note)
+		}
 		if newStatus == UserStatusSuspended {
 			if err := requireSuspendable(ctx, repos, actorID, user.ID); err != nil {
 				return err
@@ -219,6 +228,13 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		}
 		if newStatus == UserStatusActive && user.Status == UserStatusPending {
 			return apperrors.NewValidation("use the verify endpoint to activate a pending user", nil)
+		}
+		// Reactivating never skips approval or a first sign-in.
+		if newStatus == UserStatusActive && !user.IsVerified {
+			return apperrors.NewConflict("this account was never approved; approve its Access request instead")
+		}
+		if newStatus == UserStatusActive && user.CreatedBy != nil && user.FirstSignedInAt == nil {
+			newStatus = UserStatusPending
 		}
 
 		user.Status = newStatus
@@ -321,4 +337,37 @@ func requireSuspendable(ctx context.Context, repos AuthRepositories, actorID, us
 		}
 	}
 	return apperrors.NewConflict("this is the last active admin; make someone else an admin first")
+}
+
+// rejectRequest removes a rejected Access request and keeps a record of it.
+func rejectRequest(ctx context.Context, repos AuthRepositories, actorID string, user *User, note string) error {
+	metadata := map[string]string{"note": note}
+	if user.Email != nil {
+		metadata["email"] = *user.Email
+	}
+	if user.Profile != nil {
+		metadata["full_name"] = user.Profile.FullName
+	}
+	if user.StudentIdentity != nil {
+		metadata["usn"] = user.StudentIdentity.USN
+	}
+	if err := repos.Users.RemoveNeverActive(ctx, user.ID); err != nil {
+		if isForeignKeyViolation(err) {
+			return apperrors.NewConflict("this account already has activity in LINKS, so it can't be removed; suspend it instead")
+		}
+		return fmt.Errorf("remove request: %w", err)
+	}
+	return repos.AuditLogs.Create(ctx, &AuditLog{
+		ActorID:      &actorID,
+		Action:       "access_request_rejected",
+		ResourceType: "user",
+		ResourceID:   &user.ID,
+		Metadata:     metadata,
+		CreatedAt:    time.Now(),
+	})
+}
+
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503"
 }

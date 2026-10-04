@@ -209,6 +209,8 @@ func (f *fakeUserRepo) ListRoleAssignments(context.Context, string) ([]RoleAssig
 func (f *fakeUserRepo) FindRoleAssignmentForUpdate(context.Context, string, string) (*RoleAssignment, error) {
 	return nil, nil
 }
+func (f *fakeUserRepo) RemoveNeverActive(context.Context, string) error { return nil }
+
 func (f *fakeUserRepo) OverlappingHolderName(context.Context, OverlapFilter) (string, error) {
 	return "", nil
 }

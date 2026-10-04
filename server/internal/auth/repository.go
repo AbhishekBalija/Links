@@ -573,3 +573,25 @@ func (r *GormSignInCodeRepository) MarkUsed(ctx context.Context, id string, at t
 	return r.db.WithContext(ctx).Model(&SignInCode{}).Where("id = ? AND used_at IS NULL", id).
 		UpdateColumn("used_at", at).Error
 }
+
+// RemoveNeverActive deletes an account that never really got in (an Access
+// request, or a list row nobody has used), so its email and USN can be added
+// again. The audit trail stays: the account's own entries keep their
+// details but no longer point at it. It fails with a foreign key error when
+// the account is tied to anything else in LINKS.
+func (r *GormUserRepository) RemoveNeverActive(ctx context.Context, userID string) error {
+	db := r.db.WithContext(ctx)
+	for _, statement := range []string{
+		`UPDATE audit_logs SET actor_id = NULL WHERE actor_id = ?`,
+		`UPDATE departments SET hod_user_id = NULL WHERE hod_user_id = ?`,
+		`DELETE FROM student_identities WHERE user_id = ?`,
+		`DELETE FROM role_assignments WHERE user_id = ?`,
+		`DELETE FROM profiles WHERE user_id = ?`,
+		`DELETE FROM users WHERE id = ?`,
+	} {
+		if err := db.Exec(statement, userID).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
