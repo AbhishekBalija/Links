@@ -211,6 +211,8 @@ func (f *fakeUserRepo) FindRoleAssignmentForUpdate(context.Context, string, stri
 }
 func (f *fakeUserRepo) RemoveNeverActive(context.Context, string) error { return nil }
 
+func (f *fakeUserRepo) FixEmail(context.Context, string, string, time.Time) error { return nil }
+
 func (f *fakeUserRepo) OverlappingHolderName(context.Context, OverlapFilter) (string, error) {
 	return "", nil
 }

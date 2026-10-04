@@ -77,6 +77,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Fixing a wrong class-list row, API (#174): `PATCH /admin/users/:id/email`
+  corrects the email of a row nobody has signed into (or one reported with
+  "Not you?"), and `DELETE /admin/users/:id` removes such a row so its USN
+  and email can be added again. Admins anywhere, HODs for their department.
 - Add staff screens (#189): admins add the principal, HODs, faculty,
   placement officers and admins from Admin, Add staff; HODs add faculty from
   their Home. Home's "No HOD" rows open the form with the department chosen,
