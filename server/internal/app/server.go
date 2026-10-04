@@ -119,7 +119,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		logger.Warn("RESEND_API_KEY not set, using NoopMailer — no emails will be sent")
 		m = mailer.NoopMailer{}
 	default:
-		m = mailer.NewResendMailer(cfg.Mailer.ResendAPIKey, cfg.Mailer.FromEmail)
+		m = mailer.NewResendMailer(cfg.Mailer.ResendAPIKey, cfg.Mailer.FromEmail, cfg.Mailer.FrontendURL)
 	}
 
 	var googleVerifier auth.GoogleVerifier

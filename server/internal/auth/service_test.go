@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -208,6 +209,10 @@ func (f *fakeUserRepo) ListRoleAssignments(context.Context, string) ([]RoleAssig
 func (f *fakeUserRepo) FindRoleAssignmentForUpdate(context.Context, string, string) (*RoleAssignment, error) {
 	return nil, nil
 }
+func (f *fakeUserRepo) OverlappingHolderName(context.Context, OverlapFilter) (string, error) {
+	return "", nil
+}
+
 func (f *fakeUserRepo) HasOverlappingAssignment(context.Context, OverlapFilter) (bool, error) {
 	return false, nil
 }
@@ -296,7 +301,8 @@ func (u *fakeUnitOfWork) WithinTransaction(ctx context.Context, fn func(AuthRepo
 
 type fakeMailer struct{}
 
-func (fakeMailer) SendSignInCode(_, _ string) error { return nil }
+func (fakeMailer) SendSignInCode(_, _ string) error               { return nil }
+func (fakeMailer) SendStaffAdded(string, mailer.StaffAdded) error { return nil }
 
 type authHarness struct {
 	service       AuthService

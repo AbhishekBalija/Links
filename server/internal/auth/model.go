@@ -202,7 +202,7 @@ type AuthService interface {
 	SignInWithGoogle(ctx context.Context, credential, expectedNonce string) (*LoginResponse, string, error)
 	NotMe(ctx context.Context, userID string) error
 	RequestAccessWithProof(ctx context.Context, input ProvenAccessRequestInput) (*RequestAccessResponse, error)
-	InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*RequestAccessResponse, error)
+	InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*StaffAddedResponse, error)
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
@@ -270,6 +270,7 @@ type UserRepository interface {
 	ListRoleAssignments(ctx context.Context, userID string) ([]RoleAssignmentView, error)
 	FindRoleAssignmentForUpdate(ctx context.Context, userID, id string) (*RoleAssignment, error)
 	HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error)
+	OverlappingHolderName(ctx context.Context, filter OverlapFilter) (string, error)
 	LockDepartmentForUpdate(ctx context.Context, id string) (bool, error)
 	LockAdminAssignmentsInEffect(ctx context.Context) ([]RoleAssignment, error)
 	EndRoleAssignment(ctx context.Context, id string, endsAt time.Time) error

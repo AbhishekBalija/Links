@@ -56,6 +56,14 @@ type RequestAccessResponse struct {
 	Status string `json:"status"`
 }
 
+// StaffAddedResponse is a new staff member's account and whether LINKS
+// could email them that they were added.
+type StaffAddedResponse struct {
+	UserID  string `json:"user_id"`
+	Status  string `json:"status"`
+	Emailed bool   `json:"emailed"`
+}
+
 type LoginResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`

@@ -572,12 +572,28 @@ Department; `invite_staff`, ADR 0029) adds a staff member by email and role:
 
 The account waits for its first sign-in, like an imported row. The role
 follows role management's rules (below): only an admin invites an admin,
-a Department has one HOD at a time, and the Scope must fit the role. `201`
-with `{"user_id": "...", "status": "pending"}`. `400` for an invalid email,
-an empty name or a role and Scope that don't fit; `409` for an email already
-registered or a role that clashes; `403` for the principal, or an HOD
-inviting any role but faculty or any Department but their own. Nothing is
-created on any error. Audited as `user_invited` and `role_granted`.
+a Department has one HOD at a time, the Scope must fit the role, and a
+current student can't be given a staff role. `201` with
+`{"user_id": "...", "status": "pending", "emailed": true}`.
+
+LINKS then emails the person who added them, as what, and how to sign in
+(the principal and admins are told Google only). The account stands even if
+that email can't be sent; `emailed` is `false` and the screen says so.
+
+`400` for an invalid email, an empty name or a role and Scope that don't fit;
+`403` for the principal, or an HOD inviting any role but faculty or any
+Department but their own. `409` when the email is already on LINKS or the
+role clashes, with `details` saying why:
+
+| `details` | Meaning |
+|---|---|
+| `{"email": "student"}` | a current student's email |
+| `{"email": "request"}` | someone waiting on a student Access request |
+| `{"email": "member", "username": "..."}` | a member: grant the role on their profile |
+| `{"scope_id": "has_hod", "hod_name": "..."}` | the Department already has an HOD then |
+
+Nothing is created on any error. Audited as `user_invited` and
+`role_granted`.
 
 ### Student import
 
