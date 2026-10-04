@@ -91,6 +91,14 @@ The admin signs in with Google using that email; there is no password. The
 command refuses once the college has an admin: later admins are granted inside
 LINKS.
 
+## Email Domain
+
+LINKS sends every email through Resend (sign-in codes, "you were added", and
+the notification emails). Until a domain is verified in Resend, it delivers
+only to the Resend account owner's own address, so real people get nothing.
+Verifying needs DNS records on a domain you own (a `vercel.app` address can't
+be verified). Set `FROM_EMAIL` to an address on that domain.
+
 ## Another College
 
 Each college gets its own copy of LINKS (ADR 0030): a new Vercel project, a new

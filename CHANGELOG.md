@@ -84,6 +84,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Notification emails, first slice (#206): someone whose Access request is
+  decided is told (with the reviewer's note when it isn't approved);
+  everyone going to or interested in an event is told when it is cancelled
+  or its date, time or place changes; an applicant is told when they are
+  shortlisted, selected or not taken further. The request-sent screen says an
+  email will come, and the reject note says the person gets it.
 - Not signed in screen (#127, #174): admins (Admin, Not signed in) and HODs
   (from Home, "See who") see who hasn't signed in yet, filter it, copy the
   emails for a reminder, and fix a row's email or remove the row from its
