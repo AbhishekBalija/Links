@@ -28,7 +28,7 @@ export function GrantForm({ userId, firstName, roles, department, viewerIsPrinci
   const today = todayInIndia()
   const departments = useDepartments()
   const grant = useGrantRole(userId)
-  const [draft, setDraft] = useState<GrantDraft>({ role: roles[0] ?? '', departmentId: '', starts: today, ends: '' })
+  const [draft, setDraft] = useState<GrantDraft>({ role: roles[0] ?? '', departmentId: '', starts: today })
   const [problems, setProblems] = useState<Record<string, string>>({})
   const [failure, setFailure] = useState('')
   const headingRef = useRef<HTMLSpanElement>(null)
@@ -66,10 +66,9 @@ export function GrantForm({ userId, firstName, roles, department, viewerIsPrinci
         setProblems({
           department: fields.scope_id ?? '',
           starts: fields.starts_at ?? '',
-          ends: fields.ends_at ?? '',
           role: fields.role ?? '',
         })
-        if (!fields.scope_id && !fields.starts_at && !fields.ends_at && !fields.role) setFailure(err.message)
+        if (!fields.scope_id && !fields.starts_at && !fields.role) setFailure(err.message)
       } else if (err instanceof ApiRequestError && (err.status === 409 || err.status === 403)) {
         setFailure(err.message.charAt(0).toUpperCase() + err.message.slice(1) + '.')
       } else {
@@ -147,17 +146,8 @@ export function GrantForm({ userId, firstName, roles, department, viewerIsPrinci
             className={selectStyle(problems.starts) + ' px-3.5'}
           />
         </Field>
-        <Field id={`${id}-end`} label="Ends (optional)" error={problems.ends} hint="Leave empty for no end">
-          <input
-            id={`${id}-end`}
-            type="date"
-            min={draft.starts}
-            value={draft.ends}
-            onChange={(e) => update({ ends: e.target.value })}
-            className={selectStyle(problems.ends) + ' px-3.5'}
-          />
-        </Field>
       </div>
+      <p className="text-[13px] leading-[1.4] text-ink-3">A role has no end date. When it's over, end it here: their unfinished work is handed over.</p>
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onClose} className={buttonStyles.secondary + ' flex-1 lg:flex-none'}>
