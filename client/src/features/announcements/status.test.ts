@@ -62,9 +62,14 @@ describe('waited', () => {
   const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600_000).toISOString()
 
   it.each([
+    [0.005, 'waiting under a minute', false],
+    [1 / 60, 'waiting 1 minute', false],
+    [0.2, 'waiting 12 minutes', false],
     [1, 'waiting 1 hour', false],
+    [1.9, 'waiting 1 hour', false],
     [5, 'waiting 5 hours', false],
     [30, 'waiting 1 day', false],
+    [47, 'waiting 1 day', false],
     [72, 'waiting 3 days', false],
     [73, 'waiting 3 days', true],
     [100, 'waiting 4 days', true],

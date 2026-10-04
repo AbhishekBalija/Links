@@ -32,6 +32,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Waiting times said "waiting 1 hour" for something sent seconds ago, and
+  rounded 90 minutes up to 2 hours. They now count minutes under an hour
+  and whole hours or days after that.
 - Home said "Good morning" after midnight; it now says good evening until
   5 AM, and a Home left open updates its greeting and date on its own.
 - A current student could be given a staff role (faculty, HOD, placement
