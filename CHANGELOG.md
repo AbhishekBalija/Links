@@ -60,6 +60,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Adding staff (#189) emails the person who added them, as what, and how to
+  sign in (Google only for the principal and admins), and a refused email or
+  department says why: a current student, a student request, a member
+  (with their username) or an HOD already there.
 - Not signed in list API (#127): `GET /api/v1/admin/users/not-signed-in`
   with department and student/staff filters, paging and who added each
   person, and `/not-signed-in/emails` for copying every matching email.

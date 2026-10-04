@@ -330,24 +330,45 @@ func (r *GormUserRepository) FindRoleAssignmentForUpdate(ctx context.Context, us
 }
 
 func (r *GormUserRepository) HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error) {
+	var count int64
+	err := r.overlapping(ctx, filter).Count(&count).Error
+	return count > 0, err
+}
+
+// OverlappingHolderName is the full name of someone holding the role and
+// Scope for an overlapping time, or "" when nobody does.
+func (r *GormUserRepository) OverlappingHolderName(ctx context.Context, filter OverlapFilter) (string, error) {
+	var names []string
+	err := r.overlapping(ctx, filter).
+		Joins("JOIN profiles ON profiles.user_id = role_assignments.user_id").
+		Order("role_assignments.starts_at").
+		Limit(1).
+		Pluck("profiles.full_name", &names).Error
+	if err != nil || len(names) == 0 {
+		return "", err
+	}
+	return names[0], nil
+}
+
+// overlapping selects the assignments of the filter's role and Scope whose
+// time overlaps the filter's.
+func (r *GormUserRepository) overlapping(ctx context.Context, filter OverlapFilter) *gorm.DB {
 	query := r.db.WithContext(ctx).Model(&RoleAssignment{}).
-		Where("role = ? AND scope_type = ?", filter.Role, filter.ScopeType).
+		Where("role_assignments.role = ? AND role_assignments.scope_type = ?", filter.Role, filter.ScopeType).
 		// Two ranges overlap when each starts before the other ends.
-		Where("ends_at IS NULL OR ends_at > ?", filter.StartsAt)
+		Where("role_assignments.ends_at IS NULL OR role_assignments.ends_at > ?", filter.StartsAt)
 	if filter.EndsAt != nil {
-		query = query.Where("starts_at < ?", *filter.EndsAt)
+		query = query.Where("role_assignments.starts_at < ?", *filter.EndsAt)
 	}
 	if filter.ScopeID == nil {
-		query = query.Where("scope_id IS NULL")
+		query = query.Where("role_assignments.scope_id IS NULL")
 	} else {
-		query = query.Where("scope_id = ?", *filter.ScopeID)
+		query = query.Where("role_assignments.scope_id = ?", *filter.ScopeID)
 	}
 	if filter.UserID != "" {
-		query = query.Where("user_id = ?", filter.UserID)
+		query = query.Where("role_assignments.user_id = ?", filter.UserID)
 	}
-	var count int64
-	err := query.Count(&count).Error
-	return count > 0, err
+	return query
 }
 
 // LockDepartmentForUpdate reports whether the department exists and holds a

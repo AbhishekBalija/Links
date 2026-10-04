@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -89,6 +90,70 @@ func (s *authService) RequestAccessWithProof(ctx context.Context, input ProvenAc
 	return &RequestAccessResponse{UserID: user.ID, Status: string(user.Status)}, nil
 }
 
+// emailStaffAdded tells a new staff member who added them, as what, and how
+// to sign in.
+func (s *authService) emailStaffAdded(ctx context.Context, actorID, to, fullName string, granted RoleAssignmentResponse) error {
+	addedBy := ""
+	if actor, err := s.userRepo.FindByID(ctx, actorID); err == nil && actor != nil && actor.Profile != nil {
+		addedBy = actor.Profile.FullName
+	}
+	role := Role(granted.Role)
+	label := roleLabels[role]
+	if granted.Department != nil {
+		label += ", " + granted.Department.Name
+	}
+	return s.mailer.SendStaffAdded(to, mailer.StaffAdded{
+		FullName:   fullName,
+		AddedBy:    addedBy,
+		Role:       label,
+		GoogleOnly: role == RolePrincipal || role == RoleAdmin,
+	})
+}
+
+// roleLabels name the staff roles the way people read them.
+var roleLabels = map[Role]string{
+	RoleFaculty:          "Faculty",
+	RoleHOD:              "HOD",
+	RolePlacementOfficer: "Placement officer",
+	RolePrincipal:        "Principal",
+	RoleAdmin:            "Admin",
+}
+
+// requireStaffEmail refuses an email that is already on LINKS, saying why in
+// the email field's detail: a current student's ("student"), someone waiting
+// on a student Access request ("request"), or a member, whose username comes
+// along so the screen can link to their profile ("member").
+func requireStaffEmail(ctx context.Context, users UserRepository, email string, now time.Time) error {
+	existing, err := users.FindByEmailForUpdate(ctx, email)
+	if err != nil {
+		return fmt.Errorf("find email: %w", err)
+	}
+	if existing == nil {
+		return nil
+	}
+	const taken = "the email is already registered"
+	if existing.StudentIdentity != nil && existing.Status == UserStatusPending && !existing.IsVerified {
+		return conflictOn(taken, map[string]string{"email": "request"})
+	}
+	if existing.StudentIdentity != nil {
+		if err := requireNotStudentAt(ctx, users, existing.ID, now); err != nil {
+			return conflictOn(taken, map[string]string{"email": "student"})
+		}
+	}
+	details := map[string]string{"email": "member"}
+	if existing.Profile != nil {
+		details["username"] = existing.Profile.Username
+	}
+	return conflictOn(taken, details)
+}
+
+// conflictOn is a 409 whose details say which field clashes and why.
+func conflictOn(message string, details map[string]string) error {
+	conflict := apperrors.NewConflict(message)
+	conflict.Details = details
+	return conflict
+}
+
 // InviteStaff adds a staff member by email and role. The account waits for
 // its first sign-in. An admin invites any role; an HOD invites only faculty
 // of their own Department (ADR 0029).
@@ -97,7 +162,7 @@ func (s *authService) RequestAccessWithProof(ctx context.Context, input ProvenAc
 // account has nothing for role management's rule to look at.
 func checkedBeforehand(context.Context, UserRepository, string, *User, Role) error { return nil }
 
-func (s *authService) InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*RequestAccessResponse, error) {
+func (s *authService) InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*StaffAddedResponse, error) {
 	email := strings.TrimSpace(input.Email)
 	if address, err := mail.ParseAddress(email); err != nil || address.Address != email {
 		return nil, apperrors.NewValidation("email is not a valid address", map[string]string{"email": "invalid"})
@@ -120,14 +185,16 @@ func (s *authService) InviteStaff(ctx context.Context, actorID string, input Inv
 
 	now := time.Now()
 	user := &User{Email: &email, Status: UserStatusPending, IsVerified: true, CreatedBy: &actorID, CreatedAt: now, UpdatedAt: now}
+	var granted RoleAssignmentResponse
 	err = s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
-		if err := requireNewEmail(ctx, repos.Users, email); err != nil {
+		if err := requireStaffEmail(ctx, repos.Users, email, now); err != nil {
 			return err
 		}
 		if err := s.createAccount(ctx, repos.Users, user, fullName, now); err != nil {
 			return err
 		}
-		if _, err := grantRoleIn(ctx, repos, actorID, user.ID, grant, now, now, checkedBeforehand); err != nil {
+		granted, err = grantRoleIn(ctx, repos, actorID, user.ID, grant, now, now, checkedBeforehand)
+		if err != nil {
 			return err
 		}
 		return repos.AuditLogs.Create(ctx, &AuditLog{
@@ -142,7 +209,10 @@ func (s *authService) InviteStaff(ctx context.Context, actorID string, input Inv
 	if err := uniqueViolation(err); err != nil {
 		return nil, err
 	}
-	return &RequestAccessResponse{UserID: user.ID, Status: string(user.Status)}, nil
+	// The account stands even if the email can't be sent: the screen says
+	// so, and the person can still sign in.
+	emailed := s.emailStaffAdded(ctx, actorID, email, fullName, granted) == nil
+	return &StaffAddedResponse{UserID: user.ID, Status: string(user.Status), Emailed: emailed}, nil
 }
 
 func requireNewEmail(ctx context.Context, users UserRepository, email string) error {

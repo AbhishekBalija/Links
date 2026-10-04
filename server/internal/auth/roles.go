@@ -135,7 +135,7 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 		}
 	}
 	if staffRoles[role] {
-		if err := requireNotStudentAt(ctx, repos, user.ID, startsAt); err != nil {
+		if err := requireNotStudentAt(ctx, repos.Users, user.ID, startsAt); err != nil {
 			return RoleAssignmentResponse{}, err
 		}
 	}
@@ -151,12 +151,13 @@ func grantRoleIn(ctx context.Context, repos AuthRepositories, actorID, userID st
 	if role == RoleHOD {
 		// A Department has at most one HOD at a time (CONTEXT.md).
 		overlap.UserID = ""
-		taken, err := repos.Users.HasOverlappingAssignment(ctx, overlap)
+		holder, err := repos.Users.OverlappingHolderName(ctx, overlap)
 		if err != nil {
 			return RoleAssignmentResponse{}, fmt.Errorf("check existing HOD: %w", err)
 		}
-		if taken {
-			return RoleAssignmentResponse{}, apperrors.NewConflict("the department already has an HOD for that time")
+		if holder != "" {
+			return RoleAssignmentResponse{}, conflictOn("the department already has an HOD for that time",
+				map[string]string{"scope_id": "has_hod", "hod_name": holder})
 		}
 	}
 
@@ -448,8 +449,8 @@ var staffRoles = map[Role]bool{RoleFaculty: true, RoleHOD: true, RolePlacementOf
 
 // requireNotStudentAt refuses a staff role for someone who is still a student
 // when it starts. A graduate, whose student role has ended, may join the staff.
-func requireNotStudentAt(ctx context.Context, repos AuthRepositories, userID string, startsAt time.Time) error {
-	grants, err := repos.Users.GetRoleAssignments(ctx, userID)
+func requireNotStudentAt(ctx context.Context, users UserRepository, userID string, startsAt time.Time) error {
+	grants, err := users.GetRoleAssignments(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get user roles: %w", err)
 	}
