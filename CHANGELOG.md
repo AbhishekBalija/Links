@@ -32,6 +32,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- The principal or an admin could press "Not you?" on their first sign-in
+  and lock the college out, since only an admin could review it (#201). They
+  no longer can, and the button is hidden for them. A reported staff row,
+  once approved, gets its staff role back instead of a student role, and the
+  review says it is a staff invite.
 - Home said "Good morning" after midnight; it now says good evening until
   5 AM, and a Home left open updates its greeting and date on its own.
 - A current student could be given a staff role (faculty, HOD, placement

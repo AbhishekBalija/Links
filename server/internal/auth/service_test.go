@@ -498,6 +498,8 @@ func TestVerifyUser_ApprovesPendingStudentToWaitForFirstSignIn(t *testing.T) {
 			Email:   &email,
 			Status:  UserStatusPending,
 			Profile: &Profile{UserID: id, FullName: "Test Student"},
+			// Every Access request carries the student's USN.
+			StudentIdentity: &StudentIdentity{UserID: id, USN: "4MN23CS042"},
 		}, nil
 	}
 
