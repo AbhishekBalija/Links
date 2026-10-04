@@ -12,7 +12,7 @@ import { OrganiserView } from '../components/OrganiserView'
 import { DateTile } from '../components/DateTile'
 import { Tag } from '../components/Tags'
 import { answersClosed, isFull, startTime, whenLine } from '../format'
-import { isOrganiser } from '../organiser'
+import { isOrganiser, organiserName } from '../organiser'
 import { typeLabel, type AnswerSummary, type CampusEvent } from '../types'
 
 // EventDetail is one Event: what, when and where, then the answer bar, the
@@ -120,7 +120,7 @@ function EventView({ event }: { event: CampusEvent }) {
           <Fact label="Where">{event.location}</Fact>
           <Fact label="For">{audience}</Fact>
           <Fact label="Organised by">
-            {event.proposer_name}
+            {organiserName(event)}
             {event.faculty_mentor && ` · mentor ${event.faculty_mentor.full_name}`}
           </Fact>
         </dl>

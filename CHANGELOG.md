@@ -35,6 +35,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - A role given an end date ended on that date with none of the person's
   drafts or events handed over (#204). Roles no longer take an end date; they
   end by hand, which hands work over.
+- After a role ended and its event was handed to a new Organiser, the new
+  Organiser had no tools on the event and couldn't find it in My posts, and
+  the page still named the proposer (#205). The event page now follows the
+  Organiser, and My posts lists events you organise.
 - The principal or an admin could press "Not you?" on their first sign-in
   and lock the college out, since only an admin could review it (#201). They
   no longer can, and the button is hidden for them. A reported staff row,

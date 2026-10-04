@@ -163,8 +163,10 @@ func (r *GormRepository) AudienceRules(ctx context.Context, eventIDs []string) (
 
 // Authored lists the proposer's own Events, newest first.
 func (r *GormRepository) Authored(ctx context.Context, proposerID string, filter MineFilter, after *Cursor, limit int) ([]View, error) {
-	query := `SELECT ` + viewColumns + ` ` + viewFrom + ` WHERE e.proposer_id = ?`
-	args := []any{proposerID}
+	// Events handed to someone else to run (ADR 0028) are theirs too, once
+	// published, so the new Organiser finds them (#205).
+	query := `SELECT ` + viewColumns + ` ` + viewFrom + ` WHERE (e.proposer_id = ? OR (e.organiser_id = ? AND e.status IN ('published', 'cancelled')))`
+	args := []any{proposerID, proposerID}
 	switch filter {
 	case MineDraft:
 		query += ` AND e.status = 'draft'`

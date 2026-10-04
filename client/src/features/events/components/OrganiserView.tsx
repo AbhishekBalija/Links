@@ -6,7 +6,7 @@ import { Skeleton } from '../../../shared/ui/states'
 import { buttonStyles } from '../../announcements/buttons'
 import { ActionBar } from '../../announcements/components/ActionBar'
 import { useAnswers, useExportAnswers } from '../api'
-import { publishedLine } from '../organiser'
+import { publishedLine, organiserName } from '../organiser'
 import { dayAndDate, dayMonth } from '../standing'
 import { answerLabels, typeLabel, type AnswerSummary, type CampusEvent } from '../types'
 import { CancelDialog } from './CancelDialog'
@@ -49,7 +49,7 @@ export function OrganiserView({ event }: { event: CampusEvent }) {
           </div>
           <EventFacts event={event}>
             <Fact label="Organised by">
-              {event.proposer_name}
+              {organiserName(event)}
               {event.faculty_mentor && ` · mentor ${event.faculty_mentor.full_name}`}
             </Fact>
           </EventFacts>

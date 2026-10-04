@@ -16,6 +16,7 @@ function event(overrides: Partial<CampusEvent>): CampusEvent {
     status: 'draft',
     proposer_id: 'u1',
     proposer_name: 'Meera N',
+    organiser: null,
     department: { id: 'd1', code: 'CS' },
     faculty_mentor: null,
     location: 'CS Seminar Hall',

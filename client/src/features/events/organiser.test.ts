@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isOrganiser, publishedLine } from './organiser'
+import { isOrganiser, organiserName, publishedLine } from './organiser'
 import type { CampusEvent } from './types'
 
 const on = (day: number) => new Date(2026, 8, day, 10).toISOString()
@@ -21,6 +21,17 @@ describe('isOrganiser', () => {
     expect(isOrganiser(event, { user_id: 'u-h', roles: ['hod'] }, { id: 'd-cs' })).toBe(true)
     expect(isOrganiser(event, { user_id: 'u-h', roles: ['hod'] }, { id: 'd-me' })).toBe(false)
     expect(isOrganiser({ ...event, department: null }, { user_id: 'u-h', roles: ['hod'] }, { id: 'd-cs' })).toBe(false)
+  })
+
+  it('follows the Organiser once an event is handed over, not the proposer (#205)', () => {
+    const handed = { ...event, organiser: { user_id: 'u-new', full_name: 'Prof. Ravi Kumar' } }
+    expect(isOrganiser(handed, { user_id: 'u-new', roles: ['faculty'] }, null)).toBe(true)
+    expect(isOrganiser(handed, { user_id: 'u-proposer', roles: ['student'] }, null)).toBe(false)
+  })
+
+  it('names who runs the event', () => {
+    expect(organiserName({ ...event, proposer_name: 'Asha Rao', organiser: null })).toBe('Asha Rao')
+    expect(organiserName({ ...event, proposer_name: 'Asha Rao', organiser: { user_id: 'u-new', full_name: 'Prof. Ravi Kumar' } })).toBe('Prof. Ravi Kumar')
   })
 
   it('leaves out everyone else, faculty of the same Department included', () => {
