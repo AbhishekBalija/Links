@@ -12,10 +12,16 @@ import { CodeBoxes } from '../components/CodeBoxes'
 import { GoogleButton } from '../components/GoogleButton'
 import { googleClientId } from '../google'
 
+// Proven is an email on no list that has proved it is theirs, carried
+// through choosing student or staff and the Access request.
+type Proven = { email: string; fullName: string; requestToken: string; proof: 'google' | 'code' }
+
 type Screen =
   | { name: 'start'; notice?: StartNotice; email?: string }
   | { name: 'code'; email: string; challengeId: string; sentAt: number; wrongTries: number; resent: boolean }
-  | { name: 'request'; email: string; fullName: string; requestToken: string; proof: 'google' | 'code' }
+  | ({ name: 'fork' } & Proven)
+  | ({ name: 'staff' } & Proven)
+  | ({ name: 'request' } & Proven)
   | { name: 'sent'; sentAt: number; department: string }
   | { name: 'waiting' | 'declined' | 'suspended' }
 
@@ -45,7 +51,8 @@ export default function SignIn() {
   const handleOutcome = useCallback((outcome: Outcome, proof: 'google' | 'code', email: string) => {
     switch (outcome.kind) {
       case 'not-on-list':
-        setScreen({ name: 'request', email: outcome.email || email, fullName: outcome.fullName, requestToken: outcome.requestToken, proof })
+        // Students and staff get in differently, so they say which first (#200).
+        setScreen({ name: 'fork', email: outcome.email || email, fullName: outcome.fullName, requestToken: outcome.requestToken, proof })
         return true
       case 'waiting':
       case 'declined':
@@ -75,8 +82,12 @@ export default function SignIn() {
       return <StartScreen key={screen.notice?.text ?? 'start'} initial={screen} onCode={(email, challengeId) => setScreen({ name: 'code', email, challengeId, sentAt: Date.now(), wrongTries: 0, resent: false })} onOutcome={handleOutcome} />
     case 'code':
       return <CodeScreen screen={screen} onChange={setScreen} onBack={() => restart()} onOutcome={handleOutcome} />
+    case 'fork':
+      return <ForkScreen email={screen.email} onStudent={() => setScreen({ ...screen, name: 'request' })} onStaff={() => setScreen({ ...screen, name: 'staff' })} onOtherEmail={() => restart()} />
+    case 'staff':
+      return <StaffScreen email={screen.email} onBack={() => setScreen({ ...screen, name: 'fork' })} onOtherEmail={() => restart()} />
     case 'request':
-      return <RequestScreen screen={screen} onSent={(department) => setScreen({ name: 'sent', sentAt: Date.now(), department })} onBack={() => restart()} onExpired={() => restart({ tone: 'danger', text: 'The proof of your email has expired. Sign in again to send the request.' })} />
+      return <RequestScreen screen={screen} onSent={(department) => setScreen({ name: 'sent', sentAt: Date.now(), department })} onBack={() => setScreen({ ...screen, name: 'fork' })} onExpired={() => restart({ tone: 'danger', text: 'The proof of your email has expired. Sign in again to send the request.' })} />
     case 'sent':
       return <SentScreen sentAt={screen.sentAt} department={screen.department} onBack={() => restart()} />
     default:
@@ -178,7 +189,7 @@ function StartScreen({ initial, onCode, onOutcome }: {
           {sending ? 'Sending…' : 'Email me a code'}
         </button>
       </form>
-      <p className={smallPrint}>Not on your class list yet? Sign in anyway. We'll help you send a request to your HOD.</p>
+      <p className={smallPrint}>Not on a class list, or a new staff member? Sign in anyway and LINKS shows you what to do.</p>
       <p className={smallPrint}>The principal and admins sign in with Google.</p>
     </SignInLayout>
   )
@@ -315,6 +326,77 @@ function MailLinks({ email }: { email: string }) {
   )
 }
 
+const choice = 'flex w-full flex-col gap-1 rounded-xl border border-line bg-surface px-5 py-[18px] text-left hover:border-ink-3'
+
+// ForkScreen asks an email on no list who they are: a student sends their
+// USN to their HOD; staff are added by the college and send nothing here.
+function ForkScreen({ email, onStudent, onStaff, onOtherEmail }: { email: string; onStudent: () => void; onStaff: () => void; onOtherEmail: () => void }) {
+  return (
+    <SignInLayout>
+      <SignInHeading>This email isn't on LINKS yet</SignInHeading>
+      <p className="text-[15px] leading-normal text-ink-2">
+        <b className="font-semibold text-ink">{email}</b> isn't on a class list or the staff list. Which are you?
+      </p>
+      <button type="button" onClick={onStudent} className={choice}>
+        <span className="text-base font-semibold">I'm a student here</span>
+        <span className="text-sm text-ink-2">Send your USN to your HOD. They let you in.</span>
+      </button>
+      <button type="button" onClick={onStaff} className={choice}>
+        <span className="text-base font-semibold">I work here</span>
+        <span className="text-sm text-ink-2">Faculty, HODs and office staff are added by the college.</span>
+      </button>
+      <p className={smallPrint}>
+        Signed in with the wrong account?{' '}
+        <button type="button" onClick={onOtherEmail} className="font-semibold text-rust">
+          Use a different email
+        </button>
+      </p>
+    </SignInLayout>
+  )
+}
+
+// StaffScreen tells staff on no list who adds them, with the email to send.
+function StaffScreen({ email, onBack, onOtherEmail }: { email: string; onBack: () => void; onOtherEmail: () => void }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(email)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <SignInLayout back={{ label: 'Student or staff', onClick: onBack }}>
+      <SignInHeading>Ask to be added</SignInHeading>
+      <p className="text-[15px] leading-normal text-ink-2">
+        Staff don't send a request here. Your HOD adds faculty; the college office adds HODs, the principal and office staff.
+      </p>
+      <div className="flex flex-col gap-2.5 rounded-xl border border-line bg-surface px-[18px] py-4">
+        <span className="text-sm text-ink-2">Send them the email you'll sign in with:</span>
+        <div className="flex items-center justify-between gap-2.5">
+          <span className="min-w-0 text-[15px] font-semibold break-all">{email}</span>
+          <button type="button" onClick={copy} className={buttonStyles.secondary}>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <span role="status" className="sr-only">
+          {copied ? 'Email copied' : ''}
+        </span>
+      </div>
+      <p className="text-[15px] leading-normal text-ink-2">Once they've added you, sign in again the same way. LINKS also emails you when it's done.</p>
+      <p className={smallPrint}>
+        Rather use your college email?{' '}
+        <button type="button" onClick={onOtherEmail} className="font-semibold text-rust">
+          Use a different email
+        </button>
+      </p>
+    </SignInLayout>
+  )
+}
+
 function RequestScreen({ screen, onSent, onBack, onExpired }: {
   screen: Extract<Screen, { name: 'request' }>
   onSent: (department: string) => void
@@ -365,7 +447,7 @@ function RequestScreen({ screen, onSent, onBack, onExpired }: {
   }
 
   return (
-    <SignInLayout back={{ label: 'Sign in', onClick: onBack }}>
+    <SignInLayout back={{ label: 'Student or staff', onClick: onBack }}>
       <SignInHeading>You're not on a class list yet</SignInHeading>
       <p className="text-[15px] leading-normal text-ink-2">
         <b className="font-semibold text-ink">{screen.email}</b> isn't on any class list yet. Send a request and your HOD can let you in.

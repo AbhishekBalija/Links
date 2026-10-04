@@ -67,10 +67,26 @@ test.describe('Sign in with an email code', () => {
     await expect(page.getByText("You're signed out on this device.")).toBeVisible()
   })
 
+  test('staff on no list are told who adds them, with no request to fill in', async ({ page }) => {
+    const email = `new.staff.${Date.now()}@college.edu`
+    await signInWithCode(page, email)
+
+    await expect(page.getByRole('heading', { name: "This email isn't on LINKS yet" })).toBeVisible()
+    await page.getByRole('button', { name: /I work here/ }).click()
+    await expect(page.getByRole('heading', { name: 'Ask to be added' })).toBeVisible()
+    await expect(page.getByText(email)).toBeVisible()
+    await expect(page.getByLabel('USN')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Back' }).click()
+    await expect(page.getByRole('button', { name: /I'm a student here/ })).toBeVisible()
+  })
+
   test('someone on no list sends a request, and once approved signs in', async ({ page, request }) => {
     const usn = await freeUSN('CS', BATCH)
     await signInWithCode(page, UNLISTED)
 
+    await expect(page.getByRole('heading', { name: "This email isn't on LINKS yet" })).toBeVisible()
+    await page.getByRole('button', { name: /I'm a student here/ }).click()
     await expect(page.getByRole('heading', { name: "You're not on a class list yet" })).toBeVisible()
     await expect(page.getByText('Proved with an email code')).toBeVisible()
     await page.getByLabel('Your name').fill('Unlisted Student')

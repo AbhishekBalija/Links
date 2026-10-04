@@ -53,14 +53,16 @@ export default function FirstSignIn() {
   return (
     <SignInLayout>
       <SignInHeading label="First sign-in">Welcome to Links, {firstName}</SignInHeading>
-      <p className="text-[15px] leading-normal text-ink-2">Your college added you from its records. Check these are yours before you go on.</p>
+      <p className="text-[15px] leading-normal text-ink-2">
+        {first.usn ? 'Your college added you from its class list.' : 'Your college added you to LINKS as staff.'} Check these are yours before you go on.
+      </p>
       <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface px-[22px] py-5">
         <p className="text-[13px] text-ink-3">You're signed in as</p>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-[18px] gap-y-2 text-[15px]">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-[18px] gap-y-2 text-[15px]">
           {rows.map(([label, value, mono]) => (
             <div key={label} className="contents">
               <dt className="text-ink-3">{label}</dt>
-              <dd className={mono ? 'font-mono' : 'font-semibold'}>{value}</dd>
+              <dd className={mono ? 'font-mono break-all' : 'font-semibold break-words'}>{value}</dd>
             </div>
           ))}
         </dl>
@@ -89,7 +91,11 @@ export default function FirstSignIn() {
         onCancel={() => setAsking(false)}
         onConfirm={report}
       >
-        <p>You'll be signed out. Nobody can sign into this account until your HOD or an admin checks the class list.</p>
+        <p>
+          {first.usn
+            ? "You'll be signed out. Nobody can sign into this account until your HOD or an admin checks the class list."
+            : "You'll be signed out. Nobody can sign into this account until an admin checks who it was added for."}
+        </p>
       </ConfirmDialog>
     </SignInLayout>
   )

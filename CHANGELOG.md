@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Signing in with an email on no list now asks "I'm a student here" or "I
+  work here" first (#200). Staff are told who adds them and get their email
+  to send, instead of a USN form; staff first sign-in no longer mentions a
+  class list.
 - Only admins and HODs add people (ADR 0029): the principal can no longer
   import students or add staff. HODs can now add faculty to their own
   Department, and an HOD who is also the principal imports only their own
