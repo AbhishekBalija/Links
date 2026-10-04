@@ -116,9 +116,11 @@ export function RequestReview({ request, focusName, onDecided }: {
           <span className="text-[13px] font-semibold text-ink-2">Why it's here</span>
           <span className="text-[15px] leading-normal">{whyItsHere(request)}</span>
         </div>
-        <p className="max-w-[620px] text-sm text-ink-3">
-          Check the USN against the department records. Approving gives them the student role in {id?.department_name ?? 'their department'}.
-        </p>
+        {id && (
+          <p className="max-w-[620px] text-sm text-ink-3">
+            Check the USN against the department records. Approving gives them the student role in {id.department_name}.
+          </p>
+        )}
       </article>
 
       {fixing ? null : mode === 'confirm' ? (
