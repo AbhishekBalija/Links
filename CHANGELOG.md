@@ -32,6 +32,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A role given an end date ended on that date with none of the person's
+  drafts or events handed over (#204). Roles no longer take an end date; they
+  end by hand, which hands work over.
 - The principal or an admin could press "Not you?" on their first sign-in
   and lock the college out, since only an admin could review it (#201). They
   no longer can, and the button is hidden for them. A reported staff row,

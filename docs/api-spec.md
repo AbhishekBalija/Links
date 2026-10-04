@@ -758,8 +758,9 @@ the assignment in the shape above:
   `principal`, `admin` (these need `scope_type: "global"` and no `scope_id`).
   `student` and `alumni` come from Access approval and Graduation, and club
   roles wait for clubs, so they are `400` here.
-- `starts_at` defaults to now and can't be in the past. `ends_at` is optional
-  and must be after `starts_at` and in the future.
+- `starts_at` defaults to now and can't be in the past. `ends_at` is refused
+  (`400`, field `ends_at`): a role ends by hand, which hands over the person's
+  work (ADR 0028), and nothing yet runs when a date passes (#204).
 - A `student_coordinator` must be a current Student (student role in effect)
   whose Student identity is in that Department.
 - `faculty`, `hod`, `placement_officer` and `principal` are staff roles: they
