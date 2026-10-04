@@ -23,6 +23,7 @@ export default function FirstSignIn() {
 
   const firstName = greetingName(first.full_name)
   const staffRole = first.roles.find((role) => role !== 'student')
+  const googleOnly = first.roles.some((role) => role === 'principal' || role === 'admin')
   const rows: Array<[string, string, boolean]> = first.usn
     ? [
         ['Name', first.full_name, false],
@@ -77,9 +78,13 @@ export default function FirstSignIn() {
       >
         Yes, that's me
       </button>
-      <button type="button" onClick={() => setAsking(true)} className="min-h-11 text-sm font-semibold text-rust">
-        Not you? Report it
-      </button>
+      {/* The principal and admins were added by name; reporting one could
+          leave nobody to review it (#201). */}
+      {!googleOnly && (
+        <button type="button" onClick={() => setAsking(true)} className="min-h-11 text-sm font-semibold text-rust">
+          Not you? Report it
+        </button>
+      )}
       <ConfirmDialog
         open={asking}
         title="Report this account as not you?"
