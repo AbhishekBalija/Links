@@ -271,6 +271,7 @@ type UserRepository interface {
 	FindRoleAssignmentForUpdate(ctx context.Context, userID, id string) (*RoleAssignment, error)
 	HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error)
 	OverlappingHolderName(ctx context.Context, filter OverlapFilter) (string, error)
+	RemoveNeverActive(ctx context.Context, userID string) error
 	LockDepartmentForUpdate(ctx context.Context, id string) (bool, error)
 	LockAdminAssignmentsInEffect(ctx context.Context) ([]RoleAssignment, error)
 	EndRoleAssignment(ctx context.Context, id string, endsAt time.Time) error

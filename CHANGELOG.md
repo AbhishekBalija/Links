@@ -40,6 +40,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Waiting times said "waiting 1 hour" for something sent seconds ago, and
   rounded 90 minutes up to 2 hours. They now count minutes under an hour
   and whole hours or days after that.
+- Rejecting an Access request burned its email and USN for good, so a
+  corrected class list could never add the person (#203). Rejecting now
+  removes the request (audited), and only requests can be rejected; members
+  are suspended. Reactivating a suspended account no longer skips approval or
+  a first sign-in.
 - Home said "Good morning" after midnight; it now says good evening until
   5 AM, and a Home left open updates its greeting and date on its own.
 - A current student could be given a staff role (faculty, HOD, placement
