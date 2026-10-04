@@ -2,6 +2,7 @@ package integration
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -213,6 +214,10 @@ func TestEndingARoleCanHandEventsToAnotherOrganiser(t *testing.T) {
 	expectStatus(t, "end with a faculty organiser", endRole(t, h, hod.Token, coordinator.ID, assignment, faculty.ID), http.StatusOK)
 	if organiser := getEvent(t, h, faculty.Token, id).Organiser; organiser == nil || organiser.UserID != faculty.ID {
 		t.Fatalf("organiser = %+v, want the faculty member", organiser)
+	}
+	// The new Organiser finds it in My posts (#205).
+	if mine := myEvents(t, h, faculty.Token, ""); !slices.ContainsFunc(mine, func(e eventItem) bool { return e.ID == id }) {
+		t.Errorf("the new Organiser's My posts = %d events, want the handed-over one", len(mine))
 	}
 	// The faculty member isn't a reviewer, so cancelling proves they run it now.
 	expectStatus(t, "new organiser cancels", cancelEvent(t, h, faculty.Token, id, "Speaker unwell"), http.StatusOK)

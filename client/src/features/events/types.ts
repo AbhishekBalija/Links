@@ -65,6 +65,9 @@ export type CampusEvent = {
   status: EventStatus
   proposer_id: string
   proposer_name: string
+  // organiser runs the event once published: the proposer, or whoever it
+  // was handed to when their role ended (ADR 0028).
+  organiser: { user_id: string; full_name: string } | null
   department: { id: string; code: string } | null
   faculty_mentor: { user_id: string; full_name: string } | null
   location: string
