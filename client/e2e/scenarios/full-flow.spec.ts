@@ -43,6 +43,7 @@ test.describe.serial('Full E2E Flow: Student (real onboarding)', () => {
   test('1. Someone on no class list signs in with an email code and sends a request', async ({ page }) => {
     const usn = await freeUSN('CS', 2024)
     await signInWithCode(page, STUDENT.email)
+    await page.getByRole('button', { name: /I'm a student here/ }).click()
     await expect(page.getByRole('heading', { name: "You're not on a class list yet" })).toBeVisible()
     await page.getByLabel('Your name').fill('E2E Student')
     await page.getByLabel('USN').fill(usn)
