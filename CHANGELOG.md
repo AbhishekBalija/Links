@@ -37,6 +37,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   no longer can, and the button is hidden for them. A reported staff row,
   once approved, gets its staff role back instead of a student role, and the
   review says it is a staff invite.
+- Waiting times said "waiting 1 hour" for something sent seconds ago, and
+  rounded 90 minutes up to 2 hours. They now count minutes under an hour
+  and whole hours or days after that.
 - Home said "Good morning" after midnight; it now says good evening until
   5 AM, and a Home left open updates its greeting and date on its own.
 - A current student could be given a staff role (faculty, HOD, placement
