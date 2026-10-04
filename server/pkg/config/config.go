@@ -28,6 +28,10 @@ type Config struct {
 	// EnableTestSignIn turns on POST /api/v1/test/sign-in, which signs anyone
 	// in by email alone, for the e2e suite. Only allowed with APP_ENV=local.
 	EnableTestSignIn bool
+	// EmailCodeForEveryRole lets the principal and admins sign in with an
+	// email code too, so a test copy can use throwaway inboxes. Refused with
+	// APP_ENV=production, where they sign in with Google only (ADR 0026).
+	EmailCodeForEveryRole bool
 	// ClientIPHeader names the header that holds the client's real IP
 	// address, set only on a platform that writes it itself (Vercel).
 	ClientIPHeader string
@@ -86,13 +90,14 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		AppEnv:           valueOrDefault("APP_ENV", "local"),
-		EnableTestSignIn: os.Getenv("ENABLE_TEST_SIGN_IN") == "true",
-		ClientIPHeader:   clientIPHeader(),
-		Port:             firstSet("PORT", "APP_PORT"),
-		DatabaseURL:      databaseURL(),
-		GINMode:          valueOrDefault("GIN_MODE", "debug"),
-		RequestBodyLimit: int64Value("REQUEST_BODY_LIMIT", 1<<20),
+		AppEnv:                valueOrDefault("APP_ENV", "local"),
+		EnableTestSignIn:      os.Getenv("ENABLE_TEST_SIGN_IN") == "true",
+		EmailCodeForEveryRole: os.Getenv("EMAIL_CODE_FOR_EVERY_ROLE") == "true",
+		ClientIPHeader:        clientIPHeader(),
+		Port:                  firstSet("PORT", "APP_PORT"),
+		DatabaseURL:           databaseURL(),
+		GINMode:               valueOrDefault("GIN_MODE", "debug"),
+		RequestBodyLimit:      int64Value("REQUEST_BODY_LIMIT", 1<<20),
 		DatabasePool: DatabasePoolConfig{
 			MaxOpenConns:    intValue("DB_MAX_OPEN_CONNS", 15),
 			MaxIdleConns:    intValue("DB_MAX_IDLE_CONNS", 5),
@@ -204,6 +209,10 @@ func (c Config) Validate() error {
 	// The test sign-in skips every check of who someone is.
 	if c.EnableTestSignIn && c.AppEnv != "local" {
 		return fmt.Errorf("ENABLE_TEST_SIGN_IN is only allowed with APP_ENV=local")
+	}
+	// The principal and admins sign in with Google only in production.
+	if c.EmailCodeForEveryRole && c.AppEnv == "production" {
+		return fmt.Errorf("EMAIL_CODE_FOR_EVERY_ROLE is not allowed with APP_ENV=production")
 	}
 
 	return nil
