@@ -7,7 +7,8 @@ export type WorkspaceTab = { label: string; to: string; count?: number | string 
 // requests in an HOD's Approval queue, the admin tools in Admin.
 export function WorkspaceTabs({ tabs, active, label }: { tabs: WorkspaceTab[]; active: string; label: string }) {
   return (
-    <nav aria-label={label} className="flex gap-1 self-stretch overflow-x-auto rounded-[10px] bg-well p-1 lg:self-start">
+    // On phones the tabs sit in two columns, so none is hidden off the edge.
+    <nav aria-label={label} className="grid grid-cols-2 gap-1 self-stretch rounded-[10px] bg-well p-1 lg:flex lg:self-start">
       {tabs.map((tab) => {
         const on = tab.label === active
         return (

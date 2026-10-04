@@ -69,6 +69,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Not signed in screen (#127, #174): admins (Admin, Not signed in) and HODs
+  (from Home, "See who") see who hasn't signed in yet, filter it, copy the
+  emails for a reminder, and fix a row's email or remove the row from its
+  "…" menu. A reported row's email can be fixed in Access requests.
 - Fixing a wrong class-list row, API (#174): `PATCH /admin/users/:id/email`
   corrects the email of a row nobody has signed into (or one reported with
   "Not you?"), and `DELETE /admin/users/:id` removes such a row so its USN

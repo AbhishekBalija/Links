@@ -12,6 +12,8 @@ const AdminImport = lazy(() => import('../features/import/pages/AdminImport'))
 const HODImport = lazy(() => import('../features/import/pages/HODImport'))
 const AdminStaff = lazy(() => import('../features/staff/pages/AdminStaff'))
 const HODStaff = lazy(() => import('../features/staff/pages/HODStaff'))
+const AdminNotSignedIn = lazy(() => import('../features/lists/pages/AdminNotSignedIn'))
+const HODNotSignedIn = lazy(() => import('../features/lists/pages/HODNotSignedIn'))
 const SignIn = lazy(() => import('../features/auth/pages/SignIn'))
 const FirstSignIn = lazy(() => import('../features/auth/pages/FirstSignIn'))
 const AccountPending = lazy(() => import('../features/auth/pages/AccountPending'))
@@ -95,10 +97,12 @@ export function AppRouter() {
             <Route path="/admin/requests/:id" element={<AdminAccessRequests />} />
             <Route path="/admin/import" element={<AdminImport />} />
             <Route path="/admin/staff" element={<AdminStaff />} />
+            <Route path="/admin/not-signed-in" element={<AdminNotSignedIn />} />
           </Route>
           <Route element={<HODRoute />}>
             <Route path="/import" element={<HODImport />} />
             <Route path="/staff" element={<HODStaff />} />
+            <Route path="/not-signed-in" element={<HODNotSignedIn />} />
           </Route>
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />

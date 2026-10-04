@@ -7,6 +7,7 @@ import { buttonStyles } from '../../announcements/buttons'
 import type { Banner } from '../../announcements/components/queue/Review'
 import { waited } from '../../announcements/status'
 import { useDecide } from '../api'
+import { FixEmail } from '../../lists/components/RowActions'
 import { whyItsHere } from '../reason'
 import type { AccessRequest } from '../types'
 
@@ -22,6 +23,8 @@ export function RequestReview({ request, focusName, onDecided }: {
   const [note, setNote] = useState('')
   const [noteError, setNoteError] = useState('')
   const [failure, setFailure] = useState('')
+  // A reported row's email can be fixed right here (#174).
+  const [fixing, setFixing] = useState(false)
   const decide = useDecide()
   const nameRef = useRef<HTMLHeadingElement>(null)
   const id = request.student_identity
@@ -73,9 +76,31 @@ export function RequestReview({ request, focusName, onDecided }: {
         >
           {name}
         </h2>
-        <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-2.5 text-[15px] lg:grid-cols-[120px_1fr] lg:gap-x-4">
+        <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[15px] lg:grid-cols-[120px_minmax(0,1fr)] lg:gap-x-4">
           <dt className="text-ink-3">Email</dt>
-          <dd className="font-semibold break-all">{request.email}</dd>
+          {fixing ? (
+            <dd>
+              <FixEmail
+                person={{ user_id: request.id, full_name: name, email: request.email ?? '' }}
+                onCancel={() => setFixing(false)}
+                onDone={(outcome) =>
+                  onDecided(request, {
+                    tone: outcome.tone === 'ok' ? 'done' : 'info',
+                    text: outcome.tone === 'ok' ? `${outcome.text} The row is off this list and waits for their first sign-in.` : outcome.text,
+                  })
+                }
+              />
+            </dd>
+          ) : (
+            <dd className="flex flex-wrap items-baseline gap-x-3 font-semibold break-all">
+              {request.email}
+              {request.reported_at && (
+                <button type="button" onClick={() => setFixing(true)} className="min-h-8 text-sm font-semibold text-ink underline underline-offset-[3px]">
+                  Fix email
+                </button>
+              )}
+            </dd>
+          )}
           {id && (
             <>
               <dt className="text-ink-3">USN</dt>
@@ -96,7 +121,7 @@ export function RequestReview({ request, focusName, onDecided }: {
         </p>
       </article>
 
-      {mode === 'confirm' ? (
+      {fixing ? null : mode === 'confirm' ? (
         <ActionBar
           tone="confirm"
           labelledBy="approve-h"
