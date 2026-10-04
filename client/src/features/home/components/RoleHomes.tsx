@@ -63,7 +63,6 @@ export function RoleHome({ kind, data, greeting, notices, comingUp, now }: Props
             <div className="flex flex-col gap-5 lg:gap-6">
               <ToDo data={data} now={now} />
               {data.lists && data.lists.recent_imports.length > 0 && <RecentImports lists={data.lists} now={now} />}
-              <p className="px-1 text-sm text-ink-3 lg:hidden">Imports, adding staff and roles work best on a computer.</p>
             </div>
             <Side>{notices}</Side>
           </>
@@ -83,6 +82,10 @@ function HeaderActions({ kind }: { kind: Props['kind'] }) {
   if (kind === 'admin') {
     return (
       <div className="hidden gap-2 lg:flex">
+        <Link to="/admin/staff" className={buttonStyles.secondary}>
+          <Plus aria-hidden="true" className="size-4" />
+          Add staff
+        </Link>
         <Link to="/admin/import" className={cn(buttonStyles.primary, 'hover:text-paper')}>
           <Upload aria-hidden="true" className="size-4" />
           Import students
@@ -285,13 +288,17 @@ function DepartmentSection({ department, lists }: { department: DepartmentPanel;
         <Link to="/import" className="inline-flex min-h-11 items-center text-sm font-semibold">
           Import students →
         </Link>
+        <Link to="/staff" className="inline-flex min-h-11 items-center text-sm font-semibold">
+          Add faculty →
+        </Link>
       </div>
     </section>
   )
 }
 
-function assignHODLink(department: CollegeDepartment) {
-  return `/people?department=${encodeURIComponent(department.code)}&role=faculty`
+// addHODLink opens Add staff with HOD and the department already chosen.
+function addHODLink(department: CollegeDepartment) {
+  return `/admin/staff?role=hod&department=${encodeURIComponent(department.code)}`
 }
 
 function CollegeSection({ departments }: { departments: CollegeDepartment[] }) {
@@ -364,8 +371,8 @@ function NoHOD({ department }: { department: CollegeDepartment }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-2.5">
       <span className="rounded bg-warning-soft px-[7px] py-0.5 text-[11px] font-semibold whitespace-nowrap text-warning-ink">No HOD yet</span>
-      <Link to={assignHODLink(department)} className="inline-flex min-h-11 items-center text-sm font-semibold whitespace-nowrap lg:min-h-0">
-        Assign HOD
+      <Link to={addHODLink(department)} className="inline-flex min-h-11 items-center text-sm font-semibold whitespace-nowrap lg:min-h-0">
+        Add HOD
       </Link>
     </span>
   )
@@ -379,8 +386,8 @@ function ToDo({ data, now }: { data: Dashboard; now: Date }) {
       count: noHOD.length,
       title: noHOD.length === 1 ? 'Department with no HOD' : 'Departments with no HOD',
       detail: noHOD.map((d) => d.name).join(', '),
-      to: assignHODLink(noHOD[0]),
-      action: 'Assign',
+      to: addHODLink(noHOD[0]),
+      action: 'Add HOD',
     })
   }
   const waiting = data.lists?.waiting_count ?? 0

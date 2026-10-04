@@ -60,6 +60,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Add staff screens (#189): admins add the principal, HODs, faculty,
+  placement officers and admins from Admin, Add staff; HODs add faculty from
+  their Home. Home's "No HOD" rows open the form with the department chosen,
+  and after each HOD the next department without one is picked.
 - Adding staff (#189) emails the person who added them, as what, and how to
   sign in (Google only for the principal and admins), and a refused email or
   department says why: a current student, a student request, a member

@@ -10,6 +10,8 @@ import { PageLoading } from '../shared/ui/states'
 // it opens, which matters most for students on phones.
 const AdminImport = lazy(() => import('../features/import/pages/AdminImport'))
 const HODImport = lazy(() => import('../features/import/pages/HODImport'))
+const AdminStaff = lazy(() => import('../features/staff/pages/AdminStaff'))
+const HODStaff = lazy(() => import('../features/staff/pages/HODStaff'))
 const SignIn = lazy(() => import('../features/auth/pages/SignIn'))
 const FirstSignIn = lazy(() => import('../features/auth/pages/FirstSignIn'))
 const AccountPending = lazy(() => import('../features/auth/pages/AccountPending'))
@@ -92,9 +94,11 @@ export function AppRouter() {
             <Route path="/admin/requests" element={<AdminAccessRequests />} />
             <Route path="/admin/requests/:id" element={<AdminAccessRequests />} />
             <Route path="/admin/import" element={<AdminImport />} />
+            <Route path="/admin/staff" element={<AdminStaff />} />
           </Route>
           <Route element={<HODRoute />}>
             <Route path="/import" element={<HODImport />} />
+            <Route path="/staff" element={<HODStaff />} />
           </Route>
           <Route path="/people" element={<People />} />
           <Route path="/people/:username" element={<Profile />} />
