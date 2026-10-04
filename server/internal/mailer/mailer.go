@@ -107,21 +107,44 @@ func NewResendMailer(apiKey, fromEmail, signInURL string) *ResendMailer {
 }
 
 func (m *ResendMailer) SendSignInCode(to, code string) error {
-	return m.post("/emails", sendRequest{
-		From:    m.fromEmail,
-		To:      to,
-		Subject: "Your LINKS sign-in code: " + code,
-		HTML:    signInCodeHTML(code),
-	})
+	return m.send(signInCodeEmail(to, code))
 }
 
 func (m *ResendMailer) SendStaffAdded(to string, letter StaffAdded) error {
-	return m.post("/emails", sendRequest{
-		From:    m.fromEmail,
-		To:      to,
-		Subject: "You were added to LINKS",
-		HTML:    staffAddedHTML(to, letter, m.signInURL),
-	})
+	return m.send(staffAddedEmail(to, letter, m.signInURL))
+}
+
+func (m *ResendMailer) SendAccessDecision(to string, letter AccessDecision) error {
+	return m.send(accessDecisionEmail(to, letter, m.signInURL))
+}
+
+// SendEventNotice sends the same notice to everyone, a hundred at a time, so
+// a large event is told in a few calls instead of one per person.
+func (m *ResendMailer) SendEventNotice(to []Recipient, letter EventNotice) error {
+	emails := eventNoticeEmails(to, letter, m.signInURL)
+	for start := 0; start < len(emails); start += batchSize {
+		end := min(start+batchSize, len(emails))
+		batch := make([]sendRequest, 0, end-start)
+		for _, e := range emails[start:end] {
+			batch = append(batch, m.request(e))
+		}
+		if err := m.post("/emails/batch", batch); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *ResendMailer) SendApplicationUpdate(to string, letter ApplicationUpdate) error {
+	return m.send(applicationUpdateEmail(to, letter, m.signInURL))
+}
+
+func (m *ResendMailer) request(e email) sendRequest {
+	return sendRequest{From: m.fromEmail, To: e.To, Subject: e.Subject, HTML: e.HTML}
+}
+
+func (m *ResendMailer) send(e email) error {
+	return m.post("/emails", m.request(e))
 }
 
 func (m *ResendMailer) post(path string, body any) error {
@@ -206,45 +229,6 @@ func staffAddedHTML(to string, letter StaffAdded, signInURL string) string {
 
 // batchSize is the most emails the mail service takes in one batch call.
 const batchSize = 100
-
-func (m *ResendMailer) SendAccessDecision(to string, letter AccessDecision) error {
-	subject := "You're in: your LINKS request was approved"
-	if !letter.Approved {
-		subject = "Your LINKS request wasn't approved"
-	}
-	return m.post("/emails", sendRequest{From: m.fromEmail, To: to, Subject: subject, HTML: accessDecisionHTML(letter, m.signInURL)})
-}
-
-// SendEventNotice sends the same notice to everyone, a hundred at a time, so
-// a large event is told in a few calls instead of one per person.
-func (m *ResendMailer) SendEventNotice(to []Recipient, letter EventNotice) error {
-	subject := "Changed: " + letter.Title
-	if letter.Cancelled {
-		subject = "Cancelled: " + letter.Title + ", " + letter.When
-	}
-	for start := 0; start < len(to); start += batchSize {
-		end := min(start+batchSize, len(to))
-		batch := make([]sendRequest, 0, end-start)
-		for _, recipient := range to[start:end] {
-			batch = append(batch, sendRequest{From: m.fromEmail, To: recipient.Email, Subject: subject, HTML: eventNoticeHTML(recipient, letter, m.signInURL)})
-		}
-		if err := m.post("/emails/batch", batch); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *ResendMailer) SendApplicationUpdate(to string, letter ApplicationUpdate) error {
-	subject := "Update on " + letter.Title + " at " + letter.Company
-	switch letter.Status {
-	case "shortlisted":
-		subject = "Shortlisted: " + letter.Title + " at " + letter.Company
-	case "selected":
-		subject = "Selected: " + letter.Title + " at " + letter.Company
-	}
-	return m.post("/emails", sendRequest{From: m.fromEmail, To: to, Subject: subject, HTML: applicationUpdateHTML(letter, m.signInURL)})
-}
 
 // firstName is the greeting's name: the first word that isn't a title.
 func firstName(fullName string) string {
