@@ -75,8 +75,11 @@ func (s *authService) GrantRole(ctx context.Context, actorID, userID string, inp
 		}
 		startsAt = *input.StartsAt
 	}
-	if input.EndsAt != nil && (!input.EndsAt.After(startsAt) || !input.EndsAt.After(now)) {
-		return nil, apperrors.NewValidation("invalid role dates", map[string]string{"ends_at": "must be after starts_at and in the future"})
+	// A role ends by hand, which hands over the person's work (ADR 0028).
+	// An end date would end it with nothing handed over, so none is taken
+	// until something runs when the date passes (#204).
+	if input.EndsAt != nil {
+		return nil, apperrors.NewValidation("invalid role dates", map[string]string{"ends_at": "roles have no end date; end a role by hand when it's over"})
 	}
 	if _, err := uuid.Parse(userID); err != nil {
 		return nil, apperrors.NewNotFound("user not found")

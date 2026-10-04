@@ -326,6 +326,24 @@ func TestAGraduateCanJoinTheStaff(t *testing.T) {
 	grantedID(t, grantRole(t, h, admin.Token, graduate.ID, map[string]any{"role": "faculty", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS")}))
 }
 
+// A role ends by hand, which hands over the person's work (ADR 0028); an end
+// date would end it with nothing handed over (#204).
+func TestARoleCantBeGivenAnEndDate(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	teacher := h.SeedUser(t, apitest.UserSeed{})
+	response := grantRole(t, h, admin.Token, teacher.ID, map[string]any{
+		"role": "faculty", "scope_type": "department", "scope_id": h.DepartmentID(t, "CS"),
+		"ends_at": time.Now().Add(30 * 24 * time.Hour).UTC().Format(time.RFC3339),
+	})
+	if details := refusedWith(t, response, http.StatusBadRequest); details["ends_at"] == "" {
+		t.Errorf("details = %v, want an ends_at reason", details)
+	}
+	if roles := listRoles(t, h, admin.Token, teacher.ID); len(roles) != 0 {
+		t.Errorf("roles = %+v, want none", roles)
+	}
+}
+
 func TestFutureRoleIsListedButNotInEffect(t *testing.T) {
 	h := apitest.New(t)
 	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})

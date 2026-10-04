@@ -109,16 +109,15 @@ describe('grantPayload', () => {
   const today = '2026-10-03'
 
   it('leaves out a start of today so the role starts now', () => {
-    expect(grantPayload({ role: 'placement_officer', departmentId: '', starts: today, ends: '' }, today)).toEqual({ role: 'placement_officer', scope_type: 'global' })
+    expect(grantPayload({ role: 'placement_officer', departmentId: '', starts: today }, today)).toEqual({ role: 'placement_officer', scope_type: 'global' })
   })
 
-  it('starts a later role at midnight in India and ends it at the end of its last day', () => {
-    expect(grantPayload({ role: 'hod', departmentId: 'd1', starts: '2026-11-01', ends: '2027-05-31' }, today)).toEqual({
+  it('starts a later role at midnight in India, with no end: roles end by hand', () => {
+    expect(grantPayload({ role: 'hod', departmentId: 'd1', starts: '2026-11-01' }, today)).toEqual({
       role: 'hod',
       scope_type: 'department',
       scope_id: 'd1',
       starts_at: '2026-11-01T00:00:00+05:30',
-      ends_at: '2027-05-31T23:59:59+05:30',
     })
   })
 })
@@ -127,18 +126,17 @@ describe('grantProblems', () => {
   const today = '2026-10-03'
 
   it('asks for a department for a department role', () => {
-    expect(grantProblems({ role: 'hod', departmentId: '', starts: today, ends: '' }, today)).toEqual({ department: 'An HOD role needs a department.' })
+    expect(grantProblems({ role: 'hod', departmentId: '', starts: today }, today)).toEqual({ department: 'An HOD role needs a department.' })
   })
 
-  it('refuses a start in the past and an end before the start', () => {
-    expect(grantProblems({ role: 'faculty', departmentId: 'd1', starts: '2026-10-01', ends: '2026-09-30' }, today)).toEqual({
+  it('refuses a start in the past', () => {
+    expect(grantProblems({ role: 'faculty', departmentId: 'd1', starts: '2026-10-01' }, today)).toEqual({
       starts: "A role can't start in the past.",
-      ends: 'The end has to be on or after the start.',
     })
   })
 
   it('has nothing to say about a valid grant', () => {
-    expect(grantProblems({ role: 'faculty', departmentId: 'd1', starts: today, ends: '' }, today)).toEqual({})
+    expect(grantProblems({ role: 'faculty', departmentId: 'd1', starts: today }, today)).toEqual({})
   })
 })
 

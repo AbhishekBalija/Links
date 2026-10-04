@@ -65,9 +65,10 @@ export function defaultOrganiser(handover: Handover): PersonRef | null {
   return handover.moved_events.find((event) => event.organiser)?.organiser ?? null
 }
 
-// GrantDraft is the grant form as typed: dates are yyyy-mm-dd from the date
-// inputs, read as days in India.
-export type GrantDraft = { role: string; departmentId: string; starts: string; ends: string }
+// GrantDraft is the grant form as typed: the start is yyyy-mm-dd from the
+// date input, read as a day in India. A role has no end date: it ends by
+// hand, which hands over the person's work (#204).
+export type GrantDraft = { role: string; departmentId: string; starts: string }
 
 // todayInIndia is today's date as a date input holds it.
 export function todayInIndia(now = new Date()): string {
@@ -83,19 +84,16 @@ export function grantProblems(draft: GrantDraft, today: string): Record<string, 
     problems.department = `${/^[AEIOU]|^HOD/.test(label) ? 'An' : 'A'} ${label} role needs a department.`
   }
   if (draft.starts < today) problems.starts = "A role can't start in the past."
-  if (draft.ends && draft.ends < draft.starts) problems.ends = 'The end has to be on or after the start.'
   return problems
 }
 
 // grantPayload turns the form into the API's body. Starting today is left
-// out so the role starts now; a later start begins at midnight, and an end
-// date includes the whole of that day.
+// out so the role starts now; a later start begins at midnight.
 export function grantPayload(draft: GrantDraft, today: string): GrantInput {
   const input: GrantInput = needsDepartment(draft.role)
     ? { role: draft.role, scope_type: 'department', scope_id: draft.departmentId }
     : { role: draft.role, scope_type: 'global' }
   if (draft.starts && draft.starts !== today) input.starts_at = `${draft.starts}T00:00:00+05:30`
-  if (draft.ends) input.ends_at = `${draft.ends}T23:59:59+05:30`
   return input
 }
 
