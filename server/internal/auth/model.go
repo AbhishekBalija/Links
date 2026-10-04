@@ -203,6 +203,8 @@ type AuthService interface {
 	NotMe(ctx context.Context, userID string) error
 	RequestAccessWithProof(ctx context.Context, input ProvenAccessRequestInput) (*RequestAccessResponse, error)
 	InviteStaff(ctx context.Context, actorID string, input InviteStaffInput) (*StaffAddedResponse, error)
+	FixRowEmail(ctx context.Context, actorID, userID, email string) error
+	RemoveRow(ctx context.Context, actorID, userID string) error
 	Refresh(ctx context.Context, refreshTokenRaw string) (*RefreshResponse, string, error)
 	Logout(ctx context.Context, refreshTokenRaw string) error
 	GetMe(ctx context.Context, userID string) (*MeResponse, error)
@@ -272,6 +274,7 @@ type UserRepository interface {
 	HasOverlappingAssignment(ctx context.Context, filter OverlapFilter) (bool, error)
 	OverlappingHolderName(ctx context.Context, filter OverlapFilter) (string, error)
 	RemoveNeverActive(ctx context.Context, userID string) error
+	FixEmail(ctx context.Context, userID, email string, at time.Time) error
 	LockDepartmentForUpdate(ctx context.Context, id string) (bool, error)
 	LockAdminAssignmentsInEffect(ctx context.Context) ([]RoleAssignment, error)
 	EndRoleAssignment(ctx context.Context, id string, endsAt time.Time) error

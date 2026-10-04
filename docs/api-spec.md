@@ -543,6 +543,24 @@ audited as `access_request_rejected` with the email, name, USN and note.
 a list or an invite added that has never signed in goes back to waiting for
 its first sign-in (`pending`), not straight to `active`.
 
+### Fixing a class-list row
+
+For a row nobody has signed into (a class-list row or a staff invite), or one
+reported with "Not you?" (#174). Admins act anywhere; an HOD on their own
+Department's rows (`import_students`, ADR 0029); anyone else `403`, a row
+outside an HOD's Department `404`.
+
+- `PATCH /api/v1/admin/users/:id/email` with `{"email": "..."}` corrects the
+  email. The row waits for its first sign-in with the new one (a reported row
+  leaves Access requests), any Google account is unlinked and sessions end.
+  `400` for an invalid or unchanged email; `409` when the email is someone
+  else's (`details.email` as for staff invites) or someone has signed in.
+  Audited as `list_row_email_fixed` with `from` and `to`.
+- `DELETE /api/v1/admin/users/:id` removes a row nobody has signed into, so
+  its USN and email can be added again. `409` once someone has signed in, or
+  when the account is part of something in LINKS. Audited as
+  `list_row_removed` with the email, name and USN.
+
 ### Not signed in yet
 
 `GET /api/v1/admin/users/not-signed-in` lists who a class list or a staff

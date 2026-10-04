@@ -8,6 +8,7 @@ import (
 
 	"github.com/AbhishekBalija/Links/server/internal/shared/response"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AdminHandler struct {
@@ -28,6 +29,8 @@ func (h *AdminHandler) RegisterAdminRoutes(rg *gin.RouterGroup) {
 	admin.PATCH("/:id/verify", h.VerifyUser)
 	admin.PATCH("/:id/status", h.UpdateUserStatus)
 	admin.POST("/import", h.ImportStudents)
+	admin.PATCH("/:id/email", h.FixRowEmail)
+	admin.DELETE("/:id", h.RemoveRow)
 	admin.GET("/:id/roles", h.ListRoles)
 	admin.POST("/:id/roles", h.GrantRole)
 	admin.DELETE("/:id/roles/:roleAssignmentId", h.EndRole)
@@ -231,6 +234,55 @@ func (h *AdminHandler) InviteStaff(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusCreated, resp, nil)
+}
+
+// FixRowEmail corrects the email of a class-list row or staff invite nobody
+// has signed into (#174): admins, and HODs for their own Department.
+func (h *AdminHandler) FixRowEmail(c *gin.Context) {
+	if !h.authorizeListFix(c) {
+		return
+	}
+	var input struct {
+		Email string `json:"email"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	if err := h.service.FixRowEmail(c.Request.Context(), GetActor(c).UserID, c.Param("id"), input.Email); err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, gin.H{"message": "email fixed"}, nil)
+}
+
+// RemoveRow removes a row nobody has signed into, freeing its USN and email.
+func (h *AdminHandler) RemoveRow(c *gin.Context) {
+	if !h.authorizeListFix(c) {
+		return
+	}
+	if err := h.service.RemoveRow(c.Request.Context(), GetActor(c).UserID, c.Param("id")); err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, gin.H{"message": "removed"}, nil)
+}
+
+// authorizeListFix lets through whoever may import class lists.
+func (h *AdminHandler) authorizeListFix(c *gin.Context) bool {
+	if GetActor(c) == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return false
+	}
+	if err := AuthorizeActor(c, h.policy, PermissionImportStudents); err != nil {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", err.Error(), nil)
+		return false
+	}
+	if _, err := uuid.Parse(c.Param("id")); err != nil {
+		response.Error(c, http.StatusNotFound, "NOT_FOUND", "user not found", nil)
+		return false
+	}
+	return true
 }
 
 // maxDepartmentCodeLength bounds the import's department field; codes are

@@ -595,3 +595,17 @@ func (r *GormUserRepository) RemoveNeverActive(ctx context.Context, userID strin
 	}
 	return nil
 }
+
+// FixEmail gives a row nobody has signed into its corrected email. The row
+// waits for its first sign-in with that email, with no Google account linked.
+func (r *GormUserRepository) FixEmail(ctx context.Context, userID, email string, at time.Time) error {
+	return r.db.WithContext(ctx).Model(&User{}).Where("id = ?", userID).
+		Updates(map[string]any{
+			"email":              email,
+			"status":             UserStatusPending,
+			"is_verified":        true,
+			"google_subject":     nil,
+			"first_signed_in_at": nil,
+			"updated_at":         at,
+		}).Error
+}
