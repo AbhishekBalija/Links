@@ -25,6 +25,9 @@ type Membership struct {
 // Membership satisfies its role and Department together, so a CS student who
 // is also EC faculty is not "CS faculty".
 type Reader struct {
+	// UserID is the reader: their own published Announcements are always in
+	// their feed, even when sent only to others.
+	UserID      string
 	Memberships []Membership
 	BatchYear   *int
 }

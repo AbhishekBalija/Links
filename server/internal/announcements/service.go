@@ -247,7 +247,7 @@ func (s *Service) reader(ctx context.Context, userID string) (Reader, error) {
 		return Reader{}, fmt.Errorf("load student identity: %w", err)
 	}
 
-	reader := Reader{BatchYear: batchYear, Memberships: make([]Membership, 0, len(grants))}
+	reader := Reader{UserID: userID, BatchYear: batchYear, Memberships: make([]Membership, 0, len(grants))}
 	for _, grant := range grants {
 		membership := Membership{Role: string(grant.Role), DepartmentID: studentDepartment}
 		if grant.DepartmentID != "" {
