@@ -113,3 +113,32 @@ func TestTestSignInIsRefusedOutsideLocal(t *testing.T) {
 		}
 	}
 }
+
+// Test copies may let every role sign in with an email code, so testers can
+// use throwaway inboxes; production keeps the principal and admins on Google.
+func TestEmailCodeForEveryRoleIsRefusedInProduction(t *testing.T) {
+	t.Parallel()
+	base := Config{
+		AppEnv:      "preview",
+		DatabaseURL: "postgres://example",
+		GINMode:     "release",
+		Cookie:      CookieConfig{Secure: true},
+		Auth: AuthConfig{
+			JWTAccessSecret:  "preview-access-secret",
+			JWTRefreshSecret: "preview-refresh-secret",
+			AccessTokenTTL:   15 * time.Minute,
+			RefreshTokenTTL:  7 * 24 * time.Hour,
+		},
+		RequestBodyLimit:      1024,
+		DatabasePool:          DatabasePoolConfig{MaxOpenConns: 10, MaxIdleConns: 5, ConnMaxLifetime: time.Minute, ConnMaxIdleTime: time.Minute},
+		EmailCodeForEveryRole: true,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("email code for every role on a preview: %v", err)
+	}
+	production := base
+	production.AppEnv = "production"
+	if err := production.Validate(); err == nil {
+		t.Error("email code for every role accepted with APP_ENV=production")
+	}
+}

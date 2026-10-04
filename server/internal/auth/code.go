@@ -37,6 +37,9 @@ type CodeSettings struct {
 	Window        time.Duration
 	// PerEmailDailyLimit caps code requests per email within a day.
 	PerEmailDailyLimit int
+	// EveryRoleUsesCodes lets the principal and admins sign in with a code
+	// too. Only test copies turn it on (EMAIL_CODE_FOR_EVERY_ROLE).
+	EveryRoleUsesCodes bool
 	// WrongTriesPerDay wrong guesses at an email's codes within a day stop
 	// new codes going to it until the day is over, so nobody can keep
 	// guessing by asking for code after code.
@@ -143,7 +146,7 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 		}
 		sendTo = email
 		if user != nil {
-			allowed, err := mayUseEmailCode(ctx, repos.Users, user)
+			allowed, err := s.mayUseEmailCode(ctx, repos.Users, user)
 			if err != nil {
 				return err
 			}
@@ -227,7 +230,7 @@ func (s *authService) VerifyCode(ctx context.Context, challengeID, email, code s
 			return nil
 		}
 		// The account may have changed since the code went out.
-		allowed, err := mayUseEmailCode(ctx, repos.Users, user)
+		allowed, err := s.mayUseEmailCode(ctx, repos.Users, user)
 		if err != nil || !allowed {
 			return err
 		}
@@ -284,11 +287,14 @@ func (s *authService) notOnList(email, name string) error {
 }
 
 // mayUseEmailCode reports whether the account may be sent an email code:
-// not the principal or an admin, who sign in with Google only (ADR 0026), and
-// not a suspended or rejected account.
-func mayUseEmailCode(ctx context.Context, users UserRepository, user *User) (bool, error) {
+// not the principal or an admin, who sign in with Google only (ADR 0026)
+// unless this is a test copy, and not a suspended or rejected account.
+func (s *authService) mayUseEmailCode(ctx context.Context, users UserRepository, user *User) (bool, error) {
 	if user.Email == nil || user.Status == UserStatusSuspended || user.Status == UserStatusRejected {
 		return false, nil
+	}
+	if s.codeSettings.EveryRoleUsesCodes {
+		return true, nil
 	}
 	roles, err := users.GetRoleAssignments(ctx, user.ID)
 	if err != nil {

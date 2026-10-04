@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+	"github.com/AbhishekBalija/Links/server/pkg/config"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -306,6 +307,17 @@ func TestPrincipalAndAdminGetNoEmailCode(t *testing.T) {
 				t.Errorf("sent a %s %d codes; they sign in with Google only", role, len(codes))
 			}
 			expectStatus(t, "a guess", enterCode(t, h, challenge, "123456"), http.StatusUnauthorized)
+		})
+	}
+}
+
+func TestATestCopyLetsThePrincipalAndAdminUseAnEmailCode(t *testing.T) {
+	h := apitest.NewWith(t, func(cfg *config.Config) { cfg.EmailCodeForEveryRole = true })
+	for _, role := range []string{"principal", "admin"} {
+		t.Run(role, func(t *testing.T) {
+			leader := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: role}}})
+			challenge := askForCode(t, h, leader.Email)
+			expectStatus(t, "the emailed code", enterCode(t, h, challenge, h.Outbox.LastCodeTo(t, leader.Email)), http.StatusOK)
 		})
 	}
 }

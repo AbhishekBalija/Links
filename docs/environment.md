@@ -28,6 +28,9 @@ COOKIE_SAME_SITE   # lax (default) or strict; none is refused
 ENABLE_TEST_SIGN_IN # true only for the e2e suite; refused unless APP_ENV=local.
                     # Adds POST /api/v1/test/sign-in and GET /api/v1/test/sign-in-code?email=
                     # (the last code emailed to that address)
+EMAIL_CODE_FOR_EVERY_ROLE # true on a test copy: the principal and admins may sign in with
+                    # an email code too, so testers can use throwaway inboxes.
+                    # Refused with APP_ENV=production (Google only there, ADR 0026)
 GOOGLE_CLIENT_ID   # Google sign-in's OAuth client ID (public); Google sign-in is off while empty
 VITE_GOOGLE_CLIENT_ID # the same client ID for the web app; the Google button is hidden while empty
 STORAGE_PROVIDER

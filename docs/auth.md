@@ -91,6 +91,8 @@ JWT rules:
 - An email on no list gets `403 NOT_ON_LIST` and no account. Google's tokens
   are not stored.
 - The principal and admins sign in with Google only: they get no email code.
+  A test copy can set `EMAIL_CODE_FOR_EVERY_ROLE=true` so testers use throwaway
+  inboxes; it is refused with `APP_ENV=production`.
 
 **First sign-in (spec #129, #133):**
 

@@ -143,13 +143,17 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		m = codeRecorder
 	}
 
+	// A test copy can let the principal and admins use an email code too.
+	codeSettings := wiring.codeSettings
+	codeSettings.EveryRoleUsesCodes = cfg.EmailCodeForEveryRole
+
 	authService := auth.NewAuthService(
 		userRepo,
 		refreshRepo,
 		authUnitOfWork,
 		tokenCfg,
 		m,
-		wiring.codeSettings,
+		codeSettings,
 		googleVerifier,
 	)
 
