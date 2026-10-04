@@ -254,12 +254,15 @@ function DepartmentSection({ department, lists }: { department: DepartmentPanel;
         </p>
       )}
       {waiting > 0 && (
-        <p className="rounded-lg bg-warning-soft px-3.5 py-2.5 text-sm text-warning-ink">
-          <b className="font-semibold">
-            {waiting} {waiting === 1 ? 'person' : 'people'}
-          </b>{' '}
-          on your class lists haven't signed in yet.
-        </p>
+        <Link to="/not-signed-in" className="flex items-center justify-between gap-3 rounded-lg bg-warning-soft px-3.5 py-2.5 text-sm text-warning-ink hover:text-warning-ink">
+          <span>
+            <b className="font-semibold">
+              {waiting} {waiting === 1 ? 'person' : 'people'}
+            </b>{' '}
+            on your class lists haven't signed in yet
+          </span>
+          <span className="font-semibold whitespace-nowrap">See who →</span>
+        </Link>
       )}
       {department.upcoming_events.length > 0 && (
         <div className="flex flex-col">
@@ -396,6 +399,8 @@ function ToDo({ data, now }: { data: Dashboard; now: Date }) {
       count: waiting,
       title: waiting === 1 ? "Person hasn't signed in yet" : "People haven't signed in yet",
       detail: 'added from class lists and staff invites',
+      to: '/admin/not-signed-in',
+      action: 'See who',
     })
   }
   const a = data.approvals

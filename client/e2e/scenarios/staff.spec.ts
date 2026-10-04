@@ -3,7 +3,8 @@ import { bootstrapAdmin, loginViaUI, seedMember, setupAdmin, signInWithCode } fr
 import { getDatabaseURL, getSchemaClient } from '../helpers/db'
 
 // Add staff (#189): an admin adds staff, who then sign in with that email;
-// an HOD adds faculty to their own department.
+// an HOD adds faculty to their own department. CS, since proposing.spec
+// keeps EC to itself.
 const TS = Date.now()
 
 async function emailOf(userId: string): Promise<string> {
@@ -71,17 +72,17 @@ test.describe('Add staff', () => {
   })
 
   test('an HOD adds faculty to their own department from Home', async ({ page, request }) => {
-    const hod = await seedMember(request, { role: 'hod', fullName: 'Meera Iyer', department: 'EC' })
+    const hod = await seedMember(request, { role: 'hod', fullName: 'Meera Iyer', department: 'CS' })
     const email = `ravi.${TS}@college.edu`
 
     await loginViaUI(page, hod.email)
     await page.getByRole('link', { name: 'Add faculty →' }).click()
     await expect(page.getByRole('heading', { name: 'Add faculty', level: 1 })).toBeVisible()
-    await expect(page.getByText('Faculty, Electronics and Communication Engineering')).toBeVisible()
+    await expect(page.getByText('Faculty, Computer Science and Engineering')).toBeVisible()
 
     await page.getByLabel('Full name').fill('Ravi Kumar')
     await page.getByLabel('Email').fill(email)
     await page.getByRole('button', { name: 'Add faculty member' }).click()
-    await expect(page.getByRole('status')).toContainText('Ravi Kumar was added as Faculty, Electronics and Communication Engineering.')
+    await expect(page.getByRole('status')).toContainText('Ravi Kumar was added as Faculty, Computer Science and Engineering.')
   })
 })
