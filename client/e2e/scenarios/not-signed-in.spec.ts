@@ -6,6 +6,14 @@ import { getDatabaseURL } from '../helpers/db'
 // claim AD, AI, CV, EC and ME for themselves.
 const TS = Date.now()
 
+// distinctUSNs picks free USNs that also differ from each other, since none
+// is saved until the import.
+async function distinctUSNs(count: number): Promise<string[]> {
+  const usns = new Set<string>()
+  while (usns.size < count) usns.add(await freeUSN('CS', 2025))
+  return [...usns]
+}
+
 // find scrolls through "Show more" until the row is on screen, as a person
 // would with a long list.
 async function find(page: Page, text: string) {
@@ -26,9 +34,10 @@ test.describe('Not signed in', () => {
     const typo = `kavya.${TS}@gmial.com`
     const fixed = `kavya.${TS}@gmail.com`
     const extra = `arjun.${TS}@gmail.com`
+    const [kavyaUSN, arjunUSN] = await distinctUSNs(2)
     await importStudents(request, token, [
-      { email: typo, fullName: `Kavya ${TS}`, usn: await freeUSN('CS', 2025) },
-      { email: extra, fullName: `Arjun ${TS}`, usn: await freeUSN('CS', 2025) },
+      { email: typo, fullName: `Kavya ${TS}`, usn: kavyaUSN },
+      { email: extra, fullName: `Arjun ${TS}`, usn: arjunUSN },
     ])
 
     await loginViaUI(page, admin.email)
