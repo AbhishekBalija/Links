@@ -141,7 +141,9 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		if err != nil {
 			return fmt.Errorf("get roles: %w", err)
 		}
-		hasRole := false
+		// A reported staff row has no Student identity: approving it gives
+		// back the staff role it kept, never a student role.
+		hasRole := user.StudentIdentity == nil
 		for _, assignment := range existing {
 			hasRole = hasRole || assignment.Role == role
 		}
