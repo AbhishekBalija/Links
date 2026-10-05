@@ -64,6 +64,14 @@ type StaffAddedResponse struct {
 	Emailed bool   `json:"emailed"`
 }
 
+// CodeSignIn is a successful email code sign-in: the response, the refresh
+// token and the known-device token for the cookies.
+type CodeSignIn struct {
+	Login   *LoginResponse
+	Refresh string
+	Device  string
+}
+
 type LoginResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`

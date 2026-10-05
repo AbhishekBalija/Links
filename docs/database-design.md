@@ -88,7 +88,8 @@ sign_in_codes (
   attempts int not null default 0,
   expires_at timestamptz not null,
   used_at timestamptz,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  device_id uuid references known_devices(id) on delete set null  -- migration 026
 )
 ```
 
@@ -103,6 +104,25 @@ serverless instances (no Redis). `user_id` and `code_hash` are null when no
 code was sent. The email, the IP address and the code are stored only as
 HMAC-SHA256 values keyed with the server secret; the code's HMAC includes the
 challenge ID. Rows older than a day are deleted on the next request.
+`device_id` is set when the request came from a browser known for the account.
+
+### known_devices
+
+```sql
+known_devices (                 -- migration 026
+  id uuid primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  token_hash text not null unique,   -- HMAC of the browser's device token
+  created_at timestamptz not null,
+  last_used_at timestamptz not null,
+  expires_at timestamptz not null    -- 180 days after last use
+)
+```
+
+A browser that signed in to an account with an email code. Its code
+requests for that account count against its own allowance instead of its
+network address's, so others on the same campus Wi-Fi can't use it up. An
+account keeps its ten most recently used browsers.
 
 ### student_identities
 

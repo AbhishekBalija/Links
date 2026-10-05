@@ -35,6 +35,7 @@ func (u *GormAuthUnitOfWork) WithinTransaction(ctx context.Context, fn func(Auth
 			Users:         NewGormUserRepository(tx),
 			RefreshTokens: NewGormRefreshTokenRepository(tx),
 			SignInCodes:   NewGormSignInCodeRepository(tx),
+			KnownDevices:  NewGormKnownDeviceRepository(tx),
 			AuditLogs:     NewGormAuditLogRepository(tx),
 			Work:          work,
 		})
@@ -538,6 +539,19 @@ func (r *GormSignInCodeRepository) CountByEmailAndIPSince(ctx context.Context, e
 	err := r.db.WithContext(ctx).Model(&SignInCode{}).
 		Where("email_hash = ? AND ip_hash = ? AND created_at > ?", emailHash, ipHash, since).Count(&count).Error
 	return count, err
+}
+
+func (r *GormSignInCodeRepository) CountByDeviceSince(ctx context.Context, deviceID string, since time.Time) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).Where("device_id = ? AND created_at > ?", deviceID, since).Count(&count).Error
+	return count, err
+}
+
+func (r *GormSignInCodeRepository) SumWrongTriesByDeviceSince(ctx context.Context, deviceID string, since time.Time) (int64, error) {
+	var total int64
+	err := r.db.WithContext(ctx).Model(&SignInCode{}).Select("COALESCE(SUM(attempts), 0)").
+		Where("device_id = ? AND created_at > ?", deviceID, since).Scan(&total).Error
+	return total, err
 }
 
 func (r *GormSignInCodeRepository) SumWrongTriesByEmailAndIPSince(ctx context.Context, emailHash, ipHash string, since time.Time) (int64, error) {

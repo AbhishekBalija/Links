@@ -73,6 +73,15 @@ JWT rules:
   member still gets codes on their own phone (#178). The 30-a-day ceiling
   bounds guessing from many addresses at 150 tries a day against a million
   codes.
+- **Known devices.** Signing in with a code sets `links_device`, an httpOnly
+  cookie scoped to `/api/v1/auth`, lasting 180 days from last use and kept
+  on sign-out; only its keyed hash is stored (`known_devices`). Code
+  requests from that browser for that account get the same limits counted
+  for the browser alone, without the address or ceiling limits, so nobody
+  on the same network can stop a returning person getting codes. The
+  token gives no access by itself: the code still goes to the email. A
+  first sign-in, from a browser not yet known, has only the address
+  limits.
 - The reply is the same for every email, and padded to at least a second.
 - Any email gets a code except the principal's, an admin's (Google only,
   ADR 0026) or a suspended or rejected account's. An email on no list gets

@@ -32,6 +32,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Someone on the same campus Wi-Fi could still stop a student getting
+  sign-in codes. A browser that has signed in before is now remembered for
+  that account (an httpOnly cookie; migration 026 adds `known_devices`), and
+  its code requests count only against its own allowance.
 - Someone else asking for a member's sign-in codes, or guessing wrong, no
   longer stops the member getting codes on their own phone (#178): the limits
   count per email and address, with a ceiling of 30 codes a day per email.
