@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"net/http"
 	"net/mail"
 	"strings"
@@ -155,6 +156,24 @@ func (h *Handler) NotMe(c *gin.Context) {
 	}
 	h.clearRefreshCookie(c)
 	response.Success(c, http.StatusOK, LogoutResponse{Message: "signed out; the account waits for an admin to fix it"}, nil)
+}
+
+// Welcomed records that the signed-in user closed the welcome to a new role.
+func (h *Handler) Welcomed(c *gin.Context) {
+	actor := GetActor(c)
+	if actor == nil {
+		response.Error(c, http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated", nil)
+		return
+	}
+	if _, err := uuid.Parse(c.Param("id")); err != nil {
+		response.Error(c, http.StatusNotFound, "NOT_FOUND", "role not found", nil)
+		return
+	}
+	if err := h.service.Welcomed(c.Request.Context(), actor.UserID, c.Param("id")); err != nil {
+		writeError(c, err)
+		return
+	}
+	response.Success(c, http.StatusOK, gin.H{"welcomed": true}, nil)
 }
 
 func (h *Handler) Refresh(c *gin.Context) {

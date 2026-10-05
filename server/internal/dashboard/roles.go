@@ -29,6 +29,7 @@ type Departments interface {
 type Access interface {
 	AccessSummary(ctx context.Context, actorID string) (*auth.AccessSummary, error)
 	ListsSummary(ctx context.Context, actorID string) (*auth.ListsSummary, error)
+	NewRole(ctx context.Context, userID string) (*auth.NewRole, error)
 }
 
 // DepartmentSection is an HOD's own Department on Home.

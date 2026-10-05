@@ -419,6 +419,11 @@ sections without changing these:
   without an HOD and every final approval; never the caller's own). An
   `oldest_*` field is `null` when nothing waits.
 - `my_announcements` appears only for users who can post.
+- `new_role` appears while the caller holds a current student coordinator role
+  they haven't been welcomed to: `{ "id", "role", "department": { "code",
+  "name" }, "assigned_by": "Asha Rao" | null, "started_at" }`. Home shows the
+  welcome and then calls `POST /api/v1/me/roles/{id}/welcomed`, which records
+  it (again is fine; someone else's role or an unknown id is `404`).
 - `my_work` appears for users who can post (faculty, student coordinators, HODs
   and so on) and for anyone with something sent back or waiting. It lists the
   caller's own Announcements and Events, ten of each list at most (`*_has_more`

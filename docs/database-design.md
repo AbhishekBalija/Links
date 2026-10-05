@@ -177,9 +177,14 @@ role_assignments (
   assigned_by uuid references users(id),
   starts_at timestamptz not null,
   ends_at timestamptz,
-  created_at timestamptz not null
+  created_at timestamptz not null,
+  welcomed_at timestamptz         -- when the holder closed the welcome to this role
 )
 ```
+
+`welcomed_at` (migration 025) is set the first time the holder closes Home's
+welcome to a new role, so it shows once per account on every device. Only
+student coordinator roles are welcomed for now.
 
 Ending a Role assignment sets `ends_at` and keeps the row, so the table is also
 the history of who held which role. A role is in effect when

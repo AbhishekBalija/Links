@@ -84,6 +84,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- A student made a coordinator is welcomed the first time they open LINKS
+  after: who made them one, what they can now post and propose, and that
+  approval comes first. Shown once per account, on any device (a new
+  `welcomed_at` column on role assignments, migration 025).
 - Faculty have their own Home (#142): what was sent back to them with the
   reviewer's note, what waits on a reviewer and for how long, and New for an
   announcement or an event. Student coordinators keep the student Home and

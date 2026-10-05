@@ -94,13 +94,14 @@ test.describe('Home for authors', () => {
     await expect(sheet).toBeHidden()
   })
 
-  test('a student coordinator keeps the student Home and gets New', async ({ page, request }) => {
+  test('a new student coordinator is welcomed once, then keeps the student Home with New', async ({ page, request }) => {
     const student = await seedMember(request, { role: 'student', fullName: 'Rohan Shetty', department: 'EC', batch: 2024 })
+    const hod = await seedMember(request, { role: 'hod', fullName: 'Lakshmi Iyer', department: 'EC' })
     const client = await getSchemaClient()
     try {
       await client.query(
-        `INSERT INTO role_assignments (user_id, role, scope_type, scope_id, starts_at) VALUES ($1, 'student_coordinator', 'department', $2, NOW() - interval '1 minute')`,
-        [student.userId, await departmentId('EC')],
+        `INSERT INTO role_assignments (user_id, role, scope_type, scope_id, assigned_by, starts_at) VALUES ($1, 'student_coordinator', 'department', $2, $3, NOW() - interval '1 minute')`,
+        [student.userId, await departmentId('EC'), hod.userId],
       )
     } finally {
       await client.end()
@@ -108,14 +109,22 @@ test.describe('Home for authors', () => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await loginViaUI(page, student.email)
 
+    const welcome = page.getByRole('dialog', { name: "You're a student coordinator now" })
+    await expect(welcome).toContainText('Lakshmi Iyer made you a student coordinator for Electronics and Communication Engineering today.')
+    await welcome.getByRole('button', { name: 'Got it' }).click()
+    await expect(welcome).toBeHidden()
+
     await expect(page.getByRole('button', { name: 'New' })).toBeVisible()
     // Nothing of theirs is out yet, so no post sections take up the page.
     await expect(page.getByRole('region', { name: 'Needs you' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Your announcements' })).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Latest notices' })).toBeVisible()
 
-    // On a phone, New is in the top bar before they've posted anything.
+    // Remembered on the account: not shown again, here or on a phone.
     await page.setViewportSize({ width: 390, height: 844 })
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Latest notices' })).toBeVisible()
+    await expect(welcome).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'New' })).toBeVisible()
   })
 })

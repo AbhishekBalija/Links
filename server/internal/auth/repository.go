@@ -609,3 +609,38 @@ func (r *GormUserRepository) FixEmail(ctx context.Context, userID, email string,
 			"updated_at":         at,
 		}).Error
 }
+
+// UnwelcomedRole is the user's oldest current Department role among roles
+// that hasn't been welcomed yet, with who gave it, or nil.
+func (r *GormUserRepository) UnwelcomedRole(ctx context.Context, userID string, roles []Role, now time.Time) (*NewRole, error) {
+	var rows []struct {
+		ID         string    `gorm:"column:id"`
+		Role       Role      `gorm:"column:role"`
+		StartsAt   time.Time `gorm:"column:starts_at"`
+		Code       string    `gorm:"column:code"`
+		Name       string    `gorm:"column:name"`
+		AssignedBy *string   `gorm:"column:assigned_by"`
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT ra.id, ra.role, ra.starts_at, d.code, d.name, p.full_name AS assigned_by
+		FROM role_assignments ra
+		JOIN departments d ON d.id = ra.scope_id
+		LEFT JOIN profiles p ON p.user_id = ra.assigned_by
+		WHERE ra.user_id = ? AND ra.role IN ? AND ra.welcomed_at IS NULL
+		  AND ra.starts_at <= ? AND (ra.ends_at IS NULL OR ra.ends_at > ?)
+		ORDER BY ra.starts_at, ra.id
+		LIMIT 1`, userID, roles, now, now).Scan(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	row := rows[0]
+	return &NewRole{ID: row.ID, Role: row.Role, Department: NewRoleDepartment{Code: row.Code, Name: row.Name}, AssignedBy: row.AssignedBy, StartedAt: row.StartsAt}, nil
+}
+
+// MarkWelcomed records the first time the holder closed the welcome. It
+// reports false when the role isn't the user's.
+func (r *GormUserRepository) MarkWelcomed(ctx context.Context, userID, roleID string, at time.Time) (bool, error) {
+	result := r.db.WithContext(ctx).Exec(
+		`UPDATE role_assignments SET welcomed_at = COALESCE(welcomed_at, ?) WHERE id = ? AND user_id = ?`, at, roleID, userID)
+	return result.RowsAffected > 0, result.Error
+}

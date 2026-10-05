@@ -220,6 +220,8 @@ type AuthService interface {
 	EndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*EndRoleResponse, error)
 	PreviewEndRole(ctx context.Context, actorID, userID, assignmentID, organiserID string) (*HandoverSummary, error)
 	ImportStudents(ctx context.Context, actorID string, input ImportInput) (*ImportResponse, error)
+	NewRole(ctx context.Context, userID string) (*NewRole, error)
+	Welcomed(ctx context.Context, userID, roleID string) error
 }
 
 // AuditLog represents the audit_logs table per docs/database-design.md § audit_logs.
@@ -240,6 +242,8 @@ func (AuditLog) TableName() string { return "audit_logs" }
 
 // UserRepository defines the interface for user persistence operations.
 type UserRepository interface {
+	UnwelcomedRole(ctx context.Context, userID string, roles []Role, now time.Time) (*NewRole, error)
+	MarkWelcomed(ctx context.Context, userID, roleID string, at time.Time) (bool, error)
 	Create(ctx context.Context, user *User) error
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	FindByEmailForUpdate(ctx context.Context, email string) (*User, error)
