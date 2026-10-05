@@ -177,6 +177,7 @@ type Repository interface {
 	RSVPCounts(ctx context.Context, eventID string) (map[RSVPStatus]int, error)
 	RSVPPeople(ctx context.Context, eventID string, after *Cursor, limit int) ([]RSVPPerson, error)
 	Answerers(ctx context.Context, eventID string) ([]mailer.Recipient, error)
+	Person(ctx context.Context, userID string) (*mailer.Recipient, error)
 	ExportRows(ctx context.Context, eventID string) ([]ExportRow, error)
 }
 

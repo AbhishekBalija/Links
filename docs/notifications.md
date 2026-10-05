@@ -38,6 +38,8 @@ as sign-in codes. A failed email never undoes the change it reports.
 | Cancelled: the event | Everyone going or interested | The event is cancelled |
 | Changed: the event | Everyone going or interested | Its date, time or place changes (not its description or seats) |
 | Shortlisted / Selected / Not taken further | The applicant | Placement staff move the application there |
+| Published / Sent back to change (with the reviewer's note) | The announcement's author | Its approver decides, for a new announcement or an edit |
+| Published / Sent back to change / Not approved (with the note) | The event's proposer | The HOD or the principal decides. The HOD's approval only moves it on to the principal, so it sends nothing |
 
 Every email says replies aren't read. Event notices go out a hundred per
 call. The in-app notification list below comes later.

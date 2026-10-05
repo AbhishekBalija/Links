@@ -15,11 +15,14 @@ import (
 // Notifier sends the emails; the mailer is one.
 type Notifier interface {
 	SendEventNotice(to []mailer.Recipient, letter mailer.EventNotice) error
+	SendReviewOutcome(to string, letter mailer.ReviewOutcome) error
 }
 
 type noNotifier struct{}
 
 func (noNotifier) SendEventNotice([]mailer.Recipient, mailer.EventNotice) error { return nil }
+
+func (noNotifier) SendReviewOutcome(string, mailer.ReviewOutcome) error { return nil }
 
 // WithNotifier makes the service email people about Events they answered.
 func (s *Service) WithNotifier(notifier Notifier) *Service {
@@ -82,4 +85,39 @@ func (s *Service) tellChanged(ctx context.Context, before Event, event *EventRes
 		return
 	}
 	s.tell(ctx, event.ID, notice)
+}
+
+// tellProposer emails the proposer a decision that reaches them: published,
+// sent back with a note, or rejected. An HOD's approval only moves the Event
+// on to the principal, so it sends nothing. The decision is already saved, so
+// a failed email never undoes it.
+func (s *Service) tellProposer(ctx context.Context, reviewerID string, event *EventResponse, note string) {
+	outcome := ""
+	switch Status(event.Status) {
+	case StatusPublished:
+		outcome = "published"
+	case StatusHODChangesRequested, StatusFinalChangesRequested:
+		outcome = "sent_back"
+	case StatusHODRejected, StatusFinalRejected:
+		outcome = "rejected"
+	default:
+		return
+	}
+	proposer, err := s.repository.Person(ctx, event.ProposerID)
+	if err != nil || proposer == nil {
+		return
+	}
+	reviewer, err := s.repository.Person(ctx, reviewerID)
+	if err != nil || reviewer == nil {
+		return
+	}
+	_ = s.notifier.SendReviewOutcome(proposer.Email, mailer.ReviewOutcome{
+		FullName:     proposer.FullName,
+		Kind:         "event",
+		Title:        event.Title,
+		Outcome:      outcome,
+		ReviewerName: reviewer.FullName,
+		Note:         note,
+		Path:         "/mine/events/" + event.ID,
+	})
 }

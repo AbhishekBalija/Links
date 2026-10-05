@@ -24,6 +24,7 @@ type Outbox struct {
 	decisions  map[string][]mailer.AccessDecision
 	notices    []SentNotice
 	updates    map[string][]mailer.ApplicationUpdate
+	reviews    map[string][]mailer.ReviewOutcome
 }
 
 // SentNotice is one event notice and everyone it went to.
@@ -61,6 +62,23 @@ func (o *Outbox) SendApplicationUpdate(to string, letter mailer.ApplicationUpdat
 	}
 	o.updates[to] = append(o.updates[to], letter)
 	return nil
+}
+
+func (o *Outbox) SendReviewOutcome(to string, letter mailer.ReviewOutcome) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.reviews == nil {
+		o.reviews = map[string][]mailer.ReviewOutcome{}
+	}
+	o.reviews[to] = append(o.reviews[to], letter)
+	return nil
+}
+
+// ReviewsTo returns the emails telling an author what a reviewer decided.
+func (o *Outbox) ReviewsTo(to string) []mailer.ReviewOutcome {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return append([]mailer.ReviewOutcome(nil), o.reviews[to]...)
 }
 
 // DecisionsTo returns the "your request" emails sent to the address.

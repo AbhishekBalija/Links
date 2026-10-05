@@ -57,6 +57,10 @@ func (m *SMTPMailer) SendApplicationUpdate(to string, letter ApplicationUpdate) 
 	return m.send(applicationUpdateEmail(to, letter, m.signInURL))
 }
 
+func (m *SMTPMailer) SendReviewOutcome(to string, letter ReviewOutcome) error {
+	return m.send(reviewOutcomeEmail(to, letter, m.signInURL))
+}
+
 // send delivers one email. The server upgrades to TLS when it offers it.
 func (m *SMTPMailer) send(e email) error {
 	auth := smtp.PlainAuth("", m.settings.Username, m.settings.Password, m.settings.Host)
