@@ -115,6 +115,11 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	m := wiring.mailer
 	switch {
 	case m != nil:
+	case cfg.Mailer.Provider == "smtp":
+		m = mailer.NewSMTPMailer(mailer.SMTPSettings{
+			Host: cfg.Mailer.SMTPHost, Port: cfg.Mailer.SMTPPort,
+			Username: cfg.Mailer.SMTPUsername, Password: cfg.Mailer.SMTPPassword,
+		}, cfg.Mailer.FromEmail, cfg.Mailer.FrontendURL)
 	case cfg.Mailer.ResendAPIKey == "":
 		logger.Warn("RESEND_API_KEY not set, using NoopMailer — no emails will be sent")
 		m = mailer.NoopMailer{}

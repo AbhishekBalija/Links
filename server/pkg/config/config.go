@@ -70,11 +70,18 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
-// MailerConfig holds Resend API credentials for transactional emails.
+// MailerConfig says how LINKS sends email. Provider is "resend" (the
+// default, for production) or "smtp", for a testing inbox such as Mailtrap
+// or a Gmail account before the college has a verified domain.
 type MailerConfig struct {
+	Provider     string
 	ResendAPIKey string
 	FromEmail    string
 	FrontendURL  string
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
 }
 
 // GoogleConfig holds the OAuth client for Google sign-in. Google sign-in is
@@ -121,7 +128,12 @@ func Load() (Config, error) {
 			ClientID: strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID")),
 		},
 		Mailer: MailerConfig{
+			Provider:     valueOrDefault("MAIL_PROVIDER", "resend"),
 			ResendAPIKey: os.Getenv("RESEND_API_KEY"),
+			SMTPHost:     os.Getenv("SMTP_HOST"),
+			SMTPPort:     valueOrDefault("SMTP_PORT", "587"),
+			SMTPUsername: os.Getenv("SMTP_USERNAME"),
+			SMTPPassword: os.Getenv("SMTP_PASSWORD"),
 			FromEmail:    valueOrDefault("FROM_EMAIL", "onboarding@resend.dev"),
 			FrontendURL:  frontendURL(),
 		},
@@ -209,6 +221,15 @@ func (c Config) Validate() error {
 	// The test sign-in skips every check of who someone is.
 	if c.EnableTestSignIn && c.AppEnv != "local" {
 		return fmt.Errorf("ENABLE_TEST_SIGN_IN is only allowed with APP_ENV=local")
+	}
+	switch c.Mailer.Provider {
+	case "", "resend":
+	case "smtp":
+		if c.Mailer.SMTPHost == "" || c.Mailer.SMTPPort == "" {
+			return fmt.Errorf("MAIL_PROVIDER=smtp needs SMTP_HOST and SMTP_PORT")
+		}
+	default:
+		return fmt.Errorf("MAIL_PROVIDER must be resend or smtp")
 	}
 	// The principal and admins sign in with Google only in production.
 	if c.EmailCodeForEveryRole && c.AppEnv == "production" {

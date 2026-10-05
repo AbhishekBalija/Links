@@ -99,6 +99,22 @@ only to the Resend account owner's own address, so real people get nothing.
 Verifying needs DNS records on a domain you own (a `vercel.app` address can't
 be verified). Set `FROM_EMAIL` to an address on that domain.
 
+### Testing without a domain
+
+A test copy can send every email to a testing inbox instead, which keeps
+them all whatever address they were sent to, so nobody real gets anything:
+
+1. Create a free Mailtrap account and open its Email Testing inbox; copy the
+   SMTP host, port, username and password it shows.
+2. On the test copy set `MAIL_PROVIDER=smtp`, `SMTP_HOST`, `SMTP_PORT`,
+   `SMTP_USERNAME`, `SMTP_PASSWORD`, and `EMAIL_CODE_FOR_EVERY_ROLE=true` so
+   the principal and admins can use codes too.
+3. Sign in by typing any email, then read its code in the Mailtrap inbox.
+
+For a small real pilot before buying a domain, the same settings can point
+at a Gmail account with an app password (`smtp.gmail.com`, port `587`). It
+delivers to anyone, up to about 500 emails a day.
+
 ## Another College
 
 Each college gets its own copy of LINKS (ADR 0030): a new Vercel project, a new

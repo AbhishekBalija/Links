@@ -142,3 +142,36 @@ func TestEmailCodeForEveryRoleIsRefusedInProduction(t *testing.T) {
 		t.Error("email code for every role accepted with APP_ENV=production")
 	}
 }
+
+// MAIL_PROVIDER=smtp sends through an SMTP server (a testing inbox such as
+// Mailtrap, or Gmail for a pilot), which needs its host and port.
+func TestSMTPMailNeedsAServer(t *testing.T) {
+	t.Parallel()
+	base := Config{
+		AppEnv:      "local",
+		DatabaseURL: "postgres://example",
+		GINMode:     "debug",
+		Auth: AuthConfig{
+			JWTAccessSecret:  "local-access-secret",
+			JWTRefreshSecret: "local-refresh-secret",
+			AccessTokenTTL:   15 * time.Minute,
+			RefreshTokenTTL:  7 * 24 * time.Hour,
+		},
+		RequestBodyLimit: 1024,
+		DatabasePool:     DatabasePoolConfig{MaxOpenConns: 10, MaxIdleConns: 5, ConnMaxLifetime: time.Minute, ConnMaxIdleTime: time.Minute},
+		Mailer:           MailerConfig{Provider: "smtp", SMTPHost: "sandbox.smtp.mailtrap.io", SMTPPort: "2525"},
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("SMTP with a server: %v", err)
+	}
+	missing := base
+	missing.Mailer.SMTPHost = ""
+	if err := missing.Validate(); err == nil {
+		t.Error("SMTP without a host was accepted")
+	}
+	unknown := base
+	unknown.Mailer.Provider = "carrier-pigeon"
+	if err := unknown.Validate(); err == nil {
+		t.Error("an unknown MAIL_PROVIDER was accepted")
+	}
+}

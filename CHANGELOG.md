@@ -84,6 +84,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Email can go through any SMTP server (`MAIL_PROVIDER=smtp`): a testing
+  inbox such as Mailtrap for a test copy, or Gmail for a small pilot before
+  the college has a verified domain. Production stays on Resend.
 - Notification emails, first slice (#206): someone whose Access request is
   decided is told (with the reviewer's note when it isn't approved);
   everyone going to or interested in an event is told when it is cancelled
