@@ -930,7 +930,8 @@ its own `title`, `body`, `category`, `audience` and `expires_at`, so the
 author can fix it instead of starting again from the live text.
 
 `GET /api/v1/announcements?limit=20&cursor=...` returns the reader's feed:
-published, unexpired Announcements whose Audience includes them, newest first.
+published, unexpired Announcements whose Audience includes them, and their own
+published ones whoever they were sent to, newest first.
 Each of the reader's roles counts only for its own Department: a
 Department-scoped role for its scope, any other role for the Department of the
 reader's Student identity. A rule matches when one role satisfies its role and

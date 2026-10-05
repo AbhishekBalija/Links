@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, Plus } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { canPost } from '../../../app/shell/nav'
+import { useAuthStore } from '../../auth/store'
 import { EmptyState, ErrorState, LoadingStatus } from '../../../shared/ui/states'
 import { useEventFeed } from '../api'
 import { EventList, EventListSkeleton } from '../components/EventList'
@@ -21,6 +23,7 @@ function isShow(value: string | null): value is Show {
 // Events lists what's coming up for the reader, soonest first. The view and
 // type live in the address bar, so back and reload keep them.
 export default function Events() {
+  const proposer = canPost(useAuthStore((s) => s.user?.roles) ?? [])
   const [params, setParams] = useSearchParams()
   const rawShow = params.get('show')
   const show: Show = isShow(rawShow) ? rawShow : 'upcoming'
@@ -49,9 +52,22 @@ export default function Events() {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-5">
-      <header className="flex flex-col gap-1.5 px-1 lg:px-0">
-        <h1 className="font-serif text-[28px] font-medium tracking-[-0.4px] lg:text-[40px] lg:leading-tight lg:tracking-[-0.6px]">Events</h1>
-        <p className="hidden text-[15px] text-ink-2 lg:block">What's coming up for you, soonest first.</p>
+      <header className="flex items-center justify-between gap-4 px-1 lg:items-end lg:px-0">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="font-serif text-[28px] font-medium tracking-[-0.4px] lg:text-[40px] lg:leading-tight lg:tracking-[-0.6px]">Events</h1>
+          <p className="hidden text-[15px] text-ink-2 lg:block">What's coming up for you, soonest first.</p>
+        </div>
+        {/* Proposing starts where people look at events, as posting does on Notices. */}
+        {proposer && (
+          <Link
+            to="/mine/events/new"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-ink px-4 text-sm font-semibold text-paper hover:bg-ink-2 hover:text-paper lg:px-5"
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            <span className="lg:hidden">Propose</span>
+            <span className="hidden lg:inline">Propose an event</span>
+          </Link>
+        )}
       </header>
 
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-3">
