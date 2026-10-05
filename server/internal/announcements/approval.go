@@ -225,6 +225,7 @@ func (s *Service) Review(ctx context.Context, actorID, id string, input ReviewIn
 	}
 
 	var reviewed Announcement
+	var authorID, title string
 	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
 		announcement, findErr := repositories.Announcements.FindForUpdate(ctx, id)
 		if findErr != nil {
@@ -245,6 +246,7 @@ func (s *Service) Review(ctx context.Context, actorID, id string, input ReviewIn
 		}
 
 		now := s.now().UTC()
+		authorID, title = revision.SubmittedBy, revision.content().Title
 		revision.ReviewedBy, revision.ReviewedAt, revision.UpdatedAt = &actorID, &now, now
 		if input.Decision == "reject" {
 			revision.Status, revision.ReviewNote = RevisionRejected, &note
@@ -280,6 +282,7 @@ func (s *Service) Review(ctx context.Context, actorID, id string, input ReviewIn
 	if err != nil {
 		return nil, fmt.Errorf("review announcement: %w", err)
 	}
+	s.tellAuthor(ctx, authorID, actorID, reviewed.ID, title, input.Decision == "approve", note)
 	return s.single(ctx, actorID, reviewed)
 }
 

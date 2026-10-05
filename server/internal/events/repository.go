@@ -500,3 +500,21 @@ func (r *GormRepository) Answerers(ctx context.Context, eventID string) ([]maile
 	}
 	return recipients, err
 }
+
+// Person is someone LINKS can email: an active account with an email.
+// It returns nil for anyone else.
+func (r *GormRepository) Person(ctx context.Context, userID string) (*mailer.Recipient, error) {
+	var rows []struct {
+		Email    string `gorm:"column:email"`
+		FullName string `gorm:"column:full_name"`
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT u.email, p.full_name
+		FROM users u
+		JOIN profiles p ON p.user_id = u.id
+		WHERE u.id = ? AND u.status = 'active' AND u.email IS NOT NULL`, userID).Scan(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	return &mailer.Recipient{Email: rows[0].Email, FullName: rows[0].FullName}, nil
+}

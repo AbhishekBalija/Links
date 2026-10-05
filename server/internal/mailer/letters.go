@@ -48,3 +48,14 @@ func applicationUpdateEmail(to string, letter ApplicationUpdate, signInURL strin
 	}
 	return email{To: to, Subject: subject, HTML: applicationUpdateHTML(letter, signInURL)}
 }
+
+func reviewOutcomeEmail(to string, letter ReviewOutcome, signInURL string) email {
+	subject := "Not approved: " + letter.Title
+	switch letter.Outcome {
+	case "published":
+		subject = "Published: " + letter.Title
+	case "sent_back":
+		subject = "Sent back to change: " + letter.Title
+	}
+	return email{To: to, Subject: subject, HTML: reviewOutcomeHTML(letter, signInURL)}
+}

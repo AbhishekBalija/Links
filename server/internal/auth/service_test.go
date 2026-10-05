@@ -313,6 +313,7 @@ func (fakeMailer) SendAccessDecision(string, mailer.AccessDecision) error { retu
 func (fakeMailer) SendEventNotice([]mailer.Recipient, mailer.EventNotice) error { return nil }
 
 func (fakeMailer) SendApplicationUpdate(string, mailer.ApplicationUpdate) error { return nil }
+func (fakeMailer) SendReviewOutcome(string, mailer.ReviewOutcome) error         { return nil }
 
 type authHarness struct {
 	service       AuthService

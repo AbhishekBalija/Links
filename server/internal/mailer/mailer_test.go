@@ -116,3 +116,18 @@ func TestEveryLetterSaysRepliesArentReadAndGreetsWithoutTitles(t *testing.T) {
 		t.Errorf("letter = %s", html)
 	}
 }
+
+func TestASentBackEmailQuotesTheNoteAndLinksToTheFix(t *testing.T) {
+	e := reviewOutcomeEmail("kiran@example.com", ReviewOutcome{
+		FullName: "Prof. Kiran Hegde", Kind: "announcement", Title: "Lab 2 timings", Outcome: "sent_back",
+		ReviewerName: "Asha Rao", Note: "Add the <room> number", Path: "/mine/abc",
+	}, "https://links.example.com/")
+	if e.Subject != "Sent back to change: Lab 2 timings" {
+		t.Errorf("subject = %q", e.Subject)
+	}
+	for _, want := range []string{"Hello Kiran,", "Asha Rao sent your announcement", "Add the &lt;room&gt; number", "https://links.example.com/mine/abc"} {
+		if !strings.Contains(e.HTML, want) {
+			t.Errorf("email is missing %q: %s", want, e.HTML)
+		}
+	}
+}

@@ -84,6 +84,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Authors are emailed when a reviewer decides: their announcement or event is
+  published, or sent back with the reviewer's note, or not approved. An HOD
+  approving an event on its way to the principal sends nothing.
 - Email can go through any SMTP server (`MAIL_PROVIDER=smtp`): a testing
   inbox such as Mailtrap for a test copy, or Gmail for a small pilot before
   the college has a verified domain. Production stays on Resend.

@@ -196,7 +196,7 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 
 	announcementRepo := announcements.NewGormRepository(database.GORM())
 	announcementUnitOfWork := announcements.NewGormUnitOfWork(database.GORM())
-	announcementService := announcements.NewService(announcementRepo, userRepo, announcementUnitOfWork)
+	announcementService := announcements.NewService(announcementRepo, userRepo, announcementUnitOfWork).WithNotifier(m)
 	announcements.NewHandler(announcementService, policy).RegisterRoutes(v1)
 
 	eventService := events.NewService(events.NewGormRepository(database.GORM()), userRepo, events.NewGormUnitOfWork(database.GORM())).WithNotifier(m)

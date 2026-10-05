@@ -32,6 +32,9 @@ type Mailer interface {
 	SendEventNotice(to []Recipient, letter EventNotice) error
 	// SendApplicationUpdate tells an applicant their application moved on.
 	SendApplicationUpdate(to string, letter ApplicationUpdate) error
+	// SendReviewOutcome tells an author what a reviewer decided about their
+	// announcement or event.
+	SendReviewOutcome(to string, letter ReviewOutcome) error
 }
 
 // Recipient is one person an email goes to.
@@ -72,6 +75,21 @@ type ApplicationUpdate struct {
 	Title    string
 	Company  string
 	JobPath  string
+}
+
+// ReviewOutcome is what an author is told when a reviewer decides on their
+// announcement or event: it is published, sent back to fix, or rejected.
+type ReviewOutcome struct {
+	FullName string
+	// Kind is "announcement" or "event".
+	Kind  string
+	Title string
+	// Outcome is "published", "sent_back" or "rejected".
+	Outcome      string
+	ReviewerName string
+	// Note is the reviewer's, for anything sent back or rejected.
+	Note string
+	Path string
 }
 
 // StaffAdded is what the "you were added" email says.
@@ -139,6 +157,10 @@ func (m *ResendMailer) SendApplicationUpdate(to string, letter ApplicationUpdate
 	return m.send(applicationUpdateEmail(to, letter, m.signInURL))
 }
 
+func (m *ResendMailer) SendReviewOutcome(to string, letter ReviewOutcome) error {
+	return m.send(reviewOutcomeEmail(to, letter, m.signInURL))
+}
+
 func (m *ResendMailer) request(e email) sendRequest {
 	return sendRequest{From: m.fromEmail, To: e.To, Subject: e.Subject, HTML: e.HTML}
 }
@@ -189,6 +211,8 @@ func (NoopMailer) SendAccessDecision(string, AccessDecision) error { return nil 
 func (NoopMailer) SendEventNotice([]Recipient, EventNotice) error { return nil }
 
 func (NoopMailer) SendApplicationUpdate(string, ApplicationUpdate) error { return nil }
+
+func (NoopMailer) SendReviewOutcome(string, ReviewOutcome) error { return nil }
 
 func signInCodeHTML(code string) string {
 	return fmt.Sprintf(`<!DOCTYPE html>
@@ -312,4 +336,22 @@ func applicationUpdateHTML(letter ApplicationUpdate, signInURL string) string {
 		return letterHTML(firstName(letter.FullName), `<p>You were selected for `+job+`. Congratulations.</p><p>The placement office will share what happens next.</p>`, "See the job", link)
 	}
 	return letterHTML(firstName(letter.FullName), `<p>`+html.EscapeString(letter.Company)+` won't take your application for `+job+` further this time.</p><p>Your other applications aren't affected. Open drives you can apply to are in Jobs.</p>`, "See open jobs", strings.TrimRight(signInURL, "/")+"/jobs")
+}
+
+func reviewOutcomeHTML(letter ReviewOutcome, signInURL string) string {
+	title := `<strong>` + html.EscapeString(letter.Title) + `</strong>`
+	reviewer := html.EscapeString(letter.ReviewerName)
+	link := strings.TrimRight(signInURL, "/") + letter.Path
+	note := ""
+	if letter.Note != "" {
+		note = fmt.Sprintf(`<p style="padding:12px 14px;background:#F4F0E8;border-radius:8px"><span style="font-size:13px;color:#666">%s wrote</span><br>%s</p>`,
+			reviewer, html.EscapeString(letter.Note))
+	}
+	switch letter.Outcome {
+	case "published":
+		return letterHTML(firstName(letter.FullName), `<p>`+reviewer+` approved your `+letter.Kind+` `+title+`. It is published, and the people it is for can see it now.</p>`, "See it", link)
+	case "sent_back":
+		return letterHTML(firstName(letter.FullName), `<p>`+reviewer+` sent your `+letter.Kind+` `+title+` back to change something.</p>`+note+`<p>Fix it and send it again from My posts.</p>`, "Open and fix", link)
+	}
+	return letterHTML(firstName(letter.FullName), `<p>`+reviewer+` didn't approve your `+letter.Kind+` `+title+`.</p>`+note, "Open it", link)
 }

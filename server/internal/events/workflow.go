@@ -126,7 +126,12 @@ func (s *Service) Review(ctx context.Context, actorID, id string, stage Stage, i
 	if err != nil {
 		return nil, err
 	}
-	return s.response(ctx, id)
+	reviewed, err := s.response(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.tellProposer(ctx, actorID, reviewed, note)
+	return reviewed, nil
 }
 
 // mayReview checks the reviewer's authority for the stage: the HOD stage
