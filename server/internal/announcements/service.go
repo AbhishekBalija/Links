@@ -54,6 +54,9 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateAnnoun
 	if !CanPost(grants, content.Category) {
 		return nil, apperrors.NewForbidden("you can't post this kind of announcement")
 	}
+	if err := reachRefused(grants, content); err != nil {
+		return nil, err
+	}
 	decision := DecidePublishing(grants, content.Category, content.Audience)
 
 	now := s.now().UTC()

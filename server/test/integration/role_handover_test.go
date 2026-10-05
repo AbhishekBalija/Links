@@ -46,7 +46,7 @@ func TestEndingACoordinatorWithdrawsTheirWaitingAnnouncements(t *testing.T) {
 	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
 	coordinator := csCoordinator(t, h)
 	cs := h.DepartmentID(t, "CS")
-	csAudience := []map[string]any{{"department_id": cs}}
+	csAudience := []map[string]any{{"department_id": cs, "role": "student"}}
 
 	waitingID, status := createdStatus(t, publish(t, h, coordinator.Token, map[string]any{"title": "Waiting notice", "audience": csAudience}))
 	if status != "pending" {

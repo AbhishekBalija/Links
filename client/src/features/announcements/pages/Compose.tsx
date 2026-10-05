@@ -9,7 +9,7 @@ import { useAuthStore } from '../../auth/store'
 import { useDashboard } from '../../home/api'
 import { categories, type Category } from '../../notices/types'
 import { useAuthored, useCreate, useDepartments, usePreview, useSubmit, useUpdate } from '../api'
-import { describe, presetsFor, toRules } from '../audience'
+import { coordinatorOnly, coordinatorPresets, describe, presetsFor, toRules } from '../audience'
 import { buttonStyles } from '../buttons'
 import { ActionBar } from '../components/ActionBar'
 import { AudiencePicker } from '../components/AudiencePicker'
@@ -25,7 +25,8 @@ import { LeaveDialog } from '../components/LeaveDialog'
 import type { Authored, Department, Draft, RuleInput } from '../types'
 
 // Everyone who can post may use any category, except the placement officer,
-// who posts placement notices only (ADR 0017, CanPost on the server).
+// who posts placement notices only (ADR 0017, CanPost on the server), and a
+// student coordinator, who posts department notices (#209).
 const allCategoryRoles = ['principal', 'admin', 'hod', 'faculty', 'student_coordinator']
 
 type Errors = Partial<Record<'title' | 'body' | 'audience' | 'expires_at' | 'category', string>>
@@ -88,7 +89,14 @@ function ComposeForm({ item, department, departments }: {
   const navigate = useNavigate()
   const roles = useAuthStore((s) => s.user?.roles) ?? []
   const isDesktop = useIsDesktop()
-  const allowed = roles.some((r) => allCategoryRoles.includes(r)) ? categories : categories.filter((c) => c.value === 'placement')
+  // A coordinator reaches only their department's students (ReachProblem on
+  // the server), so they get just those choices.
+  const coordinatorPicks = coordinatorOnly(roles) && department ? coordinatorPresets(department) : undefined
+  const allowed = coordinatorPicks
+    ? categories.filter((c) => c.value === 'department')
+    : roles.some((r) => allCategoryRoles.includes(r))
+      ? categories
+      : categories.filter((c) => c.value === 'placement')
   const mode: Mode = !item ? 'new' : item.status === 'published' ? 'published' : 'draft'
   const canSaveDraft = mode !== 'published'
 
@@ -275,6 +283,7 @@ function ComposeForm({ item, department, departments }: {
                 onChange={(a) => set('audience', a)}
                 department={department}
                 departments={departments}
+                onlyPresets={coordinatorPicks}
                 category={draft.category}
                 error={errors.audience}
               />
@@ -325,6 +334,7 @@ function ComposeForm({ item, department, departments }: {
             onChange={(a) => set('audience', a)}
             department={department}
             departments={departments}
+            onlyPresets={coordinatorPicks}
             category={draft.category}
           />
         </AudienceSheet>

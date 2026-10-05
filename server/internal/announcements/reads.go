@@ -127,6 +127,9 @@ func (s *Service) Preview(ctx context.Context, actorID string, input PreviewInpu
 	if !CanPost(grants, category) {
 		return nil, apperrors.NewForbidden("you can't post this kind of announcement")
 	}
+	if field, problem := ReachProblem(grants, category, audience); field != "" {
+		return nil, apperrors.NewValidation("invalid preview", map[string]string{field: problem})
+	}
 	if err := checkDepartments(ctx, s.repository, audience); err != nil {
 		return nil, err
 	}

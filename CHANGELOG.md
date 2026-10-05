@@ -36,6 +36,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   sign-in codes. A browser that has signed in before is now remembered for
   that account (an httpOnly cookie; migration 026 adds `known_devices`), and
   its code requests count only against its own allowance.
+- Student coordinators could post any category to any audience, the whole
+  college included (#209). They now post department notices to their own
+  department's students, or one batch of them; the composer offers only
+  that.
 - Someone else asking for a member's sign-in codes, or guessing wrong, no
   longer stops the member getting codes on their own phone (#178): the limits
   count per email and address, with a ceiling of 30 codes a day per email.

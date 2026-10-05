@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { batchApplies, describe as describeAudience, isEmptyRule, matchPreset, presetsFor, toRules } from './audience'
+import { batchApplies, coordinatorOnly, coordinatorPresets, describe as describeAudience, isEmptyRule, matchPreset, presetsFor, toRules } from './audience'
 
 const cs = { id: 'cs-id', code: 'CS' }
 
@@ -53,5 +53,20 @@ describe('describe', () => {
   it('names departments by code', () => {
     const codes = new Map([['cs-id', 'CS']])
     expect(describeAudience([{ department_id: 'cs-id', role: 'student', batch_year: 2023 }], codes)).toBe('CS students, batch 2023')
+  })
+})
+
+describe('coordinators', () => {
+  it('are limited only when no wider posting role comes with it', () => {
+    expect(coordinatorOnly(['student', 'student_coordinator'])).toBe(true)
+    expect(coordinatorOnly(['student_coordinator', 'faculty'])).toBe(false)
+    expect(coordinatorOnly(['faculty'])).toBe(false)
+  })
+
+  it('pick their department students, or one recent batch of them', () => {
+    const presets = coordinatorPresets({ id: 'cs', code: 'CS' }, new Date('2026-10-05'))
+    expect(presets[0]).toEqual({ key: 'dept-students', label: 'CS students', audience: [{ department_id: 'cs', role: 'student' }] })
+    expect(presets.slice(1).map((p) => p.label)).toEqual(['CS batch 2026', 'CS batch 2025', 'CS batch 2024', 'CS batch 2023'])
+    expect(presets[3].audience).toEqual([{ department_id: 'cs', role: 'student', batch_year: 2024 }])
   })
 })
