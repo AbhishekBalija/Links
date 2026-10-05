@@ -321,7 +321,10 @@ type SignInCodeRepository interface {
 	DeleteCreatedBefore(ctx context.Context, before time.Time) error
 	CountByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error)
 	CountByIPSince(ctx context.Context, ipHash string, since time.Time) (int64, error)
-	SumWrongTriesByEmailSince(ctx context.Context, emailHash string, since time.Time) (int64, error)
+	// CountByEmailAndIPSince and SumWrongTriesByEmailAndIPSince count only
+	// the requests one address made for the email.
+	CountByEmailAndIPSince(ctx context.Context, emailHash, ipHash string, since time.Time) (int64, error)
+	SumWrongTriesByEmailAndIPSince(ctx context.Context, emailHash, ipHash string, since time.Time) (int64, error)
 	// CountSentToNoListSince counts codes sent to emails on no list.
 	CountSentToNoListSince(ctx context.Context, since time.Time) (int64, error)
 	Create(ctx context.Context, code *SignInCode) error
