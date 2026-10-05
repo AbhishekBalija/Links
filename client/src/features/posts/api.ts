@@ -3,8 +3,9 @@ import { apiRequest } from '../../shared/api/client'
 
 // useHasPosted is true once the author has any announcement or event, in any
 // status, so a first visit to My posts can say what the page is for.
-export function useHasPosted() {
+export function useHasPosted(enabled = true) {
   return useQuery({
+    enabled,
     // Under 'mine', so any change to an announcement refreshes it; event
     // changes refresh it by name.
     queryKey: ['mine', 'any'],

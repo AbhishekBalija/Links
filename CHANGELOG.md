@@ -84,6 +84,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Faculty have their own Home (#142): what was sent back to them with the
+  reviewer's note, what waits on a reviewer and for how long, and New for an
+  announcement or an event. Student coordinators keep the student Home and
+  get New, plus their sent back and waiting posts when they have any.
 - Not signed in screen (#127, #174): admins (Admin, Not signed in) and HODs
   (from Home, "See who") see who hasn't signed in yet, filter it, copy the
   emails for a reminder, and fix a row's email or remove the row from its

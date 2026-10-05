@@ -3,6 +3,7 @@ import { apiRequest } from '../../shared/api/client'
 import type { Notice } from '../notices/types'
 import type { Opportunity } from '../jobs/types'
 import type { PlacementSummary } from './placement'
+import type { MyWork } from './author'
 
 export type Dashboard = {
   user: {
@@ -21,6 +22,8 @@ export type Dashboard = {
   }
   // Only for users who can post.
   my_announcements?: { draft: number; pending: number; rejected: number; edits_waiting: number }
+  // An author's own posts and events: sent back to them, or waiting.
+  my_work?: MyWork
   // The next open Opportunities the user is eligible for, when there are any.
   opportunities?: { items: Opportunity[]; has_more: boolean }
   // Only for placement staff.
