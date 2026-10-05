@@ -31,18 +31,28 @@ type CodeSettings struct {
 	TTL time.Duration
 	// MaxAttempts wrong tries kill a code.
 	MaxAttempts int
-	// PerEmailLimit and PerIPLimit cap code requests within Window.
+	// PerEmailLimit caps code requests for one email from one address within
+	// Window, and PerIPLimit all requests from one address. Counting an
+	// email's requests per address means someone else asking for a member's
+	// codes uses up only their own allowance, not the member's (#178).
 	PerEmailLimit int
 	PerIPLimit    int
 	Window        time.Duration
-	// PerEmailDailyLimit caps code requests per email within a day.
+	// PerEmailDailyLimit caps code requests for one email from one address
+	// within a day.
 	PerEmailDailyLimit int
+	// EmailDailyCeiling caps the codes one email gets in a day from all
+	// addresses together, so many addresses can't flood an inbox or guess
+	// much: at most this many codes with MaxAttempts tries each.
+	EmailDailyCeiling int
 	// EveryRoleUsesCodes lets the principal and admins sign in with a code
 	// too. Only test copies turn it on (EMAIL_CODE_FOR_EVERY_ROLE).
 	EveryRoleUsesCodes bool
-	// WrongTriesPerDay wrong guesses at an email's codes within a day stop
-	// new codes going to it until the day is over, so nobody can keep
-	// guessing by asking for code after code.
+	// WrongTriesPerDay wrong guesses at an email's codes asked for from one
+	// address within a day stop new codes for that email from that address
+	// until the day is over, so nobody can keep guessing by asking for code
+	// after code. Other addresses, the member's own phone included, still
+	// get codes.
 	WrongTriesPerDay int
 	// NotOnListDailyLimit caps codes sent to emails on no list across the
 	// whole site within a day, so nobody can use LINKS to flood inboxes or
@@ -64,6 +74,7 @@ func DefaultCodeSettings() CodeSettings {
 		PerIPLimit:          60,
 		Window:              15 * time.Minute,
 		PerEmailDailyLimit:  10,
+		EmailDailyCeiling:   30,
 		WrongTriesPerDay:    10,
 		NotOnListDailyLimit: 50,
 		MinReplyTime:        time.Second,
@@ -110,7 +121,7 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 			return fmt.Errorf("delete old codes: %w", err)
 		}
 		since := start.Add(-s.codeSettings.Window)
-		byEmail, err := repos.SignInCodes.CountByEmailSince(ctx, emailHash, since)
+		byEmail, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, since)
 		if err != nil {
 			return fmt.Errorf("count codes for email: %w", err)
 		}
@@ -122,17 +133,21 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 			return apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
 		}
 		dayAgo := start.Add(-codeRecordsKept)
-		byEmailToday, err := repos.SignInCodes.CountByEmailSince(ctx, emailHash, dayAgo)
+		byEmailToday, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
 		if err != nil {
 			return fmt.Errorf("count codes for email today: %w", err)
 		}
-		if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) {
+		everywhereToday, err := repos.SignInCodes.CountByEmailSince(ctx, emailHash, dayAgo)
+		if err != nil {
+			return fmt.Errorf("count codes for email from anywhere today: %w", err)
+		}
+		if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) || everywhereToday >= int64(s.codeSettings.EmailDailyCeiling) {
 			return apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
 		}
-		// Too many wrong guesses today: the usual reply with no code, so
-		// the reply still can't tell anyone whether the email has an
-		// account.
-		wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailSince(ctx, emailHash, dayAgo)
+		// Too many wrong guesses from this address today: the usual reply
+		// with no code, so the reply still can't tell anyone whether the
+		// email has an account.
+		wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
 		if err != nil {
 			return fmt.Errorf("count wrong tries for email: %w", err)
 		}

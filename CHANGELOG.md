@@ -36,6 +36,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   college included (#209). They now post department notices to their own
   department's students, or one batch of them; the composer offers only
   that.
+- Someone else asking for a member's sign-in codes, or guessing wrong, no
+  longer stops the member getting codes on their own phone (#178): the limits
+  count per email and address, with a ceiling of 30 codes a day per email.
 - Your own published announcement didn't show in your Notices when it was
   sent only to others (an HOD posting to their students); it now does, marked
   "You". Events gets a "Propose an event" button, as Notices has "New
