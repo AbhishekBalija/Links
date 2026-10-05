@@ -17,6 +17,9 @@ type Props = {
   // Events proposed for a Department can't go to the whole college.
   hideCollege?: boolean
   label?: string
+  // onlyPresets replaces the quick picks and hides "Choose groups", for
+  // authors who may reach only these (student coordinators).
+  onlyPresets?: Preset[]
 }
 
 const CUSTOM = 'custom'
@@ -24,8 +27,8 @@ const CUSTOM = 'custom'
 // AudiencePicker answers "who sees it". Quick picks cover the usual cases in
 // one tap; "Choose groups" opens the full builder. The custom groups are kept
 // while a quick pick is chosen, so switching back doesn't lose them.
-export function AudiencePicker({ value, onChange, department, departments, category, error, hideCollege, label = 'Who sees it' }: Props) {
-  const presets = presetsFor(department).filter((p) => !(hideCollege && p.key === 'college'))
+export function AudiencePicker({ value, onChange, department, departments, category, error, hideCollege, label = 'Who sees it', onlyPresets }: Props) {
+  const presets = onlyPresets ?? presetsFor(department).filter((p) => !(hideCollege && p.key === 'college'))
   const matched = matchPreset(value, presets)
   const [custom, setCustom] = useState<RuleInput[]>(() => (matched ? [{}] : value))
   const [mode, setMode] = useState(matched ?? CUSTOM)
@@ -52,10 +55,12 @@ export function AudiencePicker({ value, onChange, department, departments, categ
         {presets.map((preset) => (
           <PresetOption key={preset.key} preset={preset} name={name} category={category} checked={mode === preset.key} onChoose={choose} />
         ))}
-        <label className={cn('flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm', mode === CUSTOM && 'bg-well font-semibold')}>
-          <input type="radio" name={name} checked={mode === CUSTOM} onChange={() => choose(CUSTOM)} className="size-4 accent-ink" />
-          Choose groups…
-        </label>
+        {!onlyPresets && (
+          <label className={cn('flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm', mode === CUSTOM && 'bg-well font-semibold')}>
+            <input type="radio" name={name} checked={mode === CUSTOM} onChange={() => choose(CUSTOM)} className="size-4 accent-ink" />
+            Choose groups…
+          </label>
+        )}
       </div>
 
       {mode === CUSTOM && (

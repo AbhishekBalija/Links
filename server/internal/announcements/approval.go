@@ -90,6 +90,9 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateAn
 	if !CanPost(grants, content.Category) {
 		return nil, apperrors.NewForbidden("you can't post this kind of announcement")
 	}
+	if err := reachRefused(grants, content); err != nil {
+		return nil, err
+	}
 
 	var updated Announcement
 	err = s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
@@ -167,6 +170,9 @@ func (s *Service) Submit(ctx context.Context, actorID, id string) (*Announcement
 		}
 		if !CanPost(grants, content.Category) {
 			return apperrors.NewForbidden("you can't post this kind of announcement")
+		}
+		if reachErr := reachRefused(grants, content); reachErr != nil {
+			return reachErr
 		}
 		if checkErr := checkDepartments(ctx, repositories.Announcements, content.Audience); checkErr != nil {
 			return checkErr

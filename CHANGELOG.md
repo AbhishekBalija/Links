@@ -32,6 +32,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Student coordinators could post any category to any audience, the whole
+  college included (#209). They now post department notices to their own
+  department's students, or one batch of them; the composer offers only
+  that.
 - Your own published announcement didn't show in your Notices when it was
   sent only to others (an HOD posting to their students); it now does, marked
   "You". Events gets a "Propose an event" button, as Notices has "New

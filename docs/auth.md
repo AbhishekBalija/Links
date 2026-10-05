@@ -211,6 +211,11 @@ Examples:
 | Add staff (staff invite) | No | No | No | Faculty, own Department | No | No | Yes |
 | Manage users and roles | No | No | No | Limited | No | Limited | Yes |
 
+A coordinator's "Limited" (#209): Department notices only, to their own
+Department's students (any batch, coordinators included). Anyone who also
+holds a wider posting role posts as that role. The server refuses anything
+else (`ReachProblem`), and the composer only offers these choices.
+
 Importing students from a CSV (`import_students`) is open to admins and HODs;
 an HOD can import only students whose USN is in their own Department. Staff
 invites (`invite_staff`) are open to admins, for any role, and HODs, for

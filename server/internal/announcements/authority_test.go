@@ -80,3 +80,43 @@ func TestCanPost(t *testing.T) {
 }
 
 func ptr[T any](value T) *T { return &value }
+
+// A student coordinator posts only Department notices to their own
+// Department's students (#209). Anyone with a wider posting role keeps it.
+func TestCoordinatorReach(t *testing.T) {
+	const cs, ec = "dept-cs", "dept-ec"
+	coordinator := []Grant{{Role: auth.RoleStudent}, {Role: auth.RoleStudentCoordinator, DepartmentID: cs}}
+	students := func(department string) AudienceRule {
+		return AudienceRule{DepartmentID: ptr(department), Role: ptr(auth.RoleStudent)}
+	}
+	batch := AudienceRule{DepartmentID: ptr(cs), Role: ptr(auth.RoleStudent), BatchYear: ptr(2024)}
+
+	tests := []struct {
+		name      string
+		grants    []Grant
+		category  Category
+		audience  []AudienceRule
+		wantField string
+	}{
+		{"own students", coordinator, CategoryDepartment, []AudienceRule{students(cs)}, ""},
+		{"own students, one batch", coordinator, CategoryDepartment, []AudienceRule{batch}, ""},
+		{"own coordinators", coordinator, CategoryDepartment, []AudienceRule{{DepartmentID: ptr(cs), Role: ptr(auth.RoleStudentCoordinator)}}, ""},
+		{"official category", coordinator, CategoryOfficial, []AudienceRule{students(cs)}, "category"},
+		{"placement category", coordinator, CategoryPlacement, []AudienceRule{students(cs)}, "category"},
+		{"another department", coordinator, CategoryDepartment, []AudienceRule{students(ec)}, "audience"},
+		{"own and another department", coordinator, CategoryDepartment, []AudienceRule{students(cs), students(ec)}, "audience"},
+		{"whole college", coordinator, CategoryDepartment, []AudienceRule{}, "audience"},
+		{"everyone in the department, staff too", coordinator, CategoryDepartment, []AudienceRule{{DepartmentID: ptr(cs)}}, "audience"},
+		{"own faculty", coordinator, CategoryDepartment, []AudienceRule{{DepartmentID: ptr(cs), Role: ptr(auth.RoleFaculty)}}, "audience"},
+		{"also faculty: no limit", append(coordinator, Grant{Role: auth.RoleFaculty, DepartmentID: cs}), CategoryOfficial, []AudienceRule{}, ""},
+		{"faculty: no limit", []Grant{{Role: auth.RoleFaculty, DepartmentID: cs}}, CategoryOfficial, []AudienceRule{students(ec)}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field, _ := ReachProblem(tt.grants, tt.category, tt.audience)
+			if field != tt.wantField {
+				t.Errorf("ReachProblem field = %q, want %q", field, tt.wantField)
+			}
+		})
+	}
+}

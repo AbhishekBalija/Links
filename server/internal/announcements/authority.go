@@ -1,6 +1,9 @@
 package announcements
 
-import "github.com/AbhishekBalija/Links/server/internal/auth"
+import (
+	"github.com/AbhishekBalija/Links/server/internal/auth"
+	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
+)
 
 // Grant is one role the author currently holds. DepartmentID is empty for a
 // global role and set for a Department-scoped one.
@@ -78,4 +81,44 @@ func singleDepartment(audience []AudienceRule) (string, bool) {
 		}
 	}
 	return department, true
+}
+
+// ReachProblem limits who a student coordinator's Announcement may reach
+// (#209): Department notices, to their own Department's students (any batch,
+// coordinators included). Anyone who also holds a wider posting role posts as
+// that role. It returns the field at fault and why, or "" when it's fine.
+func ReachProblem(grants []Grant, category Category, audience []AudienceRule) (string, string) {
+	coordinatorOf := map[string]bool{}
+	for _, grant := range grants {
+		switch grant.Role {
+		case auth.RolePrincipal, auth.RoleAdmin, auth.RoleHOD, auth.RoleFaculty, auth.RolePlacementOfficer:
+			return "", ""
+		case auth.RoleStudentCoordinator:
+			coordinatorOf[grant.DepartmentID] = true
+		}
+	}
+	if len(coordinatorOf) == 0 {
+		return "", ""
+	}
+	if category != CategoryDepartment {
+		return "category", "student coordinators post department notices"
+	}
+	if len(audience) == 0 {
+		return "audience", "student coordinators post to their own department's students"
+	}
+	for _, rule := range audience {
+		students := rule.Role != nil && (*rule.Role == auth.RoleStudent || *rule.Role == auth.RoleStudentCoordinator)
+		if rule.DepartmentID == nil || !coordinatorOf[*rule.DepartmentID] || !students {
+			return "audience", "student coordinators post to their own department's students"
+		}
+	}
+	return "", ""
+}
+
+// reachRefused is ReachProblem as a validation error, or nil.
+func reachRefused(grants []Grant, content announcementContent) error {
+	if field, problem := ReachProblem(grants, content.Category, content.Audience); field != "" {
+		return apperrors.NewValidation("invalid announcement", map[string]string{field: problem})
+	}
+	return nil
 }
