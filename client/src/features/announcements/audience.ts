@@ -1,6 +1,7 @@
 import { audienceLabel } from '../notices/format'
 import type { AudienceRule } from '../notices/types'
 import type { RuleInput } from './types'
+import { wallClock } from '../../shared/time/college'
 
 export type Preset = { key: string; label: string; audience: RuleInput[] }
 
@@ -80,7 +81,7 @@ export const roleOptions = [
 ]
 
 export function batchOptions(now = new Date()) {
-  const year = now.getFullYear()
+  const year = wallClock(now).year
   return Array.from({ length: 6 }, (_, i) => year - i)
 }
 

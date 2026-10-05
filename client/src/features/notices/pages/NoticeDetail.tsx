@@ -9,6 +9,7 @@ import { useRefetchAtExpiry } from '../useRefetchAtExpiry'
 import { CategoryTag } from '../components/CategoryTag'
 import { audienceLabel, expiry, fullDate, timeAgo, type Expiry } from '../format'
 import type { Notice } from '../types'
+import { COLLEGE_TIME_ZONE } from '../../../shared/time/college'
 
 export default function NoticeDetail() {
   const { id = '' } = useParams()
@@ -169,7 +170,7 @@ function capitalize(text: string) {
 }
 
 function shortDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })
 }
 
 function DetailSkeleton() {

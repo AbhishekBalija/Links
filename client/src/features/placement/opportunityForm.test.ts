@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { checkOpportunity, emptyOpportunity, fromOpportunity, toInput, type OpportunityForm } from './opportunityForm'
 import type { Opportunity } from '../jobs/types'
+import { collegeInstant } from '../../shared/time/college'
 
-const now = new Date(2026, 8, 30, 10, 0)
+const now = collegeInstant(2026, 9, 30, 10, 0)
 
 const filled = (overrides: Partial<OpportunityForm> = {}): OpportunityForm => ({
   ...emptyOpportunity(),
@@ -63,7 +64,7 @@ describe('toInput and fromOpportunity', () => {
       compensation: null,
       application_mode: 'internal',
       external_url: null,
-      apply_by: new Date(2026, 9, 2, 23, 59).toISOString(),
+      apply_by: collegeInstant(2026, 10, 2, 23, 59).toISOString(),
       eligibility: [{ department_id: 'cs', batch_year: 2023, role: 'student' }],
     })
   })
@@ -76,7 +77,7 @@ describe('toInput and fromOpportunity', () => {
       description: 'Ten weeks.',
       location: 'Bengaluru',
       compensation: null,
-      apply_by: new Date(2026, 9, 3, 17, 0).toISOString(),
+      apply_by: collegeInstant(2026, 10, 3, 17, 0).toISOString(),
       application_mode: 'external',
       external_url: 'https://kaveri.in/apply',
       eligibility: [{ batch_year: 2024, role: 'student' }],

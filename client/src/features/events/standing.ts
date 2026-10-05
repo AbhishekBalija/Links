@@ -1,5 +1,6 @@
 import { timeAgo } from '../notices/format'
 import type { CampusEvent, Review } from './types'
+import { monthsShort, wallClock, weekdaysShort } from '../../shared/time/college'
 
 // The tabs of My posts. "needs" is what waits for the author's changes.
 export type PostTab = 'needs' | 'draft' | 'waiting' | 'live' | 'ended'
@@ -17,13 +18,13 @@ export type ProposalStanding = {
 
 // "2 Oct". Months keep three letters, as on the date tiles.
 export function dayMonth(iso: string) {
-  const d = new Date(iso)
-  return `${d.getDate()} ${d.toLocaleDateString('en-IN', { month: 'short' }).slice(0, 3)}`
+  const c = wallClock(iso)
+  return `${c.day} ${monthsShort[c.month - 1]}`
 }
 
 // "Fri 2 Oct".
 export function dayAndDate(iso: string) {
-  return `${new Date(iso).toLocaleDateString('en-IN', { weekday: 'short' })} ${dayMonth(iso)}`
+  return `${weekdaysShort[wallClock(iso).weekday]} ${dayMonth(iso)}`
 }
 
 // reviewerAt names who reviews a stage: the Department's HOD, or the

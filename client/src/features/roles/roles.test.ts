@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentLine, consequences, defaultOrganiser, firstName, grantableRoles, grantPayload, grantProblems, mayManage, needsDepartment, sortAssignments } from './roles'
+import { assignmentLine, consequences, defaultOrganiser, firstName, grantableRoles, grantPayload, grantProblems, grantedLine, mayManage, needsDepartment, sortAssignments } from './roles'
 import type { Handover, RoleAssignment } from './types'
 
 const cs = { id: 'd1', code: 'CS', name: 'Computer Science' }
@@ -167,5 +167,13 @@ describe('assignmentLine for a student', () => {
   it("names the student's department and batch instead of the whole college", () => {
     const studentRole = assignment({ role: 'student', scope_type: 'global', scope_id: null, department: null })
     expect(assignmentLine(studentRole, { department: 'Computer Science', batch: 2025 })).toBe('Computer Science · Batch 2025 · Since 1 Jun 2024')
+  })
+})
+
+describe('grantedLine', () => {
+  it('says now, or the start date in words, never a raw date', () => {
+    expect(grantedLine('Asha', 'student_coordinator', 'Student coordinator', '2026-10-05', '2026-10-05')).toBe('Asha is a student coordinator now.')
+    expect(grantedLine('Asha', 'student_coordinator', 'Student coordinator', '2026-11-01', '2026-10-05')).toBe('Asha is a student coordinator from 1 Nov 2026.')
+    expect(grantedLine('Ravi', 'faculty', 'Faculty', '2026-11-01', '2026-10-05')).toBe('Ravi has the Faculty role from 1 Nov 2026.')
   })
 })

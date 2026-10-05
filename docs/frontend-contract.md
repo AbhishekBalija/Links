@@ -157,6 +157,17 @@ Important forms:
 - Application status update
 - CSV import
 
+## Dates and Times
+
+The API sends and takes instants in UTC (RFC 3339). Every date and time the
+web app shows or takes in is the college's (`Asia/Kolkata`), whatever zone
+the device is set to (#211): event times, job deadlines, "closes today",
+notice expiry at the end of a college day, date tiles and Home's date. All of
+it goes through `client/src/shared/time/college.ts`. The Home greeting
+("Good morning") is the one exception: it follows the reader's own clock. The
+unit tests run with the device set to Los Angeles, so anything that slips
+back to the device's zone fails.
+
 ## File Uploads
 
 Frontend should validate before upload:

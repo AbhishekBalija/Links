@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { audienceLabel, expiry, timeAgo } from './format'
+import { collegeInstant } from '../../shared/time/college'
 
-const now = new Date(2026, 8, 28, 10, 0) // Monday 28 September, 10:00
+const now = collegeInstant(2026, 9, 28, 10, 0) // Monday 28 September, 10:00
 const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600_000).toISOString()
 
 describe('timeAgo', () => {
@@ -17,12 +18,12 @@ describe('timeAgo', () => {
   })
 
   it('shows the date once it is older than a week', () => {
-    expect(timeAgo(new Date(2026, 8, 10).toISOString(), now)).toMatch(/10 Sept?/)
+    expect(timeAgo(collegeInstant(2026, 9, 10).toISOString(), now)).toMatch(/10 Sept?/)
   })
 })
 
 describe('expiry', () => {
-  const at = (days: number, hour: number) => new Date(2026, 8, 28 + days, hour).toISOString()
+  const at = (days: number, hour: number) => collegeInstant(2026, 9, 28 + days, hour).toISOString()
 
   it('is null without an expiry date', () => {
     expect(expiry(null, now)).toBeNull()

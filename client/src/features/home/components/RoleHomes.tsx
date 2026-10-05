@@ -6,6 +6,7 @@ import { buttonStyles } from '../../announcements/buttons'
 import { waited } from '../../announcements/status'
 import type { CollegeDepartment, Dashboard, DepartmentPanel, Lists } from '../api'
 import { summaryLine, yourPosts, type HomeKind } from '../roleHome'
+import { COLLEGE_TIME_ZONE, collegeDay } from '../../../shared/time/college'
 
 type Props = {
   kind: Exclude<HomeKind, 'everyone'>
@@ -272,7 +273,7 @@ function DepartmentSection({ department, lists }: { department: DepartmentPanel;
               <li key={event.id}>
                 <Link to={`/events/${event.id}`} className="grid grid-cols-[92px_1fr] gap-3 py-2.5 text-ink hover:text-ink">
                   <span className="pt-0.5 font-mono text-xs text-ink-3">
-                    {new Date(event.starts_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {new Date(event.starts_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })}
                   </span>
                   <span className="flex flex-col gap-0.5">
                     <span className="text-[15px] font-semibold">{event.title}</span>
@@ -446,11 +447,8 @@ function RecentImports({ lists, now }: { lists: Lists; now: Date }) {
 }
 
 function dayLabel(iso: string, now: Date): string {
-  const day = new Date(iso)
-  const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (sameDay(day, now)) return 'Today'
-  if (sameDay(day, yesterday)) return 'Yesterday'
-  return day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  const days = collegeDay(now) - collegeDay(iso)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })
 }

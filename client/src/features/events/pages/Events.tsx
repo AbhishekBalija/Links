@@ -9,6 +9,7 @@ import { useEventFeed } from '../api'
 import { EventList, EventListSkeleton } from '../components/EventList'
 import { startTime } from '../format'
 import { eventTypes, isEventType, typeLabel, type CampusEvent, type Show } from '../types'
+import { COLLEGE_TIME_ZONE } from '../../../shared/time/college'
 
 const views: { value: Show; label: string }[] = [
   { value: 'upcoming', label: 'Upcoming' },
@@ -142,7 +143,7 @@ export default function Events() {
 // NextForYou is the next Event the reader said they're going to, so a
 // student opening Events on a phone sees their plan first.
 function NextForYou({ event }: { event: CampusEvent }) {
-  const day = new Date(event.starts_at).toLocaleDateString('en-IN', { weekday: 'short' })
+  const day = new Date(event.starts_at).toLocaleDateString('en-IN', { weekday: 'short', timeZone: COLLEGE_TIME_ZONE })
   return (
     <Link
       to={`/events/${event.id}`}

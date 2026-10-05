@@ -1,9 +1,10 @@
 import { toRules } from '../announcements/audience'
 import type { RuleInput } from '../announcements/types'
 import type { CampusEvent, EventInput, EventType } from './types'
+import { collegeDate, collegeDay, collegeTimeInput, fromCollegeTime } from '../../shared/time/college'
 
 // ProposalForm is the proposal form as the proposer fills it in: dates and
-// times as the date and time inputs give them, in the proposer's time zone.
+// times as the date and time inputs give them, in the college's time.
 export type ProposalForm = {
   event_type: EventType | null
   title: string
@@ -36,17 +37,11 @@ export function emptyProposal(audience: RuleInput[], eventType: EventType | null
   }
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const dateInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-const timeInput = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
-
-// moment joins a date and a time input into a local Date, or null while
-// either is missing.
+// moment joins a date and a time input into the instant they mean in the
+// college (#211), or null while either is missing.
 function moment(date: string, time: string): Date | null {
   if (!date || !time) return null
-  const [y, m, d] = date.split('-').map(Number)
-  const [h, min] = time.split(':').map(Number)
-  return new Date(y, m - 1, d, h, min)
+  return fromCollegeTime(date, time)
 }
 
 // An empty end date means the same day as the start.
@@ -54,17 +49,15 @@ const starts = (form: ProposalForm) => moment(form.startDate, form.startTime)
 const ends = (form: ProposalForm) => moment(form.endDate || form.startDate, form.endTime)
 
 export function fromEvent(event: CampusEvent): ProposalForm {
-  const start = new Date(event.starts_at)
-  const end = new Date(event.ends_at)
   return {
     event_type: event.event_type,
     title: event.title,
     description: event.description,
     location: event.location,
-    startDate: dateInput(start),
-    startTime: timeInput(start),
-    endDate: dateInput(end),
-    endTime: timeInput(end),
+    startDate: collegeDate(event.starts_at, 'input'),
+    startTime: collegeTimeInput(event.starts_at),
+    endDate: collegeDate(event.ends_at, 'input'),
+    endTime: collegeTimeInput(event.ends_at),
     limitSeats: event.capacity !== null,
     capacity: event.capacity === null ? '' : String(event.capacity),
     audience: toRules(event.audience ?? []),
@@ -118,8 +111,8 @@ export function durationLabel(form: ProposalForm): string {
   const minutes = Math.round((end.getTime() - start.getTime()) / 60000)
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
-  if (start.toDateString() !== end.toDateString()) {
-    const days = Math.round((new Date(end.toDateString()).getTime() - new Date(start.toDateString()).getTime()) / 86_400_000) + 1
+  if (collegeDay(start) !== collegeDay(end)) {
+    const days = collegeDay(end) - collegeDay(start) + 1
     const span = days === 2 ? 'two days' : `${days} days`
     return `${hours} hours${rest ? ` ${rest} min` : ''}, over ${span}`
   }

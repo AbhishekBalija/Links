@@ -1,5 +1,6 @@
 import { timeAgo } from '../notices/format'
 import type { Authored } from './types'
+import { COLLEGE_TIME_ZONE } from '../../shared/time/college'
 
 export type Tone = 'neutral' | 'live' | 'danger'
 
@@ -18,7 +19,7 @@ export type Standing = {
 }
 
 function shortDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })
 }
 
 export function standing(item: Authored, now = new Date()): Standing {
