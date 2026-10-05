@@ -32,6 +32,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Someone on the same campus Wi-Fi could still stop a student getting
+  sign-in codes. A browser that has signed in before is now remembered for
+  that account (an httpOnly cookie; migration 026 adds `known_devices`), and
+  its code requests count only against its own allowance.
 - Student coordinators could post any category to any audience, the whole
   college included (#209). They now post department notices to their own
   department's students, or one batch of them; the composer offers only

@@ -189,6 +189,9 @@ type SignInCode struct {
 	ExpiresAt time.Time  `gorm:"column:expires_at"`
 	UsedAt    *time.Time `gorm:"column:used_at"`
 	CreatedAt time.Time  `gorm:"column:created_at"`
+	// DeviceID is set when the request came from a browser known for the
+	// account.
+	DeviceID *string `gorm:"column:device_id"`
 }
 
 func (SignInCode) TableName() string { return "sign_in_codes" }
@@ -197,8 +200,8 @@ func (SignInCode) TableName() string { return "sign_in_codes" }
 type AuthService interface {
 	TestSignIn(ctx context.Context, email string) (*LoginResponse, string, error)
 	AddFirstAdmin(ctx context.Context, email, fullName string) (string, error)
-	RequestCode(ctx context.Context, email, ip string) (string, error)
-	VerifyCode(ctx context.Context, challengeID, email, code string) (*LoginResponse, string, error)
+	RequestCode(ctx context.Context, email, ip, deviceToken string) (string, error)
+	VerifyCode(ctx context.Context, challengeID, email, code, deviceToken string) (*CodeSignIn, error)
 	SignInWithGoogle(ctx context.Context, credential, expectedNonce string) (*LoginResponse, string, error)
 	NotMe(ctx context.Context, userID string) error
 	RequestAccessWithProof(ctx context.Context, input ProvenAccessRequestInput) (*RequestAccessResponse, error)
@@ -325,6 +328,10 @@ type SignInCodeRepository interface {
 	// the requests one address made for the email.
 	CountByEmailAndIPSince(ctx context.Context, emailHash, ipHash string, since time.Time) (int64, error)
 	SumWrongTriesByEmailAndIPSince(ctx context.Context, emailHash, ipHash string, since time.Time) (int64, error)
+	// CountByDeviceSince and SumWrongTriesByDeviceSince count only the
+	// requests one known browser made.
+	CountByDeviceSince(ctx context.Context, deviceID string, since time.Time) (int64, error)
+	SumWrongTriesByDeviceSince(ctx context.Context, deviceID string, since time.Time) (int64, error)
 	// CountSentToNoListSince counts codes sent to emails on no list.
 	CountSentToNoListSince(ctx context.Context, since time.Time) (int64, error)
 	Create(ctx context.Context, code *SignInCode) error
@@ -343,6 +350,7 @@ type AuthRepositories struct {
 	Users         UserRepository
 	RefreshTokens RefreshTokenRepository
 	SignInCodes   SignInCodeRepository
+	KnownDevices  KnownDeviceRepository
 	AuditLogs     AuditLogRepository
 	// Work is the other modules' share of ending a role (ADR 0028).
 	Work []UnfinishedWork

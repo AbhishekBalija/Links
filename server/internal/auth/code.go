@@ -93,8 +93,9 @@ func errCodeRefused() error {
 // belongs to an account that can't use one (the principal, an admin, or a
 // suspended or rejected account). An email on no list gets a code too, so its
 // owner can prove it and send an Access request. It returns the challenge ID
-// the browser keeps, the same way for every email.
-func (s *authService) RequestCode(ctx context.Context, email, ip string) (string, error) {
+// the browser keeps, the same way for every email. deviceToken is the
+// browser's known-device cookie, if it has one.
+func (s *authService) RequestCode(ctx context.Context, email, ip, deviceToken string) (string, error) {
 	start := time.Now()
 	defer waitUntil(ctx, start.Add(s.codeSettings.MinReplyTime))
 
@@ -120,45 +121,33 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 		if err := repos.SignInCodes.DeleteCreatedBefore(ctx, start.Add(-codeRecordsKept)); err != nil {
 			return fmt.Errorf("delete old codes: %w", err)
 		}
-		since := start.Add(-s.codeSettings.Window)
-		byEmail, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, since)
-		if err != nil {
-			return fmt.Errorf("count codes for email: %w", err)
-		}
-		byIP, err := repos.SignInCodes.CountByIPSince(ctx, ipHash, since)
-		if err != nil {
-			return fmt.Errorf("count codes for address: %w", err)
-		}
-		if byEmail >= int64(s.codeSettings.PerEmailLimit) || byIP >= int64(s.codeSettings.PerIPLimit) {
-			return apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
-		}
 		dayAgo := start.Add(-codeRecordsKept)
-		byEmailToday, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
-		if err != nil {
-			return fmt.Errorf("count codes for email today: %w", err)
-		}
-		everywhereToday, err := repos.SignInCodes.CountByEmailSince(ctx, emailHash, dayAgo)
-		if err != nil {
-			return fmt.Errorf("count codes for email from anywhere today: %w", err)
-		}
-		if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) || everywhereToday >= int64(s.codeSettings.EmailDailyCeiling) {
-			return apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
-		}
-		// Too many wrong guesses from this address today: the usual reply
-		// with no code, so the reply still can't tell anyone whether the
-		// email has an account.
-		wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
-		if err != nil {
-			return fmt.Errorf("count wrong tries for email: %w", err)
-		}
-		if wrongToday >= int64(s.codeSettings.WrongTriesPerDay) {
-			return repos.SignInCodes.Create(ctx, challenge)
-		}
-
 		user, err := repos.Users.FindByEmail(ctx, email)
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
 		}
+		userID := ""
+		if user != nil {
+			userID = user.ID
+		}
+		device, err := s.knownDevice(ctx, repos, deviceToken, userID, start)
+		if err != nil {
+			return err
+		}
+		var stop bool
+		if device != nil {
+			challenge.DeviceID = &device.ID
+			stop, err = s.deviceLimits(ctx, repos, device.ID, start)
+		} else {
+			stop, err = s.addressLimits(ctx, repos, emailHash, ipHash, start)
+		}
+		if err != nil {
+			return err
+		}
+		if stop {
+			return repos.SignInCodes.Create(ctx, challenge)
+		}
+
 		sendTo = email
 		if user != nil {
 			allowed, err := s.mayUseEmailCode(ctx, repos.Users, user)
@@ -198,17 +187,81 @@ func (s *authService) RequestCode(ctx context.Context, email, ip string) (string
 	return challenge.ID, nil
 }
 
-// VerifyCode signs in whoever typed the right code for the challenge. A wrong,
+// addressLimits are the limits for a browser not known for the account:
+// requests for the email from this address, all requests from this address,
+// the email's ceiling from everywhere, and wrong guesses from this address.
+// stop means record the request but send no code: the reply still can't
+// tell anyone whether the email has an account.
+func (s *authService) addressLimits(ctx context.Context, repos AuthRepositories, emailHash, ipHash string, now time.Time) (bool, error) {
+	since := now.Add(-s.codeSettings.Window)
+	byEmail, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, since)
+	if err != nil {
+		return false, fmt.Errorf("count codes for email: %w", err)
+	}
+	byIP, err := repos.SignInCodes.CountByIPSince(ctx, ipHash, since)
+	if err != nil {
+		return false, fmt.Errorf("count codes for address: %w", err)
+	}
+	if byEmail >= int64(s.codeSettings.PerEmailLimit) || byIP >= int64(s.codeSettings.PerIPLimit) {
+		return false, apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
+	}
+	dayAgo := now.Add(-codeRecordsKept)
+	byEmailToday, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
+	if err != nil {
+		return false, fmt.Errorf("count codes for email today: %w", err)
+	}
+	everywhereToday, err := repos.SignInCodes.CountByEmailSince(ctx, emailHash, dayAgo)
+	if err != nil {
+		return false, fmt.Errorf("count codes for email from anywhere today: %w", err)
+	}
+	if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) || everywhereToday >= int64(s.codeSettings.EmailDailyCeiling) {
+		return false, apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
+	}
+	wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
+	if err != nil {
+		return false, fmt.Errorf("count wrong tries for email: %w", err)
+	}
+	return wrongToday >= int64(s.codeSettings.WrongTriesPerDay), nil
+}
+
+// deviceLimits are the limits for a browser known for the account: the same
+// numbers, counted for this browser alone, so nothing anyone else does
+// counts against it. Only the person who signed in on it has its token.
+func (s *authService) deviceLimits(ctx context.Context, repos AuthRepositories, deviceID string, now time.Time) (bool, error) {
+	recent, err := repos.SignInCodes.CountByDeviceSince(ctx, deviceID, now.Add(-s.codeSettings.Window))
+	if err != nil {
+		return false, fmt.Errorf("count codes for device: %w", err)
+	}
+	if recent >= int64(s.codeSettings.PerEmailLimit) {
+		return false, apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
+	}
+	dayAgo := now.Add(-codeRecordsKept)
+	today, err := repos.SignInCodes.CountByDeviceSince(ctx, deviceID, dayAgo)
+	if err != nil {
+		return false, fmt.Errorf("count codes for device today: %w", err)
+	}
+	if today >= int64(s.codeSettings.PerEmailDailyLimit) {
+		return false, apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
+	}
+	wrongToday, err := repos.SignInCodes.SumWrongTriesByDeviceSince(ctx, deviceID, dayAgo)
+	if err != nil {
+		return false, fmt.Errorf("count wrong tries for device: %w", err)
+	}
+	return wrongToday >= int64(s.codeSettings.WrongTriesPerDay), nil
+}
+
+// VerifyCode signs in whoever typed the right code for the challenge, and
+// remembers the browser for the account (deviceToken is its cookie, if any). A wrong,
 // used, expired or killed code, or an unknown challenge, all get the same
 // refusal. The right code for an email on no list gets NOT_ON_LIST with a
 // request token; email must then be the address the code was asked for.
-func (s *authService) VerifyCode(ctx context.Context, challengeID, email, code string) (*LoginResponse, string, error) {
+func (s *authService) VerifyCode(ctx context.Context, challengeID, email, code, deviceToken string) (*CodeSignIn, error) {
 	if _, err := uuid.Parse(challengeID); err != nil {
-		return nil, "", errCodeRefused()
+		return nil, errCodeRefused()
 	}
 
 	var resp *LoginResponse
-	var refreshRaw string
+	var refreshRaw, device string
 	// outcome is the refusal to give once the transaction has committed, so
 	// a used code or a wrong try is kept.
 	outcome := errCodeRefused()
@@ -254,14 +307,18 @@ func (s *authService) VerifyCode(ctx context.Context, challengeID, email, code s
 			return nil
 		}
 		resp, refreshRaw, err = s.signIn(ctx, repos, user, "email_code", now)
+		if err != nil {
+			return err
+		}
+		device, err = s.rememberDevice(ctx, repos, deviceToken, user.ID, now)
 		return err
 	}); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if resp == nil {
-		return nil, "", outcome
+		return nil, outcome
 	}
-	return resp, refreshRaw, nil
+	return &CodeSignIn{Login: resp, Refresh: refreshRaw, Device: device}, nil
 }
 
 // codeOwner finds the account the code was for: the one it was sent to, or,

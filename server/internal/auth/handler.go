@@ -59,7 +59,8 @@ func (h *Handler) RequestCode(c *gin.Context) {
 		return
 	}
 
-	challengeID, err := h.service.RequestCode(c.Request.Context(), email, c.ClientIP())
+	device, _ := c.Cookie(DeviceCookieName)
+	challengeID, err := h.service.RequestCode(c.Request.Context(), email, c.ClientIP(), device)
 	if err != nil {
 		writeError(c, err)
 		return
@@ -75,14 +76,18 @@ func (h *Handler) VerifyCode(c *gin.Context) {
 		return
 	}
 
-	resp, refreshRaw, err := h.service.VerifyCode(c.Request.Context(), input.ChallengeID, input.Email, input.Code)
+	device, _ := c.Cookie(DeviceCookieName)
+	signedIn, err := h.service.VerifyCode(c.Request.Context(), input.ChallengeID, input.Email, input.Code, device)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
 
-	h.setRefreshCookie(c, refreshRaw)
-	response.Success(c, http.StatusOK, resp, nil)
+	h.setRefreshCookie(c, signedIn.Refresh)
+	// Kept when the person signs out: it is what lets this browser get codes
+	// whatever others on its network do.
+	h.setCookie(c, DeviceCookieName, signedIn.Device, DeviceMaxAge, DeviceCookiePath)
+	response.Success(c, http.StatusOK, signedIn.Login, nil)
 }
 
 // RegisterGoogleRoutes adds Google sign-in. The server registers it only
