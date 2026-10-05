@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"time"
 
 	"github.com/google/uuid"
@@ -477,4 +478,43 @@ func (r *GormRepository) Waiting(ctx context.Context, proposerID string, limit i
 		LIMIT ?`, proposerID, limit,
 	).Scan(&rows).Error
 	return rows, err
+}
+
+// Answerers is everyone going to or interested in the Event who can be
+// emailed: active members with an email.
+func (r *GormRepository) Answerers(ctx context.Context, eventID string) ([]mailer.Recipient, error) {
+	var rows []struct {
+		Email    string `gorm:"column:email"`
+		FullName string `gorm:"column:full_name"`
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT u.email, p.full_name
+		FROM event_rsvps v
+		JOIN users u ON u.id = v.user_id
+		JOIN profiles p ON p.user_id = v.user_id
+		WHERE v.event_id = ? AND v.status IN (?, ?) AND u.status = 'active' AND u.email IS NOT NULL
+		ORDER BY v.updated_at, v.user_id`, eventID, RSVPGoing, RSVPInterested).Scan(&rows).Error
+	recipients := make([]mailer.Recipient, len(rows))
+	for i, row := range rows {
+		recipients[i] = mailer.Recipient{Email: row.Email, FullName: row.FullName}
+	}
+	return recipients, err
+}
+
+// Person is someone LINKS can email: an active account with an email.
+// It returns nil for anyone else.
+func (r *GormRepository) Person(ctx context.Context, userID string) (*mailer.Recipient, error) {
+	var rows []struct {
+		Email    string `gorm:"column:email"`
+		FullName string `gorm:"column:full_name"`
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT u.email, p.full_name
+		FROM users u
+		JOIN profiles p ON p.user_id = u.id
+		WHERE u.id = ? AND u.status = 'active' AND u.email IS NOT NULL`, userID).Scan(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	return &mailer.Recipient{Email: rows[0].Email, FullName: rows[0].FullName}, nil
 }

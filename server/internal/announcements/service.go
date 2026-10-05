@@ -31,11 +31,12 @@ type Service struct {
 	repository Repository
 	roles      RoleReader
 	unitOfWork UnitOfWork
+	notifier   Notifier
 	now        func() time.Time
 }
 
 func NewService(repository Repository, roles RoleReader, unitOfWork UnitOfWork) *Service {
-	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, now: time.Now}
+	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, notifier: noNotifier{}, now: time.Now}
 }
 
 // Create posts an Announcement (ADR 0017). An author with Publishing authority
@@ -247,7 +248,7 @@ func (s *Service) reader(ctx context.Context, userID string) (Reader, error) {
 		return Reader{}, fmt.Errorf("load student identity: %w", err)
 	}
 
-	reader := Reader{BatchYear: batchYear, Memberships: make([]Membership, 0, len(grants))}
+	reader := Reader{UserID: userID, BatchYear: batchYear, Memberships: make([]Membership, 0, len(grants))}
 	for _, grant := range grants {
 		membership := Membership{Role: string(grant.Role), DepartmentID: studentDepartment}
 		if grant.DepartmentID != "" {

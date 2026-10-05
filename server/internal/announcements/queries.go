@@ -46,6 +46,11 @@ func visibleQuery(reader Reader) (string, []any) {
 		    )
 		    OR ` + matchesRule + `
 		  )`
+	// The author always sees their own, whoever it was sent to.
+	if reader.UserID != "" {
+		query = strings.TrimSuffix(query, ")") + ` OR a.publisher_id = CAST(? AS uuid))`
+		args = append(args, reader.UserID)
+	}
 	return query, args
 }
 

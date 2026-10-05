@@ -26,6 +26,24 @@ Web push is useful when the app is closed, but it depends on browser support, se
 | Email | Official fallback and important updates | Yes | Best for placement links and formal notices |
 | SMS/External | Critical reminders later | Yes | Defer until college has approved provider/process |
 
+## What is built (first slice, #206)
+
+Email only, sent once when something happens, through the same mail service
+as sign-in codes. A failed email never undoes the change it reports.
+
+| Email | Sent to | When |
+|---|---|---|
+| You were added to LINKS | New staff | An admin or HOD adds them (#189) |
+| Your request was approved / wasn't approved (with the reviewer's note) | Who sent the Access request | It is decided. Not for a class-list row reported with "Not you?" |
+| Cancelled: the event | Everyone going or interested | The event is cancelled |
+| Changed: the event | Everyone going or interested | Its date, time or place changes (not its description or seats) |
+| Shortlisted / Selected / Not taken further | The applicant | Placement staff move the application there |
+| Published / Sent back to change (with the reviewer's note) | The announcement's author | Its approver decides, for a new announcement or an edit |
+| Published / Sent back to change / Not approved (with the note) | The event's proposer | The HOD or the principal decides. The HOD's approval only moves it on to the principal, so it sends nothing |
+
+Every email says replies aren't read. Event notices go out a hundred per
+call. The in-app notification list below comes later.
+
 ## MVP Recommendation
 
 Build these in order:

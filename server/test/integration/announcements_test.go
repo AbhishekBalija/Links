@@ -2,6 +2,7 @@ package integration
 
 import (
 	"net/http"
+	"slices"
 	"testing"
 	"time"
 
@@ -417,5 +418,23 @@ func TestRoleRulesMatchOnlyTheRolesOwnDepartment(t *testing.T) {
 		if contains(titles, unwanted) {
 			t.Errorf("feed %v shows %q", titles, unwanted)
 		}
+	}
+}
+
+// Your own published announcement shows in your Notices even when it was
+// sent to others only, such as an HOD's post to their students.
+func TestYourOwnAnnouncementIsInYourNotices(t *testing.T) {
+	h := apitest.New(t)
+	hod := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "CS"}}})
+	other := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "hod", DepartmentCode: "EC"}}})
+	expectStatus(t, "publish", publish(t, h, hod.Token, map[string]any{
+		"title": "Greetings", "audience": []map[string]any{{"department_id": h.DepartmentID(t, "CS"), "role": "student"}},
+	}), http.StatusCreated)
+
+	if titles := feedTitles(t, h, hod.Token); !slices.Contains(titles, "Greetings") {
+		t.Errorf("the HOD's own notices = %v, want Greetings in them", titles)
+	}
+	if titles := feedTitles(t, h, other.Token); slices.Contains(titles, "Greetings") {
+		t.Errorf("another HOD sees %v; Greetings wasn't for them", titles)
 	}
 }
