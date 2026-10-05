@@ -20,6 +20,9 @@ import { daysLeft, isUrgent } from '../../jobs/format'
 import { Pipeline } from '../../placement/components/Pipeline'
 import { placementLine, reviewFirst, showOpenJobs, type PlacementSummary } from '../placement'
 import { RoleHome } from '../components/RoleHomes'
+import { AuthorSections, FacultyHome } from '../components/AuthorHome'
+import { NewMenu } from '../../posts/components/NewMenu'
+import { useHasPosted } from '../../posts/api'
 import { homeKind } from '../roleHome'
 import { greeting, useHomeClock } from '../greeting'
 
@@ -34,7 +37,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-5 lg:gap-8">
-      <PhoneBar />
+      <PhoneBar roles={dashboard.data?.user.roles ?? []} />
       {dashboard.isPending ? (
         <HomeSkeleton />
       ) : dashboard.isError ? (
@@ -46,15 +49,30 @@ export default function Home() {
   )
 }
 
-// On phones there is no sidebar, so Home carries the wordmark, the avatar
-// (to the profile) and log out.
-function PhoneBar() {
+// A student coordinator keeps the student Home, with New and their own
+// posts added.
+function isCoordinator(roles: string[]) {
+  return homeKind(roles) === 'everyone' && roles.includes('student_coordinator')
+}
+
+// On phones there is no sidebar, so Home carries the wordmark, New for those
+// who post, the avatar (to the profile) and log out.
+function PhoneBar({ roles }: { roles: string[] }) {
   const user = useAuthStore((s) => s.user)
+  const faculty = homeKind(roles) === 'faculty'
+  const hasPosted = useHasPosted(faculty)
+  // A first-time faculty Home has its own two buttons instead.
+  const showNew = isCoordinator(roles) || (faculty && hasPosted.data === true)
   const name = user?.profile.full_name ?? user?.email ?? ''
   return (
     <div className="-mt-1 flex items-center justify-between lg:hidden">
       <span className="px-1 font-serif text-[26px] font-semibold tracking-[-0.4px] text-ink">Links</span>
       <span className="flex items-center gap-1">
+        {showNew && (
+          <span className="mr-1.5">
+            <NewMenu />
+          </span>
+        )}
         <LogoutButton iconOnly />
         <Link to="/profile" aria-label="Your profile" className="flex min-h-11 min-w-11 items-center justify-center rounded-full">
           <Avatar name={name} />
@@ -68,6 +86,8 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
   const { user, notices, approvals, my_announcements: mine, opportunities, placement } = data
   const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
   const kind = homeKind(user.roles)
+  const coordinator = isCoordinator(user.roles)
+  const showMine = mine && !coordinator
 
   const greetingLines = (
     <>
@@ -88,6 +108,10 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
     </>
   )
 
+  if (kind === 'faculty') {
+    return <FacultyHome data={data} now={now} greeting={greetingLines} comingUp={<ComingUp />} notices={<LatestNotices notices={notices.items} />} />
+  }
+
   // The HOD, the principal and admins get a Home built around their job.
   if (kind !== 'everyone') {
     return (
@@ -104,15 +128,26 @@ function HomeView({ data, now }: { data: Dashboard; now: Date }) {
 
   return (
     <>
-      <header className="flex flex-col gap-1.5 px-1 lg:gap-2 lg:px-0">{greetingLines}</header>
+      <header className="flex items-end justify-between gap-4 px-1 lg:px-0">
+        <div className="flex flex-col gap-1.5 lg:gap-2">{greetingLines}</div>
+        {coordinator && (
+          <div className="hidden lg:block">
+            <NewMenu />
+          </div>
+        )}
+      </header>
+
+      {/* A student coordinator's own posts come first when something of
+          theirs is sent back or waiting; the rest is their student Home. */}
+      {coordinator && <AuthorSections data={data} now={now} />}
 
       {/* Phones stack review, your announcements, then notices. Desktop moves
           your announcements into a side column. */}
-      <div className={cn('grid items-start gap-5 lg:gap-7', mine && 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]')}>
+      <div className={cn('grid items-start gap-5 lg:gap-7', showMine && 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]')}>
         {placement && !approvals && <PlacementPanel summary={placement} now={now} />}
         {approvals && <ReviewPanel approvals={approvals} />}
         {placement && approvals && <PlacementPanel summary={placement} now={now} />}
-        {mine && <MinePanel mine={mine} />}
+        {showMine && <MinePanel mine={mine} />}
         {opportunities && showOpenJobs(user.roles, opportunities) && <OpenJobs section={opportunities} />}
         <ComingUp />
         <LatestNotices notices={notices.items} />

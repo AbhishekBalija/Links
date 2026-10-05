@@ -1,24 +1,31 @@
 import type { Dashboard } from './api'
 
-// HomeKind is which Home a user gets. The HOD, the principal and admins each
-// get one built around their normal job; everyone else gets the reader's
-// Home. Someone with several of these roles gets the most senior one.
-export type HomeKind = 'admin' | 'principal' | 'hod' | 'everyone'
+// HomeKind is which Home a user gets. The HOD, the principal, admins and
+// faculty each get one built around their normal job; everyone else gets the
+// reader's Home. Someone with several of these roles gets the most senior one.
+export type HomeKind = 'admin' | 'principal' | 'hod' | 'faculty' | 'everyone'
 
 export function homeKind(roles: string[]): HomeKind {
   if (roles.includes('admin')) return 'admin'
   if (roles.includes('principal')) return 'principal'
   if (roles.includes('hod')) return 'hod'
+  // Placement staff keep the Home built for drives. Student coordinators
+  // keep the student Home: they are students first.
+  if (roles.includes('faculty') && !roles.includes('placement_officer')) return 'faculty'
   return 'everyone'
 }
 
 const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten']
 
+// spell writes small numbers out, "Two", as the boards do.
+export function spell(n: number): string {
+  return n < words.length ? words[n] : String(n)
+}
+
 // count reads "Two students are" or "One student is", spelling out small
 // numbers as the boards do.
 function count(n: number, one: string, many: string, verbs: [string, string] = ['is', 'are']): string {
-  const number = n < words.length ? words[n] : String(n)
-  return `${number} ${n === 1 ? one : many} ${n === 1 ? verbs[0] : verbs[1]}`
+  return `${spell(n)} ${n === 1 ? one : many} ${n === 1 ? verbs[0] : verbs[1]}`
 }
 
 function lower(text: string): string {

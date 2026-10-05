@@ -88,6 +88,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - The "Continue with Google" button was cut off on the sign-in screen.
 
 ### Added
+- Faculty have their own Home (#142): what was sent back to them with the
+  reviewer's note, what waits on a reviewer and for how long, and New for an
+  announcement or an event. Student coordinators keep the student Home and
+  get New, plus their sent back and waiting posts when they have any.
 - Authors are emailed when a reviewer decides: their announcement or event is
   published, or sent back with the reviewer's note, or not approved. An HOD
   approving an event on its way to the principal sends nothing.

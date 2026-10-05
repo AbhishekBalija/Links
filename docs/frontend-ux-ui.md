@@ -192,6 +192,15 @@ Recommended sections:
 
 Goal: Share department updates and manage assigned academic/event responsibilities.
 
+Built (#142): faculty Home leads with **Needs you** (up to three posts or
+events sent back, each with the reviewer's note, plus a line for unsent
+drafts) and **Waiting on others** (who each one waits on, and how long).
+Coming up and Latest notices sit beside them. **New** (header on desktop,
+top bar on phone) offers an announcement or an event. Before their first
+post, a "Post to your classes" card explains the approval steps with two
+buttons. Student coordinators keep the student Home and get New, plus the
+same two sections only when something of theirs is there.
+
 Content priority:
 
 1. Announcement drafts
