@@ -21,6 +21,7 @@ import { Pipeline } from '../../placement/components/Pipeline'
 import { placementLine, reviewFirst, showOpenJobs, type PlacementSummary } from '../placement'
 import { RoleHome } from '../components/RoleHomes'
 import { AuthorSections, FacultyHome } from '../components/AuthorHome'
+import { Welcome } from '../components/Welcome'
 import { NewMenu } from '../../posts/components/NewMenu'
 import { useHasPosted } from '../../posts/api'
 import { homeKind } from '../roleHome'
@@ -43,7 +44,10 @@ export default function Home() {
       ) : dashboard.isError ? (
         <ErrorState message="Your Home page could not be loaded." onRetry={() => dashboard.refetch()} />
       ) : (
-        <HomeView data={dashboard.data} now={now} />
+        <>
+          <HomeView data={dashboard.data} now={now} />
+          {dashboard.data.new_role && <Welcome key={dashboard.data.new_role.id} role={dashboard.data.new_role} />}
+        </>
       )}
     </div>
   )

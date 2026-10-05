@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest } from '../../shared/api/client'
 import type { Notice } from '../notices/types'
 import type { Opportunity } from '../jobs/types'
 import type { PlacementSummary } from './placement'
 import type { MyWork } from './author'
+import type { NewRole } from './welcome'
 
 export type Dashboard = {
   user: {
@@ -24,6 +25,8 @@ export type Dashboard = {
   my_announcements?: { draft: number; pending: number; rejected: number; edits_waiting: number }
   // An author's own posts and events: sent back to them, or waiting.
   my_work?: MyWork
+  // A role to welcome the person to, once (student coordinators for now).
+  new_role?: NewRole
   // The next open Opportunities the user is eligible for, when there are any.
   opportunities?: { items: Opportunity[]; has_more: boolean }
   // Only for placement staff.
@@ -73,5 +76,17 @@ export function useDashboard(enabled = true) {
     queryKey: ['dashboard'],
     enabled,
     queryFn: ({ signal }) => apiRequest<Dashboard>('/api/v1/dashboard', { signal }),
+  })
+}
+
+// useWelcomed records that the welcome was closed. Home drops it at once,
+// so it never flashes back while the request is on its way.
+export function useWelcomed() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/v1/me/roles/${encodeURIComponent(id)}/welcomed`, { method: 'POST' }),
+    onMutate: (id) => {
+      queryClient.setQueryData<Dashboard>(['dashboard'], (data) => (data?.new_role?.id === id ? { ...data, new_role: undefined } : data))
+    },
   })
 }

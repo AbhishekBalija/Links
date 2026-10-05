@@ -43,6 +43,14 @@ type fakeUserRepo struct {
 	createdRoleAssignments []*RoleAssignment
 }
 
+func (f *fakeUserRepo) UnwelcomedRole(context.Context, string, []Role, time.Time) (*NewRole, error) {
+	return nil, nil
+}
+
+func (f *fakeUserRepo) MarkWelcomed(context.Context, string, string, time.Time) (bool, error) {
+	return false, nil
+}
+
 func (f *fakeUserRepo) Create(ctx context.Context, user *User) error {
 	if f.create != nil {
 		return f.create(ctx, user)

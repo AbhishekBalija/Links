@@ -94,6 +94,8 @@ type Response struct {
 	College         *CollegeSection                 `json:"college,omitempty"`
 	AccessRequests  *auth.AccessSummary             `json:"access_requests,omitempty"`
 	Lists           *auth.ListsSummary              `json:"lists,omitempty"`
+	// NewRole is a role to welcome the user to, once.
+	NewRole *auth.NewRole `json:"new_role,omitempty"`
 }
 
 // Repository reads the profile details Home shows.
@@ -173,8 +175,13 @@ func (s *Service) Get(ctx context.Context, userID string) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
+	newRole, err := s.access.NewRole(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	return &Response{
 		Lists:           lists,
+		NewRole:         newRole,
 		Department:      department,
 		College:         college,
 		AccessRequests:  access,
