@@ -59,14 +59,20 @@ JWT rules:
   the requesting browser got back.
 - Stored only as `HMAC-SHA256(server secret, challenge ID + code)`, in
   `sign_in_codes`. A 6-digit code has too little entropy for a plain hash.
-- 5 wrong tries kill the code. At most 3 requests per email and 60 per IP
-  address in 15 minutes, counted in the database so every serverless
-  instance sees them, and at most 10 requests per email in a day. Emails and
-  IPs are stored as keyed hashes.
-- After 10 wrong guesses at an email's codes within a day, that email gets
-  no new code for the rest of the day (the reply still looks the same). This
-  stops someone guessing by asking for code after code: without it, about
-  1,400 guesses a day would find a 6-digit code within a year.
+- 5 wrong tries kill the code. At most 3 requests for one email from one IP
+  address in 15 minutes and 10 in a day, 60 requests from one IP address in
+  15 minutes, and 30 codes a day for one email from all addresses together.
+  All counted in the database so every serverless instance sees them. Emails
+  and IPs are stored as keyed hashes.
+- After 10 wrong guesses at an email's codes asked for from one address
+  within a day, that address gets no new code for that email for the rest of
+  the day (the reply still looks the same). This stops someone guessing by
+  asking for code after code.
+- The email limits count per address so that someone else asking for a
+  member's codes, or guessing wrong, uses up only their own allowance: the
+  member still gets codes on their own phone (#178). The 30-a-day ceiling
+  bounds guessing from many addresses at 150 tries a day against a million
+  codes.
 - The reply is the same for every email, and padded to at least a second.
 - Any email gets a code except the principal's, an admin's (Google only,
   ADR 0026) or a suspended or rejected account's. An email on no list gets
