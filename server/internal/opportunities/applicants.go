@@ -169,6 +169,7 @@ func (s *Service) UpdateStatus(ctx context.Context, actorID, applicationID strin
 	if row == nil {
 		return nil, notFound
 	}
+	s.tellApplicant(ctx, *row)
 	response := toApplicantResponse(*row)
 	return &response, nil
 }

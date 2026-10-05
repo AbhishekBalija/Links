@@ -32,6 +32,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Your own published announcement didn't show in your Notices when it was
+  sent only to others (an HOD posting to their students); it now does, marked
+  "You". Events gets a "Propose an event" button, as Notices has "New
+  announcement".
 - A role given an end date ended on that date with none of the person's
   drafts or events handed over (#204). Roles no longer take an end date; they
   end by hand, which hands work over.
@@ -88,6 +92,18 @@ and the project uses [Semantic Versioning](https://semver.org/).
   reviewer's note, what waits on a reviewer and for how long, and New for an
   announcement or an event. Student coordinators keep the student Home and
   get New, plus their sent back and waiting posts when they have any.
+- Authors are emailed when a reviewer decides: their announcement or event is
+  published, or sent back with the reviewer's note, or not approved. An HOD
+  approving an event on its way to the principal sends nothing.
+- Email can go through any SMTP server (`MAIL_PROVIDER=smtp`): a testing
+  inbox such as Mailtrap for a test copy, or Gmail for a small pilot before
+  the college has a verified domain. Production stays on Resend.
+- Notification emails, first slice (#206): someone whose Access request is
+  decided is told (with the reviewer's note when it isn't approved);
+  everyone going to or interested in an event is told when it is cancelled
+  or its date, time or place changes; an applicant is told when they are
+  shortlisted, selected or not taken further. The request-sent screen says an
+  email will come, and the reject note says the person gets it.
 - Not signed in screen (#127, #174): admins (Admin, Not signed in) and HODs
   (from Home, "See who") see who hasn't signed in yet, filter it, copy the
   emails for a reminder, and fix a row's email or remove the row from its

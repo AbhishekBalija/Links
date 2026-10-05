@@ -21,6 +21,85 @@ type Outbox struct {
 	codes      []SentCode
 	staffAdded map[string][]mailer.StaffAdded
 	failStaff  bool
+	decisions  map[string][]mailer.AccessDecision
+	notices    []SentNotice
+	updates    map[string][]mailer.ApplicationUpdate
+	reviews    map[string][]mailer.ReviewOutcome
+}
+
+// SentNotice is one event notice and everyone it went to.
+type SentNotice struct {
+	To     []string
+	Letter mailer.EventNotice
+}
+
+func (o *Outbox) SendAccessDecision(to string, letter mailer.AccessDecision) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.decisions == nil {
+		o.decisions = map[string][]mailer.AccessDecision{}
+	}
+	o.decisions[to] = append(o.decisions[to], letter)
+	return nil
+}
+
+func (o *Outbox) SendEventNotice(to []mailer.Recipient, letter mailer.EventNotice) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	emails := make([]string, len(to))
+	for i, recipient := range to {
+		emails[i] = recipient.Email
+	}
+	o.notices = append(o.notices, SentNotice{To: emails, Letter: letter})
+	return nil
+}
+
+func (o *Outbox) SendApplicationUpdate(to string, letter mailer.ApplicationUpdate) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.updates == nil {
+		o.updates = map[string][]mailer.ApplicationUpdate{}
+	}
+	o.updates[to] = append(o.updates[to], letter)
+	return nil
+}
+
+func (o *Outbox) SendReviewOutcome(to string, letter mailer.ReviewOutcome) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.reviews == nil {
+		o.reviews = map[string][]mailer.ReviewOutcome{}
+	}
+	o.reviews[to] = append(o.reviews[to], letter)
+	return nil
+}
+
+// ReviewsTo returns the emails telling an author what a reviewer decided.
+func (o *Outbox) ReviewsTo(to string) []mailer.ReviewOutcome {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return append([]mailer.ReviewOutcome(nil), o.reviews[to]...)
+}
+
+// DecisionsTo returns the "your request" emails sent to the address.
+func (o *Outbox) DecisionsTo(to string) []mailer.AccessDecision {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return append([]mailer.AccessDecision(nil), o.decisions[to]...)
+}
+
+// Notices returns every event notice sent, oldest first.
+func (o *Outbox) Notices() []SentNotice {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return append([]SentNotice(nil), o.notices...)
+}
+
+// UpdatesTo returns the application emails sent to the address.
+func (o *Outbox) UpdatesTo(to string) []mailer.ApplicationUpdate {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return append([]mailer.ApplicationUpdate(nil), o.updates[to]...)
 }
 
 // SendStaffAdded keeps the "you were added" email, or fails like a mail

@@ -177,7 +177,11 @@ func (s *Service) Cancel(ctx context.Context, actorID, id string, input CancelIn
 	if err != nil {
 		return nil, err
 	}
-	return s.response(ctx, id)
+	response, err := s.response(ctx, id)
+	if err == nil {
+		s.tellCancelled(ctx, response)
+	}
+	return response, err
 }
 
 // organises is true for the Event's Organiser and for whoever reviews it: the

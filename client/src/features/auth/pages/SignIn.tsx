@@ -22,7 +22,7 @@ type Screen =
   | ({ name: 'fork' } & Proven)
   | ({ name: 'staff' } & Proven)
   | ({ name: 'request' } & Proven)
-  | { name: 'sent'; sentAt: number; department: string }
+  | { name: 'sent'; sentAt: number; department: string; email: string }
   | { name: 'waiting' | 'declined' | 'suspended' }
 
 type StartNotice = { tone: 'danger' | 'ok' | 'info'; text: string }
@@ -87,9 +87,9 @@ export default function SignIn() {
     case 'staff':
       return <StaffScreen email={screen.email} onBack={() => setScreen({ ...screen, name: 'fork' })} onOtherEmail={() => restart()} />
     case 'request':
-      return <RequestScreen screen={screen} onSent={(department) => setScreen({ name: 'sent', sentAt: Date.now(), department })} onBack={() => setScreen({ ...screen, name: 'fork' })} onExpired={() => restart({ tone: 'danger', text: 'The proof of your email has expired. Sign in again to send the request.' })} />
+      return <RequestScreen screen={screen} onSent={(department) => setScreen({ name: 'sent', sentAt: Date.now(), department, email: screen.email })} onBack={() => setScreen({ ...screen, name: 'fork' })} onExpired={() => restart({ tone: 'danger', text: 'The proof of your email has expired. Sign in again to send the request.' })} />
     case 'sent':
-      return <SentScreen sentAt={screen.sentAt} department={screen.department} onBack={() => restart()} />
+      return <SentScreen sentAt={screen.sentAt} department={screen.department} email={screen.email} onBack={() => restart()} />
     default:
       return <StatusScreen name={screen.name} onBack={() => restart()} />
   }
@@ -530,11 +530,13 @@ function RequestScreen({ screen, onSent, onBack, onExpired }: {
 
 const timeFormat = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
 
-function SentScreen({ sentAt, department, onBack }: { sentAt: number; department: string; onBack: () => void }) {
+function SentScreen({ sentAt, department, email, onBack }: { sentAt: number; department: string; email: string; onBack: () => void }) {
   return (
     <SignInLayout>
       <SignInHeading label="Request sent">Your request is with the {department} HOD</SignInHeading>
-      <p className="text-[15px] leading-normal text-ink-2">Your HOD will review it.</p>
+      <p className="text-[15px] leading-normal text-ink-2">
+        We'll email you at <b className="font-semibold text-ink break-all">{email}</b> when they decide.
+      </p>
       <Steps
         steps={[
           { label: 'Request sent', detail: `Today, ${timeFormat.format(sentAt)}`, state: 'done' },
@@ -542,7 +544,7 @@ function SentScreen({ sentAt, department, onBack }: { sentAt: number; department
           { label: 'You sign in', detail: 'The same way as today. Once approved, you go straight in.', state: 'later' },
         ]}
       />
-      <p className="text-sm text-ink-3">There's nothing else to do now. You can close this page.</p>
+      <p className="text-sm text-ink-3">There's nothing else to do now. You can close this page; the email will tell you.</p>
       <button type="button" onClick={onBack} className="min-h-11 self-center text-sm font-semibold text-rust">
         Back to sign in
       </button>
