@@ -7,6 +7,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- "Too many codes" now says which limit was hit (`details.limit`: `network`
+  or `email`), and the daily cap on codes to emails on no list is a setting,
+  `NOT_ON_LIST_CODES_PER_DAY` (default 50), for orientation day (#202).
 - Signing in with an email on no list now asks "I'm a student here" or "I
   work here" first (#200). Staff are told who adds them and get their email
   to send, instead of a USN form; staff first sign-in no longer mentions a

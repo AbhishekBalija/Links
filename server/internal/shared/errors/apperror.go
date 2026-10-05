@@ -69,3 +69,11 @@ func NewRateLimited(message string) *AppError {
 		HTTPStatus: http.StatusTooManyRequests,
 	}
 }
+
+// NewRateLimitedBy is NewRateLimited naming which limit was hit, for a
+// screen that words them differently.
+func NewRateLimitedBy(message, limit string) *AppError {
+	err := NewRateLimited(message)
+	err.Details = map[string]string{"limit": limit}
+	return err
+}
