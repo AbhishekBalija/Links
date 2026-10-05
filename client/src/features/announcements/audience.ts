@@ -26,6 +26,30 @@ export function presetsFor(department: Dept): Preset[] {
   return presets
 }
 
+// Roles that post without the coordinator's limits (ReachProblem on the
+// server).
+const widerPosters = ['principal', 'admin', 'hod', 'faculty', 'placement_officer']
+
+// coordinatorOnly is true for a student coordinator with no wider posting
+// role: they post department notices to their own department's students.
+export function coordinatorOnly(roles: string[]) {
+  return roles.includes('student_coordinator') && !roles.some((r) => widerPosters.includes(r))
+}
+
+// coordinatorPresets are all a coordinator may pick: their department's
+// students, or one of the four batches in college now.
+export function coordinatorPresets(department: { id: string; code: string }, now = new Date()): Preset[] {
+  const students: Preset = { key: 'dept-students', label: `${department.code} students`, audience: [{ department_id: department.id, role: 'student' }] }
+  const batches = batchOptions(now)
+    .slice(0, 4)
+    .map((year) => ({
+      key: `batch-${year}`,
+      label: `${department.code} batch ${year}`,
+      audience: [{ department_id: department.id, role: 'student', batch_year: year }],
+    }))
+  return [students, ...batches]
+}
+
 function sameRule(a: RuleInput, b: RuleInput) {
   return a.department_id === b.department_id && a.batch_year === b.batch_year && a.role === b.role
 }

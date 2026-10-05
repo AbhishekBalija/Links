@@ -32,6 +32,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Student coordinators could post any category to any audience, the whole
+  college included (#209). They now post department notices to their own
+  department's students, or one batch of them; the composer offers only
+  that.
 - Someone else asking for a member's sign-in codes, or guessing wrong, no
   longer stops the member getting codes on their own phone (#178): the limits
   count per email and address, with a ceiling of 30 codes a day per email.

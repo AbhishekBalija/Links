@@ -126,5 +126,15 @@ test.describe('Home for authors', () => {
     await expect(page.getByRole('heading', { name: 'Latest notices' })).toBeVisible()
     await expect(welcome).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'New' })).toBeVisible()
+
+    // Their composer offers only what they may post: department notices to
+    // their own department's students (#209).
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/mine/new')
+    await expect(page.getByRole('radio', { name: /EC students/ })).toBeChecked()
+    await expect(page.getByRole('radio', { name: /EC batch \d{4}/ })).toHaveCount(4)
+    await expect(page.getByRole('radio', { name: /Whole college/ })).toHaveCount(0)
+    await expect(page.getByText('Choose groups…')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Official/ })).toHaveCount(0)
   })
 })
