@@ -5,6 +5,7 @@ package events
 
 import (
 	"context"
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
@@ -175,6 +176,7 @@ type Repository interface {
 	SaveRSVP(ctx context.Context, rsvp *RSVP) error
 	RSVPCounts(ctx context.Context, eventID string) (map[RSVPStatus]int, error)
 	RSVPPeople(ctx context.Context, eventID string, after *Cursor, limit int) ([]RSVPPerson, error)
+	Answerers(ctx context.Context, eventID string) ([]mailer.Recipient, error)
 	ExportRows(ctx context.Context, eventID string) ([]ExportRow, error)
 }
 

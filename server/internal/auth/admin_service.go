@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	apperrors "github.com/AbhishekBalija/Links/server/internal/shared/errors"
 )
 
@@ -102,9 +104,10 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 	if st == "" {
 		st = ScopeGlobal
 	}
-	// Approval leaves the account waiting for its first sign-in (spec #129):
-	// there is nothing to activate and no email to send.
-	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+	// Approval leaves the account waiting for its first sign-in (spec #129).
+	// The person is emailed once it's saved (#206).
+	var approved *User
+	err = s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
@@ -184,8 +187,17 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		if err := repos.AuditLogs.Create(ctx, auditLog); err != nil {
 			return fmt.Errorf("create audit log: %w", err)
 		}
+		if mayEmail, err := isOwnRequest(ctx, repos, user); err != nil {
+			return err
+		} else if mayEmail {
+			approved = user
+		}
 		return nil
 	})
+	if err == nil && approved != nil {
+		s.emailDecision(ctx, actorID, *approved, true, "")
+	}
+	return err
 }
 
 // UpdateUserStatus suspends, reactivates or rejects a user. The principal and
@@ -197,7 +209,8 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 	if err != nil {
 		return err
 	}
-	return s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
+	var rejected *User
+	err = s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		user, err := repos.Users.FindByIDForUpdate(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("find user: %w", err)
@@ -216,6 +229,11 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 		if newStatus == UserStatusRejected {
 			if user.Status != UserStatusPending || user.IsVerified {
 				return apperrors.NewConflict("only an Access request can be rejected; suspend a member instead")
+			}
+			if mayEmail, err := isOwnRequest(ctx, repos, user); err != nil {
+				return err
+			} else if mayEmail {
+				rejected = user
 			}
 			return rejectRequest(ctx, repos, actorID, user, note)
 		}
@@ -266,6 +284,10 @@ func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, sta
 
 		return nil
 	})
+	if err == nil && rejected != nil {
+		s.emailDecision(ctx, actorID, *rejected, false, note)
+	}
+	return err
 }
 
 // AccessSummary is how many Access requests wait for the actor and since
@@ -372,4 +394,47 @@ func rejectRequest(ctx context.Context, repos AuthRepositories, actorID string, 
 func isForeignKeyViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+}
+
+// isOwnRequest is true for an Access request the person sent themselves. A
+// class-list row reported with "Not you?" isn't: the person at that email
+// said it isn't theirs, so they aren't told about it.
+func isOwnRequest(ctx context.Context, repos AuthRepositories, user *User) (bool, error) {
+	if user.StudentIdentity == nil || user.Email == nil {
+		return false, nil
+	}
+	reported, err := repos.Users.ReportedAt(ctx, []string{user.ID})
+	if err != nil {
+		return false, fmt.Errorf("find report: %w", err)
+	}
+	_, isReported := reported[user.ID]
+	return !isReported, nil
+}
+
+// emailDecision tells someone whether their Access request was approved
+// (#206). The decision stands even if the email can't be sent.
+func (s *authService) emailDecision(ctx context.Context, actorID string, user User, approved bool, note string) {
+	reviewer := "Your department"
+	if actor, err := s.userRepo.FindByID(ctx, actorID); err == nil && actor != nil && actor.Profile != nil {
+		reviewer = actor.Profile.FullName
+	}
+	joined := "a student"
+	if user.StudentIdentity != nil {
+		department := user.StudentIdentity.DepartmentID
+		if departments, err := s.userRepo.ReviewDepartments(ctx); err == nil {
+			for _, d := range departments {
+				if d.ID == user.StudentIdentity.DepartmentID {
+					department = d.Name
+				}
+			}
+		}
+		joined = fmt.Sprintf("a student of %s, batch %d", department, user.StudentIdentity.BatchYear)
+	}
+	fullName := ""
+	if user.Profile != nil {
+		fullName = user.Profile.FullName
+	}
+	_ = s.mailer.SendAccessDecision(*user.Email, mailer.AccessDecision{
+		FullName: fullName, Approved: approved, ReviewerName: reviewer, Joined: joined, Note: strings.TrimSpace(note),
+	})
 }

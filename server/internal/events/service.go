@@ -34,11 +34,12 @@ type Service struct {
 	repository Repository
 	roles      RoleReader
 	unitOfWork UnitOfWork
+	notifier   Notifier
 	now        func() time.Time
 }
 
 func NewService(repository Repository, roles RoleReader, unitOfWork UnitOfWork) *Service {
-	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, now: time.Now}
+	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, notifier: noNotifier{}, now: time.Now}
 }
 
 // content is the editable part of an Event, validated.
@@ -119,12 +120,17 @@ func (s *Service) Create(ctx context.Context, actorID string, input CreateEventI
 // private. A published Event takes logistics edits from its organisers.
 func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateEventInput) (*EventResponse, error) {
 	now := s.now()
+	// A published event's time and place before the edit, to tell people
+	// who answered if they move (#206).
+	var before *Event
 	err := s.unitOfWork.WithinTransaction(ctx, func(repositories Repositories) error {
 		event, err := repositories.Events.FindForUpdate(ctx, id)
 		if err != nil {
 			return fmt.Errorf("find event: %w", err)
 		}
 		if event != nil && event.Status == StatusPublished {
+			snapshot := *event
+			before = &snapshot
 			return s.editLogistics(ctx, repositories, actorID, event, input, now)
 		}
 		if event == nil || event.ProposerID != actorID {
@@ -161,7 +167,11 @@ func (s *Service) Update(ctx context.Context, actorID, id string, input UpdateEv
 	if err != nil {
 		return nil, err
 	}
-	return s.response(ctx, id)
+	response, err := s.response(ctx, id)
+	if err == nil && before != nil {
+		s.tellChanged(ctx, *before, response)
+	}
+	return response, err
 }
 
 // Mine lists the caller's own Events in any status, newest first.

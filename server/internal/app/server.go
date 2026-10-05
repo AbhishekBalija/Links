@@ -194,10 +194,10 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	announcementService := announcements.NewService(announcementRepo, userRepo, announcementUnitOfWork)
 	announcements.NewHandler(announcementService, policy).RegisterRoutes(v1)
 
-	eventService := events.NewService(events.NewGormRepository(database.GORM()), userRepo, events.NewGormUnitOfWork(database.GORM()))
+	eventService := events.NewService(events.NewGormRepository(database.GORM()), userRepo, events.NewGormUnitOfWork(database.GORM())).WithNotifier(m)
 	events.NewHandler(eventService, policy).RegisterRoutes(v1)
 
-	opportunityService := opportunities.NewService(opportunities.NewGormRepository(database.GORM()), userRepo, opportunities.NewGormUnitOfWork(database.GORM()))
+	opportunityService := opportunities.NewService(opportunities.NewGormRepository(database.GORM()), userRepo, opportunities.NewGormUnitOfWork(database.GORM())).WithNotifier(m)
 	opportunities.NewHandler(opportunityService, policy).RegisterRoutes(v1)
 
 	directoryService := directory.NewService(directory.NewGormRepository(database.GORM()))
