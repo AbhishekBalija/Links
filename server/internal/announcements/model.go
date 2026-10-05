@@ -2,6 +2,7 @@ package announcements
 
 import (
 	"context"
+	"github.com/AbhishekBalija/Links/server/internal/mailer"
 	"time"
 
 	"github.com/AbhishekBalija/Links/server/internal/auth"
@@ -121,6 +122,8 @@ func validMineFilter(filter MineFilter) bool {
 
 // Repository is the Announcements data access used by the service.
 type Repository interface {
+	// Person is someone to email: an active account with an email, or nil.
+	Person(ctx context.Context, userID string) (*mailer.Recipient, error)
 	// UnfinishedOf locks the author's Announcements waiting for approval or
 	// sent back, and their published ones with an edit waiting or sent back.
 	UnfinishedOf(ctx context.Context, authorID string) ([]Announcement, error)

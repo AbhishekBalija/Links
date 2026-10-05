@@ -37,11 +37,12 @@ type Service struct {
 	repository Repository
 	roles      RoleReader
 	unitOfWork UnitOfWork
+	notifier   Notifier
 	now        func() time.Time
 }
 
 func NewService(repository Repository, roles RoleReader, unitOfWork UnitOfWork) *Service {
-	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, now: time.Now}
+	return &Service{repository: repository, roles: roles, unitOfWork: unitOfWork, notifier: noNotifier{}, now: time.Now}
 }
 
 // content is the editable part of an Opportunity, validated.

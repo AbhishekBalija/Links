@@ -28,6 +28,11 @@ COOKIE_SAME_SITE   # lax (default) or strict; none is refused
 ENABLE_TEST_SIGN_IN # true only for the e2e suite; refused unless APP_ENV=local.
                     # Adds POST /api/v1/test/sign-in and GET /api/v1/test/sign-in-code?email=
                     # (the last code emailed to that address)
+MAIL_PROVIDER      # resend (default, production) or smtp
+SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD
+                    # for MAIL_PROVIDER=smtp: a testing inbox (Mailtrap:
+                    # sandbox.smtp.mailtrap.io, 2525) or Gmail with an app
+                    # password (smtp.gmail.com, 587). See docs/deployment.md
 EMAIL_CODE_FOR_EVERY_ROLE # true on a test copy: the principal and admins may sign in with
                     # an email code too, so testers can use throwaway inboxes.
                     # Refused with APP_ENV=production (Google only there, ADR 0026)

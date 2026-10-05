@@ -80,3 +80,54 @@ func TestStaffAddedEmailSaysWhoAddedThemAndHowToSignIn(t *testing.T) {
 		t.Error("the principal's email should say Google only")
 	}
 }
+
+func TestEventNoticesGoOutAHundredAtATime(t *testing.T) {
+	var batches []int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/emails/batch" {
+			t.Errorf("path = %s, want /emails/batch", r.URL.Path)
+		}
+		var sent []sendRequest
+		if err := json.NewDecoder(r.Body).Decode(&sent); err != nil {
+			t.Errorf("decode batch: %v", err)
+		}
+		batches = append(batches, len(sent))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	m := NewResendMailer("key", "links@example.com", "https://links.example.com")
+	m.baseURL = server.URL
+
+	to := make([]Recipient, 250)
+	for i := range to {
+		to[i] = Recipient{Email: "student@example.com", FullName: "Asha Rao"}
+	}
+	if err := m.SendEventNotice(to, EventNotice{Title: "Robotics meetup", Cancelled: true, When: "Fri 9 Oct, 11 am", Where: "CS Lab 2"}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if len(batches) != 3 || batches[0] != 100 || batches[1] != 100 || batches[2] != 50 {
+		t.Errorf("batches = %v, want 100, 100 and 50", batches)
+	}
+}
+
+func TestEveryLetterSaysRepliesArentReadAndGreetsWithoutTitles(t *testing.T) {
+	html := accessDecisionHTML(AccessDecision{FullName: "Dr. Meera Iyer", Approved: true, ReviewerName: "Asha Rao", Joined: "a student"}, "https://links.example.com")
+	if !strings.Contains(html, "Hello Meera,") || !strings.Contains(html, "Replies to this email aren't read") {
+		t.Errorf("letter = %s", html)
+	}
+}
+
+func TestASentBackEmailQuotesTheNoteAndLinksToTheFix(t *testing.T) {
+	e := reviewOutcomeEmail("kiran@example.com", ReviewOutcome{
+		FullName: "Prof. Kiran Hegde", Kind: "announcement", Title: "Lab 2 timings", Outcome: "sent_back",
+		ReviewerName: "Asha Rao", Note: "Add the <room> number", Path: "/mine/abc",
+	}, "https://links.example.com/")
+	if e.Subject != "Sent back to change: Lab 2 timings" {
+		t.Errorf("subject = %q", e.Subject)
+	}
+	for _, want := range []string{"Hello Kiran,", "Asha Rao sent your announcement", "Add the &lt;room&gt; number", "https://links.example.com/mine/abc"} {
+		if !strings.Contains(e.HTML, want) {
+			t.Errorf("email is missing %q: %s", want, e.HTML)
+		}
+	}
+}
