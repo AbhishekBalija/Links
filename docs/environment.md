@@ -22,7 +22,7 @@ DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
                    # local alternative to DATABASE_URL
 FRONTEND_URL       # the web app's origin, for email links (optional on Vercel)
 RESEND_API_KEY     # Resend key for sign-in code emails (MAIL_PROVIDER=resend)
-FROM_EMAIL         # verified sender address (not @resend.dev in production)
+FROM_EMAIL         # sender address; use a Resend-verified domain once there is one
 SENTRY_DSN         # server error reporting; off while empty
 JWT_ACCESS_SECRET
 JWT_REFRESH_SECRET

@@ -30,6 +30,8 @@ type Repository interface {
 	IsReferenced(ctx context.Context, departmentID string) (bool, error)
 	CanAssignHOD(ctx context.Context, userID, departmentID string) (bool, error)
 	ListForAdmin(ctx context.Context) ([]AdminRow, error)
+	// WithHOD is the IDs of Departments with an HOD role in effect.
+	WithHOD(ctx context.Context) (map[string]bool, error)
 }
 
 // AdminRow is one Department as the admin's Departments screen shows it:

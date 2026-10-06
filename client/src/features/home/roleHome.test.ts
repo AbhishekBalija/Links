@@ -17,7 +17,7 @@ const department = (code: string, name: string, hod: boolean) => ({
   name,
   students: 10,
   staff: 2,
-  hod: hod ? { full_name: 'X', username: 'x' } : null,
+  hod: hod ? { full_name: 'X', username: 'x', state: 'active' as const } : null,
 })
 
 describe('homeKind', () => {
