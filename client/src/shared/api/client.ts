@@ -66,9 +66,23 @@ async function performRefresh(): Promise<string> {
   return accessToken
 }
 
+// Refresh tokens rotate, so two tabs sending the same old cookie at once
+// would get one success and one refusal. A Web Lock shared by every tab of
+// this site makes them refresh one at a time: the second tab waits, then
+// sends the cookie the first tab just received. Browsers without Web Locks
+// fall back to refreshing right away.
+export const REFRESH_LOCK_NAME = 'links-auth-refresh'
+
+function refreshOnce(): Promise<string> {
+  if (typeof navigator === 'undefined' || !navigator.locks) {
+    return performRefresh()
+  }
+  return navigator.locks.request(REFRESH_LOCK_NAME, performRefresh)
+}
+
 export function attemptRefresh(): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = performRefresh().finally(() => {
+    refreshPromise = refreshOnce().finally(() => {
       refreshPromise = null
     })
   }

@@ -39,6 +39,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Reloading several tabs at once after the access token expired no longer
+  signs all but one out: tabs now take turns refreshing the session (#183).
 - Department counts on Home, the Department page and the admin's list now
   include students and staff on the lists who haven't signed in yet (a class
   of 120 read "12 students" for weeks), and "staff" counts the HOD and
