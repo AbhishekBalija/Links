@@ -144,7 +144,8 @@ reply is the same but no code is sent). Spaces around the
 email and its case don't matter. `400` for something that isn't an email.
 `429 RATE_LIMITED` after 3 requests for one email from one IP address, or 60
 from one IP address, within 15 minutes; after 10 requests for one email from
-one IP address in a day; or after 30 for one email from anywhere in a day. The
+one IP address in a day; or after 30 for one email from anywhere in a day. The error's `details.limit` is `network` for the
+per-address limit (a whole campus on one Wi-Fi) and `email` otherwise. The
 limits count every request, known email or not. After 10 wrong guesses at an
 email's codes asked for from one address in a day, the reply stays the same
 but no code is sent to that address's requests until the day is over. The

@@ -36,6 +36,9 @@ SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD
 EMAIL_CODE_FOR_EVERY_ROLE # true on a test copy: the principal and admins may sign in with
                     # an email code too, so testers can use throwaway inboxes.
                     # Refused with APP_ENV=production (Google only there, ADR 0026)
+NOT_ON_LIST_CODES_PER_DAY # sign-in codes a day to emails on no list, whole copy
+                    # (default 50). Raise it for orientation day if the email
+                    # service's quota allows; must be above 0
 GOOGLE_CLIENT_ID   # Google sign-in's OAuth client ID (public); Google sign-in is off while empty
 VITE_GOOGLE_CLIENT_ID # the same client ID for the web app; the Google button is hidden while empty
 STORAGE_PROVIDER

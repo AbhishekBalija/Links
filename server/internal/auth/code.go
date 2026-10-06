@@ -202,8 +202,14 @@ func (s *authService) addressLimits(ctx context.Context, repos AuthRepositories,
 	if err != nil {
 		return false, fmt.Errorf("count codes for address: %w", err)
 	}
-	if byEmail >= int64(s.codeSettings.PerEmailLimit) || byIP >= int64(s.codeSettings.PerIPLimit) {
-		return false, apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
+	// Which limit, so the screen can tell one person asking too often from a
+	// whole campus on one network; neither says whether the email has an
+	// account.
+	if byIP >= int64(s.codeSettings.PerIPLimit) {
+		return false, apperrors.NewRateLimitedBy("too many codes asked for from this network; try again in 15 minutes", "network")
+	}
+	if byEmail >= int64(s.codeSettings.PerEmailLimit) {
+		return false, apperrors.NewRateLimitedBy("too many codes asked for; try again in 15 minutes", "email")
 	}
 	dayAgo := now.Add(-codeRecordsKept)
 	byEmailToday, err := repos.SignInCodes.CountByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
@@ -215,7 +221,7 @@ func (s *authService) addressLimits(ctx context.Context, repos AuthRepositories,
 		return false, fmt.Errorf("count codes for email from anywhere today: %w", err)
 	}
 	if byEmailToday >= int64(s.codeSettings.PerEmailDailyLimit) || everywhereToday >= int64(s.codeSettings.EmailDailyCeiling) {
-		return false, apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
+		return false, apperrors.NewRateLimitedBy("too many codes asked for today; try again tomorrow", "email")
 	}
 	wrongToday, err := repos.SignInCodes.SumWrongTriesByEmailAndIPSince(ctx, emailHash, ipHash, dayAgo)
 	if err != nil {
@@ -233,7 +239,7 @@ func (s *authService) deviceLimits(ctx context.Context, repos AuthRepositories, 
 		return false, fmt.Errorf("count codes for device: %w", err)
 	}
 	if recent >= int64(s.codeSettings.PerEmailLimit) {
-		return false, apperrors.NewRateLimited("too many codes asked for; try again in 15 minutes")
+		return false, apperrors.NewRateLimitedBy("too many codes asked for; try again in 15 minutes", "email")
 	}
 	dayAgo := now.Add(-codeRecordsKept)
 	today, err := repos.SignInCodes.CountByDeviceSince(ctx, deviceID, dayAgo)
@@ -241,7 +247,7 @@ func (s *authService) deviceLimits(ctx context.Context, repos AuthRepositories, 
 		return false, fmt.Errorf("count codes for device today: %w", err)
 	}
 	if today >= int64(s.codeSettings.PerEmailDailyLimit) {
-		return false, apperrors.NewRateLimited("too many codes asked for today; try again tomorrow")
+		return false, apperrors.NewRateLimitedBy("too many codes asked for today; try again tomorrow", "email")
 	}
 	wrongToday, err := repos.SignInCodes.SumWrongTriesByDeviceSince(ctx, deviceID, dayAgo)
 	if err != nil {
