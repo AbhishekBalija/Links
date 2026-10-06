@@ -121,6 +121,23 @@ Each college gets its own copy of LINKS (ADR 0030): a new Vercel project, a new
 Neon database and its own address, then the first admin added as above against
 that database. Nothing is shared between copies.
 
+## Before a College's First Day
+
+On day one nobody's browser is known yet (#240), the whole campus may share
+one Wi-Fi address, and every student signing in needs an email.
+
+- **Email quota first.** Each sign-in sends one email. Resend's free plan
+  sends 100 a day and Gmail about 500: neither covers a campus. Move to a
+  paid plan (or another provider) sized for every student plus resends.
+- **Codes per network.** `CODES_PER_NETWORK_PER_15_MIN` (default 600, about
+  2,400 an hour from one address). Raise it for a large college signing in
+  together; the per-email limits still hold.
+- **Requests from people on no list.** `NOT_ON_LIST_CODES_PER_DAY` (default
+  50). Import the class lists first, so few students are on no list; raise
+  it if many will ask to join that day.
+- Students who sign in once are remembered on that browser, so later days
+  don't depend on these numbers.
+
 ## Smoke Test
 
 After deploying, verify:
