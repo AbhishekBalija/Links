@@ -8,6 +8,7 @@ import { buttonStyles } from '../../announcements/buttons'
 import { useEndingPreview, useEndRole } from '../api'
 import { consequences, defaultOrganiser } from '../roles'
 import type { Handover, PersonRef, RoleAssignment } from '../types'
+import { COLLEGE_TIME_ZONE } from '../../../shared/time/college'
 
 type Props = {
   userId: string
@@ -71,7 +72,7 @@ export function EndConfirm({ userId, firstName, viewerId, assignment, onClose, o
   if (scheduled) {
     body = (
       <p className="text-sm leading-normal">
-        It was due to start on {new Date(assignment.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}. It never takes
+        It was due to start on {new Date(assignment.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: COLLEGE_TIME_ZONE })}. It never takes
         effect, and {firstName} keeps any other roles.
       </p>
     )

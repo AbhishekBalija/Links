@@ -1,4 +1,5 @@
 import type { AudienceRule } from './types'
+import { COLLEGE_TIME_ZONE, collegeDay } from '../../shared/time/college'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -30,7 +31,7 @@ export function timeAgo(iso: string, now = new Date()): string {
   const days = Math.round(diff / DAY)
   if (days <= 1) return 'yesterday'
   if (days < 7) return `${days} days ago`
-  return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  return then.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })
 }
 
 // "26 Sep 2026, 13:10" for the detail view.
@@ -42,23 +43,19 @@ export function fullDate(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: COLLEGE_TIME_ZONE,
   })
 }
 
 export type Expiry = { at: string; text: string; soon: boolean }
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
 
 // Expiry says how long a notice stays up, in calendar days: a deadline at
 // 11:00 tomorrow is "tomorrow" however late it is today. It counts as soon
 // within a week, so deadlines stand out without every notice looking urgent.
 export function expiry(iso: string | null, now = new Date()): Expiry | null {
   if (!iso) return null
-  const ends = new Date(iso)
-  // Math.round absorbs the hour a daylight-saving change adds or removes.
-  const days = Math.round((startOfDay(ends).getTime() - startOfDay(now).getTime()) / DAY)
+  // Days on the college's calendar (#211).
+  const days = collegeDay(iso) - collegeDay(now)
   let text: string
   if (days <= 0) text = 'today'
   else if (days === 1) text = 'tomorrow'

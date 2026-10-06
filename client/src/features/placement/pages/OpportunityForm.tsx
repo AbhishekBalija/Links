@@ -18,6 +18,7 @@ import { ConfirmDialog } from '../../jobs/components/ConfirmDialog'
 import { opportunityTypes, type Opportunity } from '../../jobs/types'
 import { useCreateOpportunity, useManagedOne, usePublishing, useUpdateOpportunity } from '../api'
 import { eligibilitySummary, fromRules, type EligibilityChoice } from '../eligibility'
+import { COLLEGE_TIME_ZONE } from '../../../shared/time/college'
 import {
   applyBy,
   checkOpportunity,
@@ -368,7 +369,7 @@ function FormView({ item, departments }: { item: Opportunity | undefined; depart
           It shows in their Jobs right away
           {due && (
             <>
-              , open until <b className="font-semibold text-ink">{due.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, {due.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()}</b>
+              , open until <b className="font-semibold text-ink">{due.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })}, {due.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: COLLEGE_TIME_ZONE }).toLowerCase()}</b>
             </>
           )}
           . After publishing you can edit the details and move the deadline later, but not change how students apply.

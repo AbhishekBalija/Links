@@ -39,6 +39,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   the minute's wait, "No code yet?" lists every reason one might not, the
   same for every email; "too many codes from this network" (a campus on one
   Wi-Fi) is now a warning that points to mobile data, not "this email".
+- Dates and times followed the device's time zone (#211). Event times, job
+  deadlines, notice expiry, date tiles and Home's date are now always the
+  college's, so a phone set to another zone can't create an event at the
+  wrong time. A role starting later reads "from 1 Nov 2026", not a raw date.
 - Someone on the same campus Wi-Fi could still stop a student getting
   sign-in codes. A browser that has signed in before is now remembered for
   that account (an httpOnly cookie; migration 026 adds `known_devices`), and

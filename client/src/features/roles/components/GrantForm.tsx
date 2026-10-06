@@ -6,7 +6,7 @@ import { ApiRequestError } from '../../../shared/api/types'
 import { buttonStyles } from '../../announcements/buttons'
 import { useDepartments } from '../../announcements/api'
 import { useGrantRole } from '../api'
-import { grantPayload, grantProblems, needsDepartment, todayInIndia, type GrantDraft } from '../roles'
+import { grantedLine, grantPayload, grantProblems, needsDepartment, todayInIndia, type GrantDraft } from '../roles'
 
 type Props = {
   userId: string
@@ -55,11 +55,7 @@ export function GrantForm({ userId, firstName, roles, department, viewerIsPrinci
     }
     try {
       await grant.mutateAsync(grantPayload(ready, today))
-      onGranted(
-        coordinatorOnly
-          ? `${firstName} is a student coordinator${ready.starts === today ? ' now' : ` from ${ready.starts}`}.`
-          : `${firstName} has the ${roleLabel(ready.role)} role${ready.starts === today ? ' now' : ` from ${ready.starts}`}.`,
-      )
+      onGranted(grantedLine(firstName, coordinatorOnly ? 'student_coordinator' : ready.role, roleLabel(ready.role), ready.starts, today))
     } catch (err) {
       if (err instanceof ApiRequestError && err.status === 400 && err.details) {
         const fields = err.details as Record<string, string>

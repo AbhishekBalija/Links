@@ -14,6 +14,7 @@ import { Tag } from '../components/Tags'
 import { answersClosed, isFull, startTime, whenLine } from '../format'
 import { isOrganiser, organiserName } from '../organiser'
 import { typeLabel, type AnswerSummary, type CampusEvent } from '../types'
+import { COLLEGE_TIME_ZONE } from '../../../shared/time/college'
 
 // EventDetail is one Event: what, when and where, then the answer bar, the
 // one place to act. On phones the bar sits at the bottom of the screen.
@@ -92,7 +93,7 @@ function EventView({ event }: { event: CampusEvent }) {
         <div role="status" className="flex flex-col gap-1 rounded-xl bg-danger-soft px-4 py-3.5 text-danger-ink">
           <span className="text-[15px] font-bold">
             Cancelled
-            {event.cancelled_at && ` on ${new Date(event.cancelled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+            {event.cancelled_at && ` on ${new Date(event.cancelled_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })}`}
           </span>
           {event.cancel_reason && <span className="text-sm leading-[1.45]">“{event.cancel_reason}”</span>}
         </div>

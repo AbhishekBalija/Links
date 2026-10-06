@@ -1,8 +1,9 @@
 import { roleLabel } from '../../app/shell/nav'
 import type { ListFilter, WaitingPerson } from './types'
+import { COLLEGE_TIME_ZONE } from '../../shared/time/college'
 
 // The college's calendar day as YYYY-MM-DD.
-const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' })
+const dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: COLLEGE_TIME_ZONE })
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 // whoLine is a row's second column: a student's USN, a staff member's role.
