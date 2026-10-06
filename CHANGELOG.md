@@ -41,6 +41,19 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Fixed
 - SQL in the API logs no longer includes real values: slow queries and
   errors show `?` instead of emails, names, USNs and tokens (#181).
+- A production deploy now refuses to start, naming the variable, when
+  `GOOGLE_CLIENT_ID`, `FROM_EMAIL` or the mail settings (`RESEND_API_KEY`, or
+  `SMTP_*` with `MAIL_PROVIDER=smtp`) are missing, instead of starting green
+  and locking people out (#182).
+- An import no longer answers with an error when only its summary audit fails
+  after the students were saved; it returns the result and logs the failure
+  (#184).
+- Approving or changing the status of a user with a malformed ID now answers
+  404 instead of a server error, and approving checks the scope it is given:
+  an unknown type or a stray ID is a 400, and an HOD can no longer scope the
+  student role to another Department (#180).
+- Reloading several tabs at once after the access token expired no longer
+  signs all but one out: tabs now take turns refreshing the session (#183).
 - Department counts on Home, the Department page and the admin's list now
   include students and staff on the lists who haven't signed in yet (a class
   of 120 read "12 students" for weeks), and "staff" counts the HOD and
