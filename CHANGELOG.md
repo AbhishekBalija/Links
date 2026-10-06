@@ -39,6 +39,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- The `.env` example files now list every variable the server and web app
+  read (JWT secrets, token lifetimes, cookie, CORS, body limit, database
+  pool, Sentry), and a test fails when the server reads one that isn't listed
+  (#186).
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends
