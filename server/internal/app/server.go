@@ -151,6 +151,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 	// A test copy can let the principal and admins use an email code too.
 	codeSettings := wiring.codeSettings
 	codeSettings.EveryRoleUsesCodes = cfg.EmailCodeForEveryRole
+	if cfg.CodesPerNetwork > 0 {
+		codeSettings.PerIPLimit = cfg.CodesPerNetwork
+	}
 	if cfg.NotOnListCodesPerDay > 0 {
 		codeSettings.NotOnListDailyLimit = cfg.NotOnListCodesPerDay
 	}

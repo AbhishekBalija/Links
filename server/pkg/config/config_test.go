@@ -208,3 +208,19 @@ func TestNotOnListCodesPerDayIsASettingOfEachCopy(t *testing.T) {
 		}
 	}
 }
+
+func TestCodesPerNetworkIsASettingOfEachCopy(t *testing.T) {
+	t.Setenv("CODES_PER_NETWORK_PER_15_MIN", "")
+	if got := countValue("CODES_PER_NETWORK_PER_15_MIN", 600); got != 600 {
+		t.Errorf("default = %d, want 600", got)
+	}
+	config := Config{AppEnv: "local", DatabaseURL: "postgres://example", GINMode: "debug",
+		Auth:             AuthConfig{JWTAccessSecret: "a", JWTRefreshSecret: "b", AccessTokenTTL: time.Minute, RefreshTokenTTL: time.Hour},
+		RequestBodyLimit: 1024,
+		DatabasePool:     DatabasePoolConfig{MaxOpenConns: 10, MaxIdleConns: 5, ConnMaxLifetime: time.Minute, ConnMaxIdleTime: time.Minute},
+		CodesPerNetwork:  -1,
+	}
+	if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "CODES_PER_NETWORK_PER_15_MIN") {
+		t.Errorf("Validate() = %v, want a bad value refused", err)
+	}
+}

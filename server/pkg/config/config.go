@@ -39,6 +39,10 @@ type Config struct {
 	// no list, across the whole copy, to protect the email quota. A college
 	// expecting many Access requests (orientation day) can raise it.
 	NotOnListCodesPerDay int
+	// CodesPerNetwork caps sign-in codes asked for from one network address
+	// in 15 minutes. A whole campus shares one address on its Wi-Fi, so a
+	// large college's first day may need it raised.
+	CodesPerNetwork int
 }
 
 // DatabasePoolConfig controls the database/sql pool used by GORM.
@@ -106,6 +110,7 @@ func Load() (Config, error) {
 		EmailCodeForEveryRole: os.Getenv("EMAIL_CODE_FOR_EVERY_ROLE") == "true",
 		ClientIPHeader:        clientIPHeader(),
 		NotOnListCodesPerDay:  countValue("NOT_ON_LIST_CODES_PER_DAY", 50),
+		CodesPerNetwork:       countValue("CODES_PER_NETWORK_PER_15_MIN", 600),
 		Port:                  firstSet("PORT", "APP_PORT"),
 		DatabaseURL:           databaseURL(),
 		GINMode:               valueOrDefault("GIN_MODE", "debug"),
@@ -235,6 +240,9 @@ func (c Config) Validate() error {
 		}
 	default:
 		return fmt.Errorf("MAIL_PROVIDER must be resend or smtp")
+	}
+	if c.CodesPerNetwork < 0 {
+		return fmt.Errorf("CODES_PER_NETWORK_PER_15_MIN must be a whole number above 0")
 	}
 	if c.NotOnListCodesPerDay < 0 {
 		return fmt.Errorf("NOT_ON_LIST_CODES_PER_DAY must be a whole number above 0")

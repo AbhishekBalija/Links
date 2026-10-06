@@ -35,6 +35,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A campus on one Wi-Fi could ask for only 60 sign-in codes every 15
+  minutes, so a class signing in together on day one got stuck. The default
+  is now 600 and a setting, `CODES_PER_NETWORK_PER_15_MIN`; the deployment
+  guide has a checklist for a college's first day (email quota first).
 - The code screen promised a code that sometimes never comes (#202). After
   the minute's wait, "No code yet?" lists every reason one might not, the
   same for every email; "too many codes from this network" (a campus on one
