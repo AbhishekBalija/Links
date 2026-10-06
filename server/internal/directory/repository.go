@@ -222,3 +222,21 @@ func (r *GormRepository) StaffCount(ctx context.Context, departmentID string) (i
 		Scan(&count).Error
 	return count, err
 }
+
+// HODHolder finds the Department's HOD role in effect, whatever the holder's
+// account state or profile visibility, or nil.
+func (r *GormRepository) HODHolder(ctx context.Context, departmentID string) (*HODHolder, error) {
+	var holders []HODHolder
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT u.id AS user_id, p.full_name, p.username, u.status
+		FROM role_assignments r
+		JOIN users u ON u.id = r.user_id
+		JOIN profiles p ON p.user_id = u.id
+		WHERE r.role = 'hod' AND r.scope_type = 'department' AND r.scope_id = ? AND `+inEffect+`
+		ORDER BY r.starts_at, r.id
+		LIMIT 1`, departmentID).Scan(&holders).Error
+	if err != nil || len(holders) == 0 {
+		return nil, err
+	}
+	return &holders[0], nil
+}

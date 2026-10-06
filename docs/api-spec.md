@@ -274,11 +274,17 @@ Access request form shows, ordered by name, with
 ```json
 {
   "data": [
-    { "code": "CS", "name": "Computer Science and Engineering" },
-    { "code": "IS", "name": "Information Science and Engineering" }
+    { "code": "CS", "name": "Computer Science and Engineering", "has_hod": true },
+    { "code": "IS", "name": "Information Science and Engineering", "has_hod": false }
   ]
 }
 ```
+
+`has_hod` (#207) says whether a request goes to the Department's HOD or, with
+none, to the admins. Like the dashboard's college panel and a Department
+overview's `has_hod`, it counts an HOD role in effect, whether or not the
+HOD has signed in yet: the rule that routes event reviews. The dashboard's
+`college.departments[].hod.state` is `active`, `not_signed_in` or `paused`.
 
 `POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout` use the refresh
 cookie, so they also check where the request came from (ADR 0022). A request

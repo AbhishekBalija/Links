@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- An address LINKS doesn't have now says "This page isn't here" with a way
+  back, instead of quietly landing on Home. On phones, log out moves from an
+  unlabelled icon on Home to the end of your Profile, named with your email,
+  and asks first (#212).
 - "Too many codes" now says which limit was hit (`details.limit`: `network`
   or `email`), and the daily cap on codes to emails on no list is a setting,
   `NOT_ON_LIST_CODES_PER_DAY` (default 50), for orientation day (#202).
@@ -40,6 +44,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   of 120 read "12 students" for weeks), and "staff" counts the HOD and
   placement officer too, not only faculty; "1 departments" reads right
   (#213).
+- "Does this department have an HOD?" has one answer everywhere (#207): an
+  HOD role in effect. Someone added as HOD who hasn't signed in yet, or is
+  paused, no longer shows as "No HOD yet" on Home (granting another then
+  failed); Propose names the right reviewer; and a request to join a
+  department with no HOD says it goes to the admins.
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends

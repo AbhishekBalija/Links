@@ -54,6 +54,19 @@ type CollegeDepartment struct {
 type HODName struct {
 	FullName string `json:"full_name"`
 	Username string `json:"username"`
+	// State is active, not_signed_in (added, not in yet) or paused.
+	State string `json:"state"`
+}
+
+// hodState names the HOD's account state for Home.
+func hodState(status string) string {
+	switch status {
+	case "active":
+		return "active"
+	case "pending":
+		return "not_signed_in"
+	}
+	return "paused"
 }
 
 type CollegeSection struct {
@@ -113,8 +126,10 @@ func (s *Service) college(ctx context.Context, userID string, roles []string) (*
 			return nil, fmt.Errorf("overview of %s: %w", d.Code, err)
 		}
 		row := CollegeDepartment{Code: d.Code, Name: d.Name, Students: overview.Counts.Students, Staff: overview.Counts.Staff}
-		if overview.HOD != nil {
-			row.HOD = &HODName{FullName: overview.HOD.FullName, Username: overview.HOD.Username}
+		// The HOD role in effect, listed or not (#207), so someone added as
+		// HOD who hasn't signed in yet isn't shown as "No HOD".
+		if overview.Holder != nil {
+			row.HOD = &HODName{FullName: overview.Holder.FullName, Username: overview.Holder.Username, State: hodState(overview.Holder.Status)}
 		}
 		if row.HOD == nil {
 			section.DepartmentsWithoutHOD++

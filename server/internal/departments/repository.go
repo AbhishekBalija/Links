@@ -182,3 +182,15 @@ func (r *GormRepository) ListForAdmin(ctx context.Context) ([]AdminRow, error) {
 		ORDER BY d.name`).Scan(&rows).Error
 	return rows, err
 }
+
+func (r *GormRepository) WithHOD(ctx context.Context) (map[string]bool, error) {
+	var ids []string
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT r.scope_id FROM role_assignments r
+		WHERE r.role = 'hod' AND r.scope_type = 'department' AND ` + inEffect).Scan(&ids).Error
+	found := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		found[id] = true
+	}
+	return found, err
+}
