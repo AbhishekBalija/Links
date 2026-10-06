@@ -31,12 +31,17 @@ ready (usually a browser navigating away). It is not a server error and is
 left out of the error rate and 5xx alerts; the cancelled database query is
 not logged either.
 
+The database logger (`server/pkg/db/logger.go`) prints slow queries and
+errors with `?` in place of every value, so emails, names, USNs and tokens
+stay out of the logs.
+
 Never log:
 
 - Passwords
 - Refresh tokens
 - Full authorization headers
 - Sensitive applicant notes
+- Values inside SQL queries (the database logger hides them)
 
 ## Metrics
 

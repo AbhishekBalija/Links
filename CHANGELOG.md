@@ -39,6 +39,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- SQL in the API logs no longer includes real values: slow queries and
+  errors show `?` instead of emails, names, USNs and tokens (#181).
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends
