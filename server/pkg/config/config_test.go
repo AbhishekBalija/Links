@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -173,5 +174,37 @@ func TestSMTPMailNeedsAServer(t *testing.T) {
 	unknown.Mailer.Provider = "carrier-pigeon"
 	if err := unknown.Validate(); err == nil {
 		t.Error("an unknown MAIL_PROVIDER was accepted")
+	}
+}
+
+func TestNotOnListCodesPerDayIsASettingOfEachCopy(t *testing.T) {
+	t.Setenv("NOT_ON_LIST_CODES_PER_DAY", "")
+	if got := countValue("NOT_ON_LIST_CODES_PER_DAY", 50); got != 50 {
+		t.Errorf("default = %d, want 50", got)
+	}
+	t.Setenv("NOT_ON_LIST_CODES_PER_DAY", "300")
+	if got := countValue("NOT_ON_LIST_CODES_PER_DAY", 50); got != 300 {
+		t.Errorf("set to 300, got %d", got)
+	}
+
+	valid := Config{
+		AppEnv:               "local",
+		DatabaseURL:          "postgres://example",
+		GINMode:              "debug",
+		Auth:                 AuthConfig{JWTAccessSecret: "a", JWTRefreshSecret: "b", AccessTokenTTL: time.Minute, RefreshTokenTTL: time.Hour},
+		RequestBodyLimit:     1024,
+		DatabasePool:         DatabasePoolConfig{MaxOpenConns: 10, MaxIdleConns: 5, ConnMaxLifetime: time.Minute, ConnMaxIdleTime: time.Minute},
+		NotOnListCodesPerDay: 50,
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid config: %v", err)
+	}
+	for _, bad := range []string{"0", "-5", "lots"} {
+		t.Setenv("NOT_ON_LIST_CODES_PER_DAY", bad)
+		config := valid
+		config.NotOnListCodesPerDay = countValue("NOT_ON_LIST_CODES_PER_DAY", 50)
+		if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "NOT_ON_LIST_CODES_PER_DAY") {
+			t.Errorf("%q: Validate() = %v, want it refused", bad, err)
+		}
 	}
 }

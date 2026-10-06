@@ -35,6 +35,10 @@ type Config struct {
 	// ClientIPHeader names the header that holds the client's real IP
 	// address, set only on a platform that writes it itself (Vercel).
 	ClientIPHeader string
+	// NotOnListCodesPerDay caps the sign-in codes sent in a day to emails on
+	// no list, across the whole copy, to protect the email quota. A college
+	// expecting many Access requests (orientation day) can raise it.
+	NotOnListCodesPerDay int
 }
 
 // DatabasePoolConfig controls the database/sql pool used by GORM.
@@ -101,6 +105,7 @@ func Load() (Config, error) {
 		EnableTestSignIn:      os.Getenv("ENABLE_TEST_SIGN_IN") == "true",
 		EmailCodeForEveryRole: os.Getenv("EMAIL_CODE_FOR_EVERY_ROLE") == "true",
 		ClientIPHeader:        clientIPHeader(),
+		NotOnListCodesPerDay:  countValue("NOT_ON_LIST_CODES_PER_DAY", 50),
 		Port:                  firstSet("PORT", "APP_PORT"),
 		DatabaseURL:           databaseURL(),
 		GINMode:               valueOrDefault("GIN_MODE", "debug"),
@@ -231,6 +236,9 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("MAIL_PROVIDER must be resend or smtp")
 	}
+	if c.NotOnListCodesPerDay < 0 {
+		return fmt.Errorf("NOT_ON_LIST_CODES_PER_DAY must be a whole number above 0")
+	}
 	// The principal and admins sign in with Google only in production.
 	if c.EmailCodeForEveryRole && c.AppEnv == "production" {
 		return fmt.Errorf("EMAIL_CODE_FOR_EVERY_ROLE is not allowed with APP_ENV=production")
@@ -324,6 +332,20 @@ func intValue(key string, fallback int) int {
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return fallback
+	}
+	return parsed
+}
+
+// countValue reads a count that must be above zero. Anything else reads as
+// -1, which Validate refuses, rather than quietly using the default.
+func countValue(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 1 {
+		return -1
 	}
 	return parsed
 }

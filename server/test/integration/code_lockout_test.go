@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/AbhishekBalija/Links/server/internal/auth"
 	"github.com/AbhishekBalija/Links/server/test/apitest"
 )
 
@@ -85,5 +86,39 @@ func TestAnEmailGetsAtMostThirtyCodesADayFromAnywhere(t *testing.T) {
 	expectStatus(t, "a thirty-first from yet another address", askForCodeFrom(t, h, "192.0.2.99", member.Email), http.StatusTooManyRequests)
 	if codes := h.Outbox.CodesTo(member.Email); len(codes) != 30 {
 		t.Errorf("sent %d codes, want 30", len(codes))
+	}
+}
+
+// The "too many codes" reply says which limit was hit, so the screen can
+// tell one person asking too often from a whole campus on one network
+// (#202). It never says whether the email has an account.
+func TestTooManyCodesSaysWhichLimit(t *testing.T) {
+	h := apitest.New(t)
+	limitOf := func(response apitest.Response) string {
+		t.Helper()
+		expectStatus(t, "refused", response, http.StatusTooManyRequests)
+		var body struct {
+			Error struct {
+				Details struct {
+					Limit string `json:"limit"`
+				} `json:"details"`
+			} `json:"error"`
+		}
+		response.Decode(t, &body)
+		return body.Error.Details.Limit
+	}
+
+	for range 3 {
+		challengeFrom(t, askForCodeFrom(t, h, ownerIP, "someone@apitest.local"))
+	}
+	if limit := limitOf(askForCodeFrom(t, h, ownerIP, "someone@apitest.local")); limit != "email" {
+		t.Errorf("a fourth for one email: limit = %q, want email", limit)
+	}
+
+	for i := 0; i < auth.DefaultCodeSettings().PerIPLimit; i++ {
+		askForCodeFrom(t, h, campusIP, fmt.Sprintf("student%d@apitest.local", i))
+	}
+	if limit := limitOf(askForCodeFrom(t, h, campusIP, "another@apitest.local")); limit != "network" {
+		t.Errorf("a whole network's worth: limit = %q, want network", limit)
 	}
 }
