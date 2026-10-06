@@ -35,10 +35,12 @@ type DepartmentResponse struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// PublicDepartment is what the sign-up form needs: no IDs, no HOD.
+// PublicDepartment is what the sign-up form needs: no IDs and no names, only
+// whether a request goes to an HOD or to the admins (#207).
 type PublicDepartment struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	HasHOD bool   `json:"has_hod"`
 }
 
 type DepartmentListResponse struct {

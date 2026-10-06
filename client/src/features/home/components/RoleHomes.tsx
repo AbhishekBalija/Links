@@ -339,13 +339,7 @@ function CollegeSection({ departments }: { departments: CollegeDepartment[] }) {
               <td className="px-3 py-2.5 text-right font-mono text-sm">{d.students}</td>
               <td className="px-3 py-2.5 text-right font-mono text-sm">{d.staff}</td>
               <td className="rounded-r-lg px-3 py-2.5">
-                {d.hod ? (
-                  <Link to={`/people/${d.hod.username}`} className="font-medium text-ink hover:text-rust">
-                    {d.hod.full_name}
-                  </Link>
-                ) : (
-                  <NoHOD department={d} />
-                )}
+                {d.hod ? <HODCell hod={d.hod} /> : <NoHOD department={d} />}
               </td>
             </tr>
           ))}
@@ -362,12 +356,38 @@ function CollegeSection({ departments }: { departments: CollegeDepartment[] }) {
               <span className="text-[13px] text-ink-3">
                 {d.students} students · {d.staff} staff
               </span>
-              {!d.hod && <NoHOD department={d} />}
+              {d.hod ? d.hod.state !== 'active' && <HODCell hod={d.hod} /> : <NoHOD department={d} />}
             </span>
           </li>
         ))}
       </ul>
     </section>
+  )
+}
+
+// HODCell names the HOD, with a tag when they can't act yet: added but not
+// signed in, or paused (#207). Only an active HOD's profile is linked; the
+// others may not be listed in People.
+function HODCell({ hod }: { hod: NonNullable<CollegeDepartment['hod']> }) {
+  if (hod.state === 'active') {
+    return (
+      <Link to={`/people/${hod.username}`} className="font-medium text-ink hover:text-rust">
+        {hod.full_name}
+      </Link>
+    )
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <span className="text-[13px] font-medium text-ink lg:text-[15px]">{hod.full_name}</span>
+      <span
+        className={cn(
+          'rounded px-[7px] py-0.5 text-[11px] font-semibold whitespace-nowrap',
+          hod.state === 'paused' ? 'bg-warning-soft text-warning-ink' : 'bg-well text-ink-2',
+        )}
+      >
+        {hod.state === 'paused' ? 'Paused' : "Hasn't signed in yet"}
+      </span>
+    </span>
   )
 }
 
