@@ -256,6 +256,14 @@ func TestProductionRefusesToStartWithoutSignInSettings(t *testing.T) {
 		t.Fatalf("complete production config refused: %v", err)
 	}
 
+	// The Resend sandbox sender only reaches the account owner, but a copy
+	// without a verified domain yet still has to start; the server warns.
+	sandbox := productionConfig()
+	sandbox.Mailer.FromEmail = "onboarding@resend.dev"
+	if err := sandbox.Validate(); err != nil {
+		t.Fatalf("the @resend.dev sender was refused: %v", err)
+	}
+
 	smtp := productionConfig()
 	smtp.Mailer = MailerConfig{Provider: "smtp", SMTPHost: "smtp.example", SMTPPort: "587", SMTPUsername: "user", SMTPPassword: "pass", FromEmail: "noreply@college.example"}
 	if err := smtp.Validate(); err != nil {
@@ -271,7 +279,6 @@ func TestProductionRefusesToStartWithoutSignInSettings(t *testing.T) {
 		{"blank Google client ID", func(c *Config) { c.Google.ClientID = "  " }, "GOOGLE_CLIENT_ID"},
 		{"no Resend key", func(c *Config) { c.Mailer.ResendAPIKey = "" }, "RESEND_API_KEY"},
 		{"no from email", func(c *Config) { c.Mailer.FromEmail = "" }, "FROM_EMAIL"},
-		{"Resend sandbox sender", func(c *Config) { c.Mailer.FromEmail = "onboarding@resend.dev" }, "FROM_EMAIL"},
 		{"default mail provider with no key", func(c *Config) { c.Mailer.Provider = ""; c.Mailer.ResendAPIKey = "" }, "RESEND_API_KEY"},
 		{"smtp without username", func(c *Config) { *c = smtp; c.Mailer.SMTPUsername = "" }, "SMTP_USERNAME"},
 		{"smtp without password", func(c *Config) { *c = smtp; c.Mailer.SMTPPassword = "" }, "SMTP_PASSWORD"},

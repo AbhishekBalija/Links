@@ -284,10 +284,6 @@ func (c Config) validateSignInSettings() error {
 	if c.Mailer.ResendAPIKey == "" {
 		return fmt.Errorf("RESEND_API_KEY is required with APP_ENV=production")
 	}
-	// Resend's sandbox sender only delivers to the account owner.
-	if strings.HasSuffix(strings.ToLower(fromEmail), "@resend.dev") {
-		return fmt.Errorf("FROM_EMAIL must be on a domain verified in Resend, not @resend.dev, with APP_ENV=production")
-	}
 	return nil
 }
 
