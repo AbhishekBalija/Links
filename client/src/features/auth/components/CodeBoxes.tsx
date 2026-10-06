@@ -29,7 +29,6 @@ export function CodeBoxes({ value, onChange, invalid, describedBy }: { value: st
           id="code"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={6}
           value={value}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
