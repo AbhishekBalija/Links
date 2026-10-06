@@ -39,6 +39,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- An import no longer answers with an error when only its summary audit fails
+  after the students were saved; it returns the result and logs the failure
+  (#184).
 - Approving or changing the status of a user with a malformed ID now answers
   404 instead of a server error, and approving checks the scope it is given:
   an unknown type or a stray ID is a 400, and an HOD can no longer scope the

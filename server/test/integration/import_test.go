@@ -265,3 +265,29 @@ func TestImportAddsStudentsWhoShareAName(t *testing.T) {
 		t.Errorf("distinct usernames = %d, want 30", usernames)
 	}
 }
+
+// The students are already saved, one transaction each, when the summary
+// audit is written. If the summary fails, the admin still gets the result
+// of what was created instead of an error that hides it.
+func TestImportAnswersWithTheResultWhenTheSummaryAuditFails(t *testing.T) {
+	h := apitest.New(t)
+	admin := h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "admin"}}})
+	// Make only the summary audit insert fail; the per-row audits still work.
+	if err := h.DB().Exec(`
+		CREATE FUNCTION refuse_summary_audit() RETURNS trigger AS $$
+		BEGIN RAISE EXCEPTION 'summary audit refused'; END;
+		$$ LANGUAGE plpgsql`).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := h.DB().Exec(`
+		CREATE TRIGGER refuse_summary_audit BEFORE INSERT ON audit_logs
+		FOR EACH ROW WHEN (NEW.action = 'students_imported')
+		EXECUTE FUNCTION refuse_summary_audit()`).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	result := imported(t, importCSV(h, admin.Token, "email,full_name,usn\nasha@gmail.com,Asha Rao,4mn23cs101\n"))
+	if result.Created != 1 || result.Rows[0].Status != "created" {
+		t.Fatalf("result = %+v, want the one student reported as created", result)
+	}
+}

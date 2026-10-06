@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/mail"
 	"sort"
 	"strings"
@@ -201,7 +202,10 @@ func (s *authService) ImportStudents(ctx context.Context, actorID string, input 
 	if err := s.unitOfWork.WithinTransaction(ctx, func(repos AuthRepositories) error {
 		return repos.AuditLogs.Create(ctx, summary)
 	}); err != nil {
-		return nil, fmt.Errorf("audit import: %w", err)
+		// The students are already saved and each has its own audit row from
+		// its own transaction. An error here would hide what was created and
+		// invite a retry, so answer with the result and log the failure.
+		slog.ErrorContext(ctx, "import summary audit failed", "actor_id", actorID, "created", result.Created, "error", err)
 	}
 	return result, nil
 }

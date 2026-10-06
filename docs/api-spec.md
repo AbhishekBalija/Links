@@ -714,7 +714,9 @@ Response `200`:
 - A saved import writes one `students_imported` audit log with the counts,
   how many students it created per Department and Batch (`batches`, which
   Home reads) and the `department_code` when one was named, and one
-  `user_imported` per created user.
+  `user_imported` per created user. The students are saved one transaction
+  each, so if the summary log fails the import still answers with its result
+  and the failure is logged.
 
 ### Role management
 
