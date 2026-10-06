@@ -39,6 +39,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A production deploy now refuses to start, naming the variable, when
+  `GOOGLE_CLIENT_ID`, `FROM_EMAIL` or the mail settings (`RESEND_API_KEY`, or
+  `SMTP_*` with `MAIL_PROVIDER=smtp`) are missing, instead of starting green
+  and locking people out (#182).
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends

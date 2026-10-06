@@ -12,6 +12,13 @@ GIN_MODE=release
 
 `PORT` is optional: the host may provide it. `APP_PORT` is the local fallback.
 
+With `APP_ENV=production` the server also refuses to start, naming the
+variable, unless people can sign in: `GOOGLE_CLIENT_ID` (the principal and
+admins use Google only), `FROM_EMAIL` (not the `@resend.dev` sandbox sender),
+and the mail settings for `MAIL_PROVIDER`: `RESEND_API_KEY` for `resend`, or
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME` and `SMTP_PASSWORD` for `smtp`.
+Local and preview copies start without them.
+
 The full product will later need:
 
 ```text
