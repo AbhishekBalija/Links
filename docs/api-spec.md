@@ -532,9 +532,11 @@ and reactivating need `manage_users_and_roles` (principal and admin); an HOD
 gets `403`.
 
 `PATCH /api/v1/admin/users/:id/verify` accepts an optional `scope_type` and
-`scope_id` for the student role (global when omitted). A `department` scope
-must carry an existing department's ID, otherwise it returns
-`400 VALIDATION_ERROR`. The department row is share-locked while the role is
+`scope_id` for the student role (global when omitted). `scope_type` must be
+`global` (with no `scope_id`) or `department`; a `department` scope must carry
+an existing department's ID, and an HOD can only pick their own Department.
+Anything else returns `400 VALIDATION_ERROR` naming the field. A malformed user
+ID in the path is `404` on this and the `status` route. The department row is share-locked while the role is
 created, so a concurrent department delete either waits and returns `409` or
 runs first and the approval returns `400`.
 
@@ -712,7 +714,9 @@ Response `200`:
 - A saved import writes one `students_imported` audit log with the counts,
   how many students it created per Department and Batch (`batches`, which
   Home reads) and the `department_code` when one was named, and one
-  `user_imported` per created user.
+  `user_imported` per created user. The students are saved one transaction
+  each, so if the summary log fails the import still answers with its result
+  and the failure is logged.
 
 ### Role management
 
