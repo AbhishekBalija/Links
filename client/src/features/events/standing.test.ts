@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { proposalStanding } from './standing'
 import type { CampusEvent, Review } from './types'
+import { collegeInstant } from '../../shared/time/college'
 
 // Sunday 27 September 2026, evening.
-const now = new Date(2026, 8, 27, 18, 0)
+const now = collegeInstant(2026, 9, 27, 18, 0)
 const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3600_000).toISOString()
-const at = (month: number, day: number, hour: number) => new Date(2026, month - 1, day, hour).toISOString()
+const at = (month: number, day: number, hour: number) => collegeInstant(2026, month, day, hour).toISOString()
 
 function event(overrides: Partial<CampusEvent>): CampusEvent {
   return {

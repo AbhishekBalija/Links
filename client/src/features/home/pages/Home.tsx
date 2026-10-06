@@ -26,6 +26,7 @@ import { NewMenu } from '../../posts/components/NewMenu'
 import { useHasPosted } from '../../posts/api'
 import { homeKind } from '../roleHome'
 import { greeting, useHomeClock } from '../greeting'
+import { COLLEGE_TIME_ZONE } from '../../../shared/time/college'
 
 function firstName(fullName: string) {
   return fullName.trim().split(/\s+/)[0] ?? ''
@@ -88,7 +89,7 @@ function PhoneBar({ roles }: { roles: string[] }) {
 
 function HomeView({ data, now }: { data: Dashboard; now: Date }) {
   const { user, notices, approvals, my_announcements: mine, opportunities, placement } = data
-  const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+  const dateLine = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', timeZone: COLLEGE_TIME_ZONE })
   const kind = homeKind(user.roles)
   const coordinator = isCoordinator(user.roles)
   const showMine = mine && !coordinator

@@ -1,5 +1,6 @@
 import type { ApplicationMode, Opportunity, OpportunityType } from '../jobs/types'
 import { fromRules, MAX_RULES, ruleCount, toRules, type EligibilityChoice } from './eligibility'
+import { collegeDate, collegeTimeInput, fromCollegeTime } from '../../shared/time/college'
 
 // OpportunityForm is the form as placement staff fill it in. The deadline
 // is a date and a time in the officer's time zone, as the inputs give them.
@@ -51,18 +52,16 @@ export function emptyOpportunity(): OpportunityForm {
   }
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
 
 export function fromOpportunity(item: Opportunity): OpportunityForm {
-  const due = new Date(item.apply_by)
   return {
     opportunity_type: item.opportunity_type,
     title: item.title,
     company: item.company,
     location: item.location ?? '',
     compensation: item.compensation ?? '',
-    applyDate: `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`,
-    applyTime: `${pad(due.getHours())}:${pad(due.getMinutes())}`,
+    applyDate: collegeDate(item.apply_by, 'input'),
+    applyTime: collegeTimeInput(item.apply_by),
     description: item.description,
     application_mode: item.application_mode,
     external_url: item.external_url ?? '',
@@ -71,12 +70,11 @@ export function fromOpportunity(item: Opportunity): OpportunityForm {
   }
 }
 
-// applyBy joins the date and time inputs into a local Date.
+// applyBy joins the date and time inputs into the instant they mean in the
+// college (#211).
 export function applyBy(form: OpportunityForm): Date | null {
   if (!form.applyDate || !form.applyTime) return null
-  const [y, m, d] = form.applyDate.split('-').map(Number)
-  const [h, min] = form.applyTime.split(':').map(Number)
-  return new Date(y, m - 1, d, h, min)
+  return fromCollegeTime(form.applyDate, form.applyTime)
 }
 
 // checkOpportunity finds what must be fixed before saving, with the server's

@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { checkLogistics, logisticsChanges } from './logistics'
 import { fromEvent } from './proposal'
 import type { CampusEvent } from './types'
+import { collegeInstant } from '../../shared/time/college'
 
 // Sunday 27 September 2026, evening.
-const now = new Date(2026, 8, 27, 18, 0)
-const local = (month: number, day: number, hour: number, minute = 0) => new Date(2026, month - 1, day, hour, minute).toISOString()
+const now = collegeInstant(2026, 9, 27, 18, 0)
+const local = (month: number, day: number, hour: number, minute = 0) => collegeInstant(2026, month, day, hour, minute).toISOString()
 
 const published = {
   event_type: 'talk',

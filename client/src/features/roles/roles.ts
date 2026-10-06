@@ -1,5 +1,6 @@
 import { roleLabel } from '../../app/shell/nav'
 import type { GrantInput, Handover, PersonRef, RoleAssignment } from './types'
+import { COLLEGE_TIME_ZONE, fromCollegeTime } from '../../shared/time/college'
 
 // The order roles are offered in a grant form: staff first, then the roles
 // only an admin grants.
@@ -28,7 +29,14 @@ export function needsDepartment(role: string): boolean {
 }
 
 function day(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' })
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: COLLEGE_TIME_ZONE })
+}
+
+// grantedLine is what the profile says once a role is given: "Asha is a
+// student coordinator now", or "... from 1 Nov 2026" for a later start.
+export function grantedLine(firstName: string, role: string, label: string, starts: string, today: string): string {
+  const when = starts === today ? 'now' : `from ${day(fromCollegeTime(starts, '00:00').toISOString())}`
+  return role === 'student_coordinator' ? `${firstName} is a student coordinator ${when}.` : `${firstName} has the ${label} role ${when}.`
 }
 
 // assignmentLine reads "Computer Science · Since 1 Jun 2024", "… · Starts 1
@@ -72,7 +80,7 @@ export type GrantDraft = { role: string; departmentId: string; starts: string }
 
 // todayInIndia is today's date as a date input holds it.
 export function todayInIndia(now = new Date()): string {
-  return now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+  return now.toLocaleDateString('en-CA', { timeZone: COLLEGE_TIME_ZONE })
 }
 
 // grantProblems checks the form before sending it, keyed by field. The

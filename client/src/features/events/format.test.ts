@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { answersClosed, dateParts, groupLabel, happeningNow, seatsLine, startTime, timeRange, whenLine } from './format'
+import { fromCollegeTime } from '../../shared/time/college'
 
-// Local times, so the tests read the same in any time zone.
-const at = (month: number, day: number, hour: number, minute = 0) => new Date(2026, month - 1, day, hour, minute).toISOString()
+// College times (India), whatever zone the tests run in.
+const pad = (n: number) => String(n).padStart(2, '0')
+const at = (month: number, day: number, hour: number, minute = 0) => fromCollegeTime(`2026-${pad(month)}-${pad(day)}`, `${pad(hour)}:${pad(minute)}`).toISOString()
 // Sunday 27 September 2026, evening.
-const now = new Date(2026, 8, 27, 18, 0)
+const now = new Date(at(9, 27, 18))
 
 describe('dateParts', () => {
   it('gives the tile its month, day and weekday', () => {

@@ -10,6 +10,7 @@ import { hasExpired, waited } from '../../status'
 import type { QueueItem } from '../../types'
 import { ActionBar } from '../ActionBar'
 import { Chip } from './Chip'
+import { COLLEGE_TIME_ZONE } from '../../../../shared/time/college'
 
 // Banner is the message shown after a review: done, or someone else acted.
 export type Banner = { tone: 'done' | 'info'; text: string }
@@ -89,7 +90,7 @@ export function Review({ item, focusTitle, onReviewed }: {
           </dd>
           <dt className="text-ink-3">Expires</dt>
           <dd className="font-mono text-[13px]">
-            {item.expires_at ? new Date(item.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No end date'}
+            {item.expires_at ? new Date(item.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: COLLEGE_TIME_ZONE }) : 'No end date'}
           </dd>
         </dl>
 

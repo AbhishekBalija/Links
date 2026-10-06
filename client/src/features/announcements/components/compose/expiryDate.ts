@@ -1,17 +1,16 @@
-// Expiry is a date; the notice leaves the feed at the end of that day, in the
-// author's time zone.
+import { COLLEGE_TIME_ZONE, collegeDate, fromCollegeTime } from '../../../../shared/time/college'
+
+// Expiry is a date; the notice leaves the feed at the end of that day in the
+// college (#211), whatever the author's device zone.
 export function toEndOfDay(date: string): string {
-  const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d, 23, 59, 59).toISOString()
+  return fromCollegeTime(date, '23:59', 59).toISOString()
 }
 
 export function toDateInput(iso: string | null): string {
   if (!iso) return ''
-  const date = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  return collegeDate(iso, 'input')
 }
 
 export function friendlyDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: COLLEGE_TIME_ZONE })
 }

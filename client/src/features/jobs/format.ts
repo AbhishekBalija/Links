@@ -1,14 +1,11 @@
+import { clockTime, collegeDate, collegeDay, monthsShort, wallClock } from '../../shared/time/college'
 import type { Opportunity } from './types'
 
-const DAY = 24 * 60 * 60 * 1000
-
-// calendarDays counts midnights between now and the deadline, in local time,
-// so "tomorrow" means the next date on the calendar, not 24 hours away.
+// calendarDays counts midnights between now and the deadline on the
+// college's calendar (#211), so "tomorrow" means the next date there, not
+// 24 hours away.
 function calendarDays(iso: string, now: Date): number {
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const due = new Date(iso)
-  const end = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  return Math.round((end.getTime() - start.getTime()) / DAY)
+  return collegeDay(iso) - collegeDay(now)
 }
 
 // daysLeft says how long is left to apply: "Closes today", "2 days left".
@@ -32,20 +29,16 @@ export function jobGroup(applyBy: string, now = new Date()): string {
 
 // deadlineParts is the day and month on the apply-by tile: "02", "OCT".
 export function deadlineParts(iso: string): { day: string; month: string } {
-  const d = new Date(iso)
+  const c = wallClock(iso)
   return {
-    day: String(d.getDate()).padStart(2, '0'),
-    month: d.toLocaleDateString('en-IN', { month: 'short' }).slice(0, 3).toUpperCase(),
+    day: String(c.day).padStart(2, '0'),
+    month: monthsShort[c.month - 1].toUpperCase(),
   }
 }
 
 // deadlineLine is the full deadline: "Friday 2 October" and "11:59 pm".
 export function deadlineLine(iso: string): { date: string; time: string } {
-  const d = new Date(iso)
-  return {
-    date: `${d.toLocaleDateString('en-IN', { weekday: 'long' })} ${d.getDate()} ${d.toLocaleDateString('en-IN', { month: 'long' })}`,
-    time: d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase(),
-  }
+  return { date: collegeDate(iso, 'long'), time: clockTime(iso) }
 }
 
 // jobMeta is the line under a role: company, place and pay.
