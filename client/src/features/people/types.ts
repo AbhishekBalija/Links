@@ -51,6 +51,8 @@ export type BatchCount = { batch_year: number; count: number }
 export type Overview = {
   department: { code: string; name: string; description: string | null }
   hod: Entry | null
+  // Whether the Department has an HOD at all, listed in People or not (#207).
+  has_hod: boolean
   counts: { students: number; faculty: number; students_by_batch: BatchCount[] }
   // HODs, placement officers and faculty of the Department, most senior first.
   staff: Entry[]
