@@ -37,7 +37,11 @@ export default function SignIn() {
   const leftBecause = useAuthStore((s) => s.leftBecause)
   const forgetLeftBecause = useAuthStore((s) => s.forgetLeftBecause)
   const [screen, setScreen] = useState<Screen>(() =>
-    leftBecause === 'signed-out' ? { name: 'start', notice: { tone: 'ok', text: "You're signed out on this device." } } : { name: 'start' },
+    leftBecause === 'signed-out'
+      ? { name: 'start', notice: { tone: 'ok', text: "You're signed out on this device." } }
+      : leftBecause === 'expired'
+        ? { name: 'start', notice: { tone: 'info', text: 'Your session ended, so you were signed out. Sign in again to carry on where you were.' } }
+        : { name: 'start' },
   )
   const [showReported, setShowReported] = useState(leftBecause === 'reported')
 

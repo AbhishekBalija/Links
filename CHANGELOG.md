@@ -35,6 +35,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A link opened while signed out (a job, event or notice shared on
+  WhatsApp) now lands there after signing in, even through the first
+  sign-in step, which a reload no longer loses (#212). A session that ends
+  on its own says so on the sign-in screen, and a pasted "Your code:
+  123456" fills the code boxes.
 - The code screen promised a code that sometimes never comes (#202). After
   the minute's wait, "No code yet?" lists every reason one might not, the
   same for every email; "too many codes from this network" (a campus on one

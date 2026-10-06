@@ -7,6 +7,7 @@ import { useAuthStore } from '../store'
 import { SignInHeading, SignInLayout } from '../components/SignInLayout'
 import { roleLabel } from '../../../app/shell/nav'
 import { greetingName } from '../signIn'
+import { peekReturn } from '../returnTo'
 
 // FirstSignIn shows who a first sign-in signed in as, so a wrong class list
 // row is reported ("Not you?") instead of used (spec #129).
@@ -19,7 +20,9 @@ export default function FirstSignIn() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (!first) return <Navigate to="/" replace />
+  // Nothing to confirm (or just confirmed): go on to the page they were
+  // opening, or Home.
+  if (!first) return <Navigate to={peekReturn() ?? '/'} replace />
 
   const firstName = greetingName(first.full_name)
   const staffRole = first.roles.find((role) => role !== 'student')
@@ -72,7 +75,7 @@ export default function FirstSignIn() {
         type="button"
         onClick={() => {
           confirm()
-          navigate('/', { replace: true })
+          navigate(peekReturn() ?? '/', { replace: true })
         }}
         className={buttonStyles.primary + ' w-full'}
       >
