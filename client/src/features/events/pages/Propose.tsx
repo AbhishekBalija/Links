@@ -95,7 +95,7 @@ function ProposeForm({ item, department, departments }: {
     roles,
     eventType: form.event_type ?? 'other',
     department,
-    hasHOD: Boolean(overview.data?.hod),
+    hasHOD: Boolean(overview.data?.has_hod),
     resubmitting,
   })
   const routeKnown = !department || !overview.isPending
