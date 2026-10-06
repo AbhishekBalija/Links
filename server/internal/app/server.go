@@ -6,6 +6,7 @@ import (
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/AbhishekBalija/Links/server/internal/announcements"
 	"github.com/AbhishekBalija/Links/server/internal/auth"
@@ -124,6 +125,9 @@ func NewServer(cfg config.Config, database *db.Database, logger *slog.Logger, op
 		logger.Warn("RESEND_API_KEY not set, using NoopMailer — no emails will be sent")
 		m = mailer.NoopMailer{}
 	default:
+		if strings.HasSuffix(strings.ToLower(cfg.Mailer.FromEmail), "@resend.dev") {
+			logger.Warn("FROM_EMAIL is a @resend.dev sender: Resend delivers only to its account owner until a domain is verified")
+		}
 		m = mailer.NewResendMailer(cfg.Mailer.ResendAPIKey, cfg.Mailer.FromEmail, cfg.Mailer.FrontendURL)
 	}
 
