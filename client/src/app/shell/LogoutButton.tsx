@@ -24,6 +24,7 @@ export function LogoutButton({ iconOnly, className }: { iconOnly?: boolean; clas
         type="button"
         onClick={handleClick}
         aria-label={iconOnly ? 'Log out' : undefined}
+        title={iconOnly ? 'Log out' : undefined}
         className={cn(
           'inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-ink-2 hover:bg-well hover:text-ink',
           iconOnly ? 'min-w-11 justify-center' : 'px-3',

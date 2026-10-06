@@ -43,6 +43,7 @@ const MyProfile = lazy(() => import('../features/people/pages/MyProfile'))
 const Department = lazy(() => import('../features/people/pages/Department'))
 const HODAccessRequests = lazy(() => import('../features/access/pages/HODAccessRequests'))
 const AdminAccessRequests = lazy(() => import('../features/access/pages/AdminAccessRequests'))
+const NotFound = lazy(() => import('./shell/NotFound'))
 
 export function AppRouter() {
   return (
@@ -109,9 +110,11 @@ export function AppRouter() {
           <Route path="/departments/:code" element={<Department />} />
           <Route path="/profile" element={<MyProfile />} />
           <Route path="/profile/edit" element={<EditProfile />} />
+          {/* An address LINKS doesn't have says so (#212); signed out, it
+              asks to sign in first. */}
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
   )

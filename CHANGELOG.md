@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- An address LINKS doesn't have now says "This page isn't here" with a way
+  back, instead of quietly landing on Home. On phones, log out moves from an
+  unlabelled icon on Home to the end of your Profile, named with your email,
+  and asks first (#212).
 - "Too many codes" now says which limit was hit (`details.limit`: `network`
   or `email`), and the daily cap on codes to emails on no list is a setting,
   `NOT_ON_LIST_CODES_PER_DAY` (default 50), for orientation day (#202).
