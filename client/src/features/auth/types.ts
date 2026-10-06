@@ -59,4 +59,6 @@ export type UpdateProfileInput = {
   portfolio_url?: string | null
 }
 
-export type PublicDepartment = { code: string; name: string }
+// has_hod says whether a request goes to the Department's HOD or, with none,
+// to the admins (#207).
+export type PublicDepartment = { code: string; name: string; has_hod: boolean }

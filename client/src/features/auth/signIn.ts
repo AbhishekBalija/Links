@@ -101,6 +101,15 @@ export type USNReading =
   | { ok: false; reason: 'empty' | 'format' }
   | { ok: false; reason: 'unknown-department'; code: string }
 
+// requestButton says who an Access request goes to: the Department's HOD,
+// or the admins when it has none (#207), so nobody waits on an HOD who
+// isn't there.
+export function requestButton(code: string | null, departments: PublicDepartment[]): string {
+  if (!code) return 'Send request to your HOD'
+  const department = departments.find((d) => d.code === code)
+  return department && !department.has_hod ? 'Send request to the admins' : `Send request to the ${code} HOD`
+}
+
 // readUSN splits a USN the way the request form shows it back:
 // 4MN · 23 · CS · 042 is Computer Science, batch 2023.
 export function readUSN(input: string, departments: PublicDepartment[]): USNReading {

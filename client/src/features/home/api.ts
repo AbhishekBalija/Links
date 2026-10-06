@@ -55,7 +55,8 @@ export type CollegeDepartment = {
   name: string
   students: number
   staff: number
-  hod: { full_name: string; username: string } | null
+  // The HOD role in effect, signed in or not (#207).
+  hod: { full_name: string; username: string; state: 'active' | 'not_signed_in' | 'paused' } | null
 }
 
 export type Lists = {

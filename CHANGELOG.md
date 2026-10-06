@@ -41,6 +41,16 @@ and the project uses [Semantic Versioning](https://semver.org/).
 ### Fixed
 - SQL in the API logs no longer includes real values: slow queries and
   errors show `?` instead of emails, names, USNs and tokens (#181).
+- Department counts on Home, the Department page and the admin's list now
+  include students and staff on the lists who haven't signed in yet (a class
+  of 120 read "12 students" for weeks), and "staff" counts the HOD and
+  placement officer too, not only faculty; "1 departments" reads right
+  (#213).
+- "Does this department have an HOD?" has one answer everywhere (#207): an
+  HOD role in effect. Someone added as HOD who hasn't signed in yet, or is
+  paused, no longer shows as "No HOD yet" on Home (granting another then
+  failed); Propose names the right reviewer; and a request to join a
+  department with no HOD says it goes to the admins.
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends

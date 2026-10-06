@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiRequestError } from '../../shared/api/types'
-import { cleanCode, codeState, greetingName, isEmail, limitText, mailLinks, outcomeOf, readUSN, resendIn } from './signIn'
+import { cleanCode, codeState, greetingName, isEmail, limitText, mailLinks, outcomeOf, readUSN, requestButton, resendIn } from './signIn'
 
 describe('isEmail', () => {
   it.each(['asha.rao@gmail.com', ' kiran@college.edu.in ', 'a+b@x.io'])('accepts %s', (email) => {
@@ -108,7 +108,7 @@ describe('resendIn', () => {
 })
 
 describe('readUSN', () => {
-  const departments = [{ code: 'CS', name: 'Computer Science and Engineering' }, { code: 'IS', name: 'Information Science and Engineering' }]
+  const departments = [{ code: 'CS', name: 'Computer Science and Engineering', has_hod: true }, { code: 'IS', name: 'Information Science and Engineering', has_hod: true }]
 
   it('splits a USN and names its Department and Batch', () => {
     expect(readUSN(' 4mn23cs042 ', departments)).toEqual({
@@ -145,5 +145,17 @@ describe('greetingName', () => {
 
   it('keeps a one-word name', () => {
     expect(greetingName('Meghana')).toBe('Meghana')
+  })
+})
+
+describe('requestButton', () => {
+  const departments = [
+    { code: 'CS', name: 'Computer Science', has_hod: true },
+    { code: 'EC', name: 'Electronics', has_hod: false },
+  ]
+  it('names who the request goes to: the HOD, or the admins when there is none (#207)', () => {
+    expect(requestButton('CS', departments)).toBe('Send request to the CS HOD')
+    expect(requestButton('EC', departments)).toBe('Send request to the admins')
+    expect(requestButton(null, departments)).toBe('Send request to your HOD')
   })
 })

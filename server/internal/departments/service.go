@@ -73,9 +73,13 @@ func (s *Service) ListPublic(ctx context.Context) ([]PublicDepartment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list departments: %w", err)
 	}
+	withHOD, err := s.repository.WithHOD(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find HODs: %w", err)
+	}
 	response := make([]PublicDepartment, 0, len(departments))
 	for _, department := range departments {
-		response = append(response, PublicDepartment{Code: department.Code, Name: department.Name})
+		response = append(response, PublicDepartment{Code: department.Code, Name: department.Name, HasHOD: withHOD[department.ID]})
 	}
 	return response, nil
 }
