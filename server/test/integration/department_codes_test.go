@@ -70,8 +70,10 @@ func TestPublicDepartmentListNeedsNoToken(t *testing.T) {
 	response.Decode(t, &list)
 	codes := map[string]bool{}
 	for _, department := range list.Data {
-		if len(department) != 2 || department["code"] == nil || department["name"] == nil {
-			t.Fatalf("public department = %v, want only code and name", department)
+		// Code, name and whether requests go to an HOD (#207); no IDs or
+		// people's names before anyone has signed in.
+		if len(department) != 3 || department["code"] == nil || department["name"] == nil || department["has_hod"] == nil {
+			t.Fatalf("public department = %v, want only code, name and has_hod", department)
 		}
 		codes[department["code"].(string)] = true
 	}

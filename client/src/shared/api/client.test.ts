@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiDownload, apiRequest, setAccessToken } from './client'
+import { REFRESH_LOCK_NAME, apiDownload, apiRequest, attemptRefresh, setAccessToken } from './client'
 
 // In dev builds the client hangs helpers on window; Vitest runs in Node.
 vi.hoisted(() => {
@@ -63,5 +63,37 @@ describe('apiDownload', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"error":{"code":"FORBIDDEN","message":"only organisers can export"}}', { status: 403 })))
     setAccessToken('token-1')
     await expect(apiDownload('/api/v1/events/e1/export', 'answers.csv')).rejects.toMatchObject({ status: 403, message: 'only organisers can export' })
+  })
+})
+
+describe('attemptRefresh across tabs', () => {
+  const refreshed = () => new Response('{"data":{"access_token":"token-2","expires_in":900}}', { status: 200 })
+
+  it('refreshes while holding the shared lock, so other tabs wait their turn', async () => {
+    let lockHeld = false
+    let heldDuringFetch = false
+    const request = vi.fn(async (_name: string, callback: () => Promise<string>) => {
+      lockHeld = true
+      try {
+        return await callback()
+      } finally {
+        lockHeld = false
+      }
+    })
+    vi.stubGlobal('navigator', { locks: { request } })
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      heldDuringFetch = lockHeld
+      return refreshed()
+    }))
+
+    await expect(attemptRefresh()).resolves.toBe('token-2')
+    expect(request.mock.calls[0][0]).toBe(REFRESH_LOCK_NAME)
+    expect(heldDuringFetch).toBe(true)
+  })
+
+  it('still refreshes in a browser without Web Locks', async () => {
+    vi.stubGlobal('navigator', {})
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(refreshed()))
+    await expect(attemptRefresh()).resolves.toBe('token-2')
   })
 })

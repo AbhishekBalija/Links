@@ -52,8 +52,9 @@ func TestAdminDepartmentsListShowsHODAndCounts(t *testing.T) {
 	}
 	student(t, h, "CS", 2023)
 	student(t, h, "CS", 2024)
+	// An Access request still waiting for a decision isn't counted (#213).
 	waiting := student(t, h, "CS", 2024)
-	if err := h.DB().Exec(`UPDATE users SET status = 'pending' WHERE id = ?`, waiting.ID).Error; err != nil {
+	if err := h.DB().Exec(`UPDATE users SET status = 'pending', is_verified = false WHERE id = ?`, waiting.ID).Error; err != nil {
 		t.Fatalf("make pending: %v", err)
 	}
 	h.SeedUser(t, apitest.UserSeed{Roles: []apitest.RoleSeed{{Role: "faculty", DepartmentCode: "CS"}}})
@@ -67,8 +68,9 @@ func TestAdminDepartmentsListShowsHODAndCounts(t *testing.T) {
 	if cs.HOD == nil || cs.HOD.UserID != hod.ID || cs.HOD.FullName != "Meera Iyer" || cs.HOD.Username == "" {
 		t.Errorf("CS HOD = %+v, want Meera Iyer", cs.HOD)
 	}
-	if cs.Students != 2 || cs.Staff != 1 {
-		t.Errorf("CS counts = %d students, %d staff; want 2 and 1 (active members only)", cs.Students, cs.Staff)
+	// Staff counts the HOD as well as faculty (#213).
+	if cs.Students != 2 || cs.Staff != 2 {
+		t.Errorf("CS counts = %d students, %d staff; want 2 and 2 (the HOD is staff; a waiting request isn't counted)", cs.Students, cs.Staff)
 	}
 	if ec.HOD != nil || ec.Students != 0 || ec.Staff != 1 {
 		t.Errorf("EC = %+v, want no HOD, 0 students, 1 staff", ec)

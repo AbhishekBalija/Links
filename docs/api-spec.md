@@ -274,11 +274,17 @@ Access request form shows, ordered by name, with
 ```json
 {
   "data": [
-    { "code": "CS", "name": "Computer Science and Engineering" },
-    { "code": "IS", "name": "Information Science and Engineering" }
+    { "code": "CS", "name": "Computer Science and Engineering", "has_hod": true },
+    { "code": "IS", "name": "Information Science and Engineering", "has_hod": false }
   ]
 }
 ```
+
+`has_hod` (#207) says whether a request goes to the Department's HOD or, with
+none, to the admins. Like the dashboard's college panel and a Department
+overview's `has_hod`, it counts an HOD role in effect, whether or not the
+HOD has signed in yet: the rule that routes event reviews. The dashboard's
+`college.departments[].hod.state` is `active`, `not_signed_in` or `paused`.
 
 `POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout` use the refresh
 cookie, so they also check where the request came from (ADR 0022). A request
@@ -526,9 +532,11 @@ and reactivating need `manage_users_and_roles` (principal and admin); an HOD
 gets `403`.
 
 `PATCH /api/v1/admin/users/:id/verify` accepts an optional `scope_type` and
-`scope_id` for the student role (global when omitted). A `department` scope
-must carry an existing department's ID, otherwise it returns
-`400 VALIDATION_ERROR`. The department row is share-locked while the role is
+`scope_id` for the student role (global when omitted). `scope_type` must be
+`global` (with no `scope_id`) or `department`; a `department` scope must carry
+an existing department's ID, and an HOD can only pick their own Department.
+Anything else returns `400 VALIDATION_ERROR` naming the field. A malformed user
+ID in the path is `404` on this and the `status` route. The department row is share-locked while the role is
 created, so a concurrent department delete either waits and returns `409` or
 runs first and the approval returns `400`.
 
@@ -1425,6 +1433,7 @@ Department's page:
     "counts": {
       "students": 3,
       "faculty": 4,
+      "staff": 5,
       "students_by_batch": [ { "batch_year": 2023, "count": 2 }, { "batch_year": 2024, "count": 1 } ]
     },
     "staff": [ /* directory entries */ ]
@@ -1434,10 +1443,14 @@ Department's page:
 
 - `hod` is the Department's HOD as a directory entry, or `null` when there is
   none or the directory wouldn't list them (hidden profile, suspended).
-- `counts` include every active member with the role in effect, hidden
-  profiles too, since a number reveals no one: `students` (student role, Student
-  identity in this Department) by Batch, oldest first, and `faculty` (faculty
-  role scoped here, including an HOD who also teaches).
+- `counts` include everyone on the lists with the role in effect (#213):
+  signed in, or on a class list or added as staff and not signed in yet, but
+  not an Access request still waiting. Hidden profiles count too, since a
+  number reveals no one: `students` (student role, Student identity in this
+  Department) by Batch, oldest first; `faculty` (faculty role scoped here,
+  including an HOD who also teaches); and `staff` (anyone with an HOD,
+  placement officer or faculty role here, once). Home's and the admin
+  Departments list's `students` and `staff` are these numbers.
 - `staff` lists the members the directory would show who hold an HOD, placement
   officer or faculty role scoped to this Department, most senior role first,
   then by name. Entries have the same shape and privacy as the directory.

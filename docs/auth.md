@@ -46,6 +46,13 @@ Refresh tokens are high-entropy random strings (32 bytes), stored as
 `SHA-256` hashes: a fast hash is enough for that and avoids DoS risk on the
 refresh endpoint. There are no passwords to hash (ADR 0026).
 
+Several tabs can need a new access token at the same moment (a reload of all
+of them after the token expired). Each would send the same old cookie, and
+only the first would win. So the client refreshes under a Web Lock
+(`navigator.locks`, name `links-auth-refresh`) shared by every tab: the
+others wait, then send the cookie the first tab just received. The server
+keeps no grace window, so reuse of a revoked token is still refused.
+
 JWT rules:
 
 - Pin signing algorithm.

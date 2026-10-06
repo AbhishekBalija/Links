@@ -40,9 +40,15 @@ type ListMeta struct {
 // students it has.
 type Overview struct {
 	Department OverviewDepartment `json:"department"`
-	HOD        *Entry             `json:"hod"`
-	Counts     OverviewCounts     `json:"counts"`
-	Staff      []Entry            `json:"staff"`
+	// HOD is the HOD's directory entry, when the directory lists them.
+	HOD *Entry `json:"hod"`
+	// HasHOD says whether the Department has an HOD at all, listed or not.
+	HasHOD bool `json:"has_hod"`
+	// Holder is who holds the HOD role, for Home's college panel; it isn't
+	// sent to every reader.
+	Holder *HODHolder     `json:"-"`
+	Counts OverviewCounts `json:"counts"`
+	Staff  []Entry        `json:"staff"`
 }
 
 type OverviewDepartment struct {
@@ -52,7 +58,9 @@ type OverviewDepartment struct {
 }
 
 type OverviewCounts struct {
-	Students        int          `json:"students"`
-	Faculty         int          `json:"faculty"`
+	Students int `json:"students"`
+	Faculty  int `json:"faculty"`
+	// Staff counts every staff role (HOD, placement officer, faculty) once.
+	Staff           int          `json:"staff"`
 	StudentsByBatch []BatchCount `json:"students_by_batch"`
 }

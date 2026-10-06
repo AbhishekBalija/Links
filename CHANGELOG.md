@@ -42,6 +42,22 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - An import no longer answers with an error when only its summary audit fails
   after the students were saved; it returns the result and logs the failure
   (#184).
+- Approving or changing the status of a user with a malformed ID now answers
+  404 instead of a server error, and approving checks the scope it is given:
+  an unknown type or a stray ID is a 400, and an HOD can no longer scope the
+  student role to another Department (#180).
+- Reloading several tabs at once after the access token expired no longer
+  signs all but one out: tabs now take turns refreshing the session (#183).
+- Department counts on Home, the Department page and the admin's list now
+  include students and staff on the lists who haven't signed in yet (a class
+  of 120 read "12 students" for weeks), and "staff" counts the HOD and
+  placement officer too, not only faculty; "1 departments" reads right
+  (#213).
+- "Does this department have an HOD?" has one answer everywhere (#207): an
+  HOD role in effect. Someone added as HOD who hasn't signed in yet, or is
+  paused, no longer shows as "No HOD yet" on Home (granting another then
+  failed); Propose names the right reviewer; and a request to join a
+  department with no HOD says it goes to the admins.
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends
