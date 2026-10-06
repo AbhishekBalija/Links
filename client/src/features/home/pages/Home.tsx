@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { Avatar } from '../../../app/shell/Avatar'
-import { LogoutButton } from '../../../app/shell/LogoutButton'
 import { EmptyState, ErrorState, LoadingStatus, Skeleton } from '../../../shared/ui/states'
 import { useAuthStore } from '../../auth/store'
 import { NoticeList, NoticeListSkeleton } from '../../notices/components/NoticeList'
@@ -61,7 +60,7 @@ function isCoordinator(roles: string[]) {
 }
 
 // On phones there is no sidebar, so Home carries the wordmark, New for those
-// who post, the avatar (to the profile) and log out.
+// who post, and the avatar (to the profile, where log out is).
 function PhoneBar({ roles }: { roles: string[] }) {
   const user = useAuthStore((s) => s.user)
   const faculty = homeKind(roles) === 'faculty'
@@ -78,7 +77,6 @@ function PhoneBar({ roles }: { roles: string[] }) {
             <NewMenu />
           </span>
         )}
-        <LogoutButton iconOnly />
         <Link to="/profile" aria-label="Your profile" className="flex min-h-11 min-w-11 items-center justify-center rounded-full">
           <Avatar name={name} />
         </Link>

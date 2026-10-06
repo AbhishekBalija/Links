@@ -4,6 +4,7 @@ import { buttonStyles } from '../../announcements/buttons'
 import { useAuthStore } from '../../auth/store'
 import { useProfile } from '../api'
 import { ProfileSkeleton, ProfileView } from '../components/ProfileView'
+import { PhoneLogout } from '../../../app/shell/LogoutSheet'
 
 // MyProfile shows the member their own page as others see it, with the one
 // action they came for: Edit profile.
@@ -49,6 +50,7 @@ export default function MyProfile() {
           />
         </>
       )}
+      <PhoneLogout />
     </div>
   )
 }
