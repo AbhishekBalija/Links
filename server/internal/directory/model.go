@@ -68,6 +68,19 @@ type Repository interface {
 	Staff(ctx context.Context, departmentID string) ([]Member, error)
 	StudentsByBatch(ctx context.Context, departmentID string) ([]BatchCount, error)
 	FacultyCount(ctx context.Context, departmentID string) (int, error)
+	StaffCount(ctx context.Context, departmentID string) (int, error)
+	HODHolder(ctx context.Context, departmentID string) (*HODHolder, error)
+}
+
+// HODHolder is whoever holds the Department's HOD role now, listed or not:
+// the same rule that routes event reviews and refuses a second HOD (#207).
+// Status is their account's: active, pending (added, not signed in yet) or
+// suspended.
+type HODHolder struct {
+	UserID   string `gorm:"column:user_id"`
+	FullName string `gorm:"column:full_name"`
+	Username string `gorm:"column:username"`
+	Status   string `gorm:"column:status"`
 }
 
 // BatchCount is how many active students one Batch of a Department has.

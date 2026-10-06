@@ -35,10 +35,12 @@ type DepartmentResponse struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// PublicDepartment is what the sign-up form needs: no IDs, no HOD.
+// PublicDepartment is what the sign-up form needs: no IDs and no names, only
+// whether a request goes to an HOD or to the admins (#207).
 type PublicDepartment struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	HasHOD bool   `json:"has_hod"`
 }
 
 type DepartmentListResponse struct {
@@ -46,8 +48,8 @@ type DepartmentListResponse struct {
 }
 
 // AdminDepartment is one row of the admin's Departments screen. Students and
-// Staff count active members the way Home's college panel does: students
-// with the student role, staff with the faculty role in the Department.
+// Staff are counted the way Home's college panel counts them (#213):
+// everyone on the lists, signed in or not yet; staff is every staff role.
 type AdminDepartment struct {
 	ID          string    `json:"id"`
 	Code        string    `json:"code"`

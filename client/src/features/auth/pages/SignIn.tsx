@@ -4,7 +4,7 @@ import { buttonStyles } from '../../announcements/buttons'
 import { ApiRequestError } from '../../../shared/api/types'
 import { requestCode, sendAccessRequest, usePublicDepartments, verifyCode, googleSignIn } from '../api'
 import { useAuthStore } from '../store'
-import { codeState, isEmail, limitText, mailLinks, outcomeOf, readUSN, resendIn, type Outcome } from '../signIn'
+import { codeState, isEmail, limitText, mailLinks, requestButton, outcomeOf, readUSN, resendIn, type Outcome } from '../signIn'
 import { SignInHeading, SignInLayout } from '../components/SignInLayout'
 import { Notice } from '../components/Notice'
 import { Steps } from '../components/Steps'
@@ -520,7 +520,7 @@ function RequestScreen({ screen, onSent, onBack, onExpired }: {
           )}
         </div>
         <button type="submit" disabled={busy} className={buttonStyles.primary + ' w-full'}>
-          {busy ? 'Sending…' : department ? `Send request to the ${department} HOD` : 'Send request to your HOD'}
+          {busy ? 'Sending…' : requestButton(department, departments.data ?? [])}
         </button>
       </form>
       <p className={smallPrint}>
