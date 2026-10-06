@@ -332,6 +332,12 @@ func (s *Service) Overview(ctx context.Context, viewerID, code string) (*Overvie
 		overview.Counts.Students += batch.Count
 	}
 
+	holder, err := s.repo.HODHolder(ctx, department.ID)
+	if err != nil {
+		return nil, fmt.Errorf("find HOD: %w", err)
+	}
+	overview.Holder, overview.HasHOD = holder, holder != nil
+
 	staff, err := s.repo.Staff(ctx, department.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list staff: %w", err)

@@ -35,6 +35,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- "Does this department have an HOD?" has one answer everywhere (#207): an
+  HOD role in effect. Someone added as HOD who hasn't signed in yet, or is
+  paused, no longer shows as "No HOD yet" on Home (granting another then
+  failed); Propose names the right reviewer; and a request to join a
+  department with no HOD says it goes to the admins.
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends
