@@ -68,6 +68,7 @@ type Repository interface {
 	Staff(ctx context.Context, departmentID string) ([]Member, error)
 	StudentsByBatch(ctx context.Context, departmentID string) ([]BatchCount, error)
 	FacultyCount(ctx context.Context, departmentID string) (int, error)
+	StaffCount(ctx context.Context, departmentID string) (int, error)
 	HODHolder(ctx context.Context, departmentID string) (*HODHolder, error)
 }
 

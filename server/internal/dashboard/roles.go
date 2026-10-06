@@ -103,7 +103,7 @@ func (s *Service) department(ctx context.Context, userID string, grants []announ
 		Code:            department.Code,
 		Name:            department.Name,
 		Students:        overview.Counts.Students,
-		Staff:           overview.Counts.Faculty,
+		Staff:           overview.Counts.Staff,
 		StudentsByBatch: overview.Counts.StudentsByBatch,
 		UpcomingEvents:  upcoming,
 	}, nil
@@ -125,7 +125,7 @@ func (s *Service) college(ctx context.Context, userID string, roles []string) (*
 		if err != nil {
 			return nil, fmt.Errorf("overview of %s: %w", d.Code, err)
 		}
-		row := CollegeDepartment{Code: d.Code, Name: d.Name, Students: overview.Counts.Students, Staff: overview.Counts.Faculty}
+		row := CollegeDepartment{Code: d.Code, Name: d.Name, Students: overview.Counts.Students, Staff: overview.Counts.Staff}
 		// The HOD role in effect, listed or not (#207), so someone added as
 		// HOD who hasn't signed in yet isn't shown as "No HOD".
 		if overview.Holder != nil {

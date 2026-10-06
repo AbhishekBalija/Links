@@ -152,9 +152,9 @@ func (r *GormRepository) CanAssignHOD(ctx context.Context, userID, departmentID 
 const inEffect = `r.starts_at <= now() AND (r.ends_at IS NULL OR r.ends_at > now())`
 
 // ListForAdmin reads every Department with its HOD and counts in one query.
-// The counts match the Department page and Home (internal/directory): active
-// users with the student role and a Student identity here, and active users
-// with the faculty role scoped here.
+// The counts match the Department page and Home (internal/directory, #213):
+// everyone on the lists, signed in or not yet, with the student role and a
+// Student identity here, and everyone with a staff role scoped here, once.
 func (r *GormRepository) ListForAdmin(ctx context.Context) ([]AdminRow, error) {
 	var rows []AdminRow
 	err := r.db.WithContext(ctx).Raw(`
@@ -162,13 +162,13 @@ func (r *GormRepository) ListForAdmin(ctx context.Context) ([]AdminRow, error) {
 			hod.user_id AS hod_user_id, hod.full_name AS hod_full_name, hod.username AS hod_username,
 			(SELECT count(*) FROM student_identities si
 				JOIN users u ON u.id = si.user_id
-				WHERE si.department_id = d.id AND u.status = 'active'
+				WHERE si.department_id = d.id AND (u.status = 'active' OR (u.status = 'pending' AND u.is_verified))
 				  AND EXISTS (SELECT 1 FROM role_assignments r WHERE r.user_id = u.id AND ` + inEffect + ` AND r.role = 'student')
 			) AS students,
 			(SELECT count(DISTINCT u.id) FROM users u
 				JOIN role_assignments r ON r.user_id = u.id
-				WHERE u.status = 'active' AND ` + inEffect + `
-				  AND r.role = 'faculty' AND r.scope_type = 'department' AND r.scope_id = d.id
+				WHERE (u.status = 'active' OR (u.status = 'pending' AND u.is_verified)) AND ` + inEffect + `
+				  AND r.role IN ('hod', 'placement_officer', 'faculty') AND r.scope_type = 'department' AND r.scope_id = d.id
 			) AS staff
 		FROM departments d
 		LEFT JOIN LATERAL (

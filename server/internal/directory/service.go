@@ -300,8 +300,8 @@ func stringValue(value *string) string {
 	return *value
 }
 
-// Overview returns a Department's page. Counts include every active member,
-// visible or not, since a number reveals no one; the HOD and staff list show
+// Overview returns a Department's page. Counts include everyone on the
+// lists, signed in or not yet, visible or not, since a number reveals no one; the HOD and staff list show
 // only members the directory would list.
 func (s *Service) Overview(ctx context.Context, viewerID, code string) (*Overview, error) {
 	department, err := s.repo.DepartmentByCode(ctx, strings.ToUpper(strings.TrimSpace(code)))
@@ -320,9 +320,13 @@ func (s *Service) Overview(ctx context.Context, viewerID, code string) (*Overvie
 	if err != nil {
 		return nil, fmt.Errorf("count faculty: %w", err)
 	}
+	staffCount, err := s.repo.StaffCount(ctx, department.ID)
+	if err != nil {
+		return nil, fmt.Errorf("count staff: %w", err)
+	}
 	overview := &Overview{
 		Department: OverviewDepartment{Code: department.Code, Name: department.Name, Description: department.Description},
-		Counts:     OverviewCounts{Faculty: faculty, StudentsByBatch: batches},
+		Counts:     OverviewCounts{Faculty: faculty, Staff: staffCount, StudentsByBatch: batches},
 		Staff:      []Entry{},
 	}
 	if overview.Counts.StudentsByBatch == nil {

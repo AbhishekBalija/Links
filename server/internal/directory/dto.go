@@ -58,7 +58,9 @@ type OverviewDepartment struct {
 }
 
 type OverviewCounts struct {
-	Students        int          `json:"students"`
-	Faculty         int          `json:"faculty"`
+	Students int `json:"students"`
+	Faculty  int `json:"faculty"`
+	// Staff counts every staff role (HOD, placement officer, faculty) once.
+	Staff           int          `json:"staff"`
 	StudentsByBatch []BatchCount `json:"students_by_batch"`
 }

@@ -315,7 +315,7 @@ function CollegeSection({ departments }: { departments: CollegeDepartment[] }) {
           The college
         </h2>
         <span className="font-mono text-[13px] text-ink-3">
-          {departments.length} departments · {students.toLocaleString('en-IN')} students · {staff} staff
+          {departments.length} {departments.length === 1 ? 'department' : 'departments'} · {students.toLocaleString('en-IN')} students · {staff} staff
         </span>
       </div>
       <table className="hidden w-full border-collapse text-[15px] lg:table">

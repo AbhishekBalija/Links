@@ -1429,6 +1429,7 @@ Department's page:
     "counts": {
       "students": 3,
       "faculty": 4,
+      "staff": 5,
       "students_by_batch": [ { "batch_year": 2023, "count": 2 }, { "batch_year": 2024, "count": 1 } ]
     },
     "staff": [ /* directory entries */ ]
@@ -1438,10 +1439,14 @@ Department's page:
 
 - `hod` is the Department's HOD as a directory entry, or `null` when there is
   none or the directory wouldn't list them (hidden profile, suspended).
-- `counts` include every active member with the role in effect, hidden
-  profiles too, since a number reveals no one: `students` (student role, Student
-  identity in this Department) by Batch, oldest first, and `faculty` (faculty
-  role scoped here, including an HOD who also teaches).
+- `counts` include everyone on the lists with the role in effect (#213):
+  signed in, or on a class list or added as staff and not signed in yet, but
+  not an Access request still waiting. Hidden profiles count too, since a
+  number reveals no one: `students` (student role, Student identity in this
+  Department) by Batch, oldest first; `faculty` (faculty role scoped here,
+  including an HOD who also teaches); and `staff` (anyone with an HOD,
+  placement officer or faculty role here, once). Home's and the admin
+  Departments list's `students` and `staff` are these numbers.
 - `staff` lists the members the directory would show who hold an HOD, placement
   officer or faculty role scoped to this Department, most senior role first,
   then by name. Entries have the same shape and privacy as the directory.
