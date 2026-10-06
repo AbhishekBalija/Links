@@ -39,6 +39,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- SQL in the API logs no longer includes real values: slow queries and
+  errors show `?` instead of emails, names, USNs and tokens (#181).
 - A production deploy now refuses to start, naming the variable, when
   `GOOGLE_CLIENT_ID`, `FROM_EMAIL` or the mail settings (`RESEND_API_KEY`, or
   `SMTP_*` with `MAIL_PROVIDER=smtp`) are missing, instead of starting green
