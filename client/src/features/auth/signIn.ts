@@ -33,7 +33,7 @@ export type Outcome =
   | { kind: 'waiting' }
   | { kind: 'declined' }
   | { kind: 'suspended' }
-  | { kind: 'limit'; message: string }
+  | { kind: 'limit'; message: string; by: 'email' | 'network' }
   | { kind: 'refused' }
   | { kind: 'error' }
 
@@ -54,9 +54,21 @@ export function outcomeOf(error: unknown): Outcome {
     if (details.status === 'rejected') return { kind: 'declined' }
     return { kind: 'suspended' }
   }
-  if (error.status === 429) return { kind: 'limit', message: error.message }
+  if (error.status === 429) return { kind: 'limit', message: error.message, by: details.limit === 'network' ? 'network' : 'email' }
   if (error.status === 401) return { kind: 'refused' }
   return { kind: 'error' }
+}
+
+// limitText says which limit was hit (#202). The network one is a whole
+// campus on one Wi-Fi, not something the person did, so it points to mobile
+// data; the email one to Google where the screen offers it.
+export function limitText(outcome: Extract<Outcome, { kind: 'limit' }>, { google }: { google: boolean }): string {
+  const after = outcome.message.split('; ')[1] ?? 'try again later'
+  const retry = after.charAt(0).toUpperCase() + after.slice(1)
+  if (outcome.by === 'network') {
+    return `Too many codes asked for from this network. Lots of people here are signing in at once. ${retry}, or switch to mobile data.`
+  }
+  return `Too many codes asked for this email. ${retry}${google ? ', or use Continue with Google' : ''}.`
 }
 
 const codeLifetime = 10 * 60_000

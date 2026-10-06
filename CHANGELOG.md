@@ -35,6 +35,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- The code screen promised a code that sometimes never comes (#202). After
+  the minute's wait, "No code yet?" lists every reason one might not, the
+  same for every email; "too many codes from this network" (a campus on one
+  Wi-Fi) is now a warning that points to mobile data, not "this email".
 - Someone on the same campus Wi-Fi could still stop a student getting
   sign-in codes. A browser that has signed in before is now remembered for
   that account (an httpOnly cookie; migration 026 adds `known_devices`), and

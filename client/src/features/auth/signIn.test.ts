@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiRequestError } from '../../shared/api/types'
-import { cleanCode, codeState, greetingName, isEmail, mailLinks, outcomeOf, readUSN, resendIn } from './signIn'
+import { cleanCode, codeState, greetingName, isEmail, limitText, mailLinks, outcomeOf, readUSN, resendIn } from './signIn'
 
 describe('isEmail', () => {
   it.each(['asha.rao@gmail.com', ' kiran@college.edu.in ', 'a+b@x.io'])('accepts %s', (email) => {
@@ -54,9 +54,21 @@ describe('outcomeOf', () => {
     expect(outcomeOf(notActive('suspended'))).toEqual({ kind: 'suspended' })
   })
 
-  it('reads a rate limit with the server message', () => {
-    const error = new ApiRequestError(429, { code: 'RATE_LIMITED', message: 'too many codes asked for; try again in 15 minutes' })
-    expect(outcomeOf(error)).toEqual({ kind: 'limit', message: 'too many codes asked for; try again in 15 minutes' })
+  it('reads a rate limit with the server message and which limit it was', () => {
+    const error = new ApiRequestError(429, { code: 'RATE_LIMITED', message: 'too many codes asked for; try again in 15 minutes', details: { limit: 'email' } })
+    expect(outcomeOf(error)).toEqual({ kind: 'limit', message: 'too many codes asked for; try again in 15 minutes', by: 'email' })
+    const network = new ApiRequestError(429, { code: 'RATE_LIMITED', message: 'too many codes asked for from this network; try again in 15 minutes', details: { limit: 'network' } })
+    expect(outcomeOf(network)).toMatchObject({ kind: 'limit', by: 'network' })
+    // An older server sends no details: treat it as the email's limit.
+    expect(outcomeOf(new ApiRequestError(429, { code: 'RATE_LIMITED', message: 'x; try again later' }))).toMatchObject({ by: 'email' })
+  })
+
+  it('words the limits apart (#202)', () => {
+    const email = { kind: 'limit', message: 'too many codes asked for today; try again tomorrow', by: 'email' } as const
+    const network = { kind: 'limit', message: 'too many codes asked for from this network; try again in 15 minutes', by: 'network' } as const
+    expect(limitText(email, { google: true })).toBe('Too many codes asked for this email. Try again tomorrow, or use Continue with Google.')
+    expect(limitText(email, { google: false })).toBe('Too many codes asked for this email. Try again tomorrow.')
+    expect(limitText(network, { google: true })).toBe('Too many codes asked for from this network. Lots of people here are signing in at once. Try again in 15 minutes, or switch to mobile data.')
   })
 
   it('treats a refused code or Google token as a refusal', () => {

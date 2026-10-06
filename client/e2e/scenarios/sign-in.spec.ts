@@ -81,6 +81,20 @@ test.describe('Sign in with an email code', () => {
     await expect(page.getByRole('button', { name: /I'm a student here/ })).toBeVisible()
   })
 
+  test('after a minute with no code, the screen says why one might not come', async ({ page }) => {
+    await page.clock.install()
+    await page.goto('/sign-in')
+    await page.getByLabel('Email').fill(`waiting.${Date.now()}@gmail.com`)
+    await page.getByRole('button', { name: 'Email me a code' }).click()
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'No code yet?' })).toHaveCount(0)
+
+    await page.clock.fastForward(61_000)
+    await expect(page.getByRole('heading', { name: 'No code yet?' })).toBeVisible()
+    await expect(page.getByText('The principal and admins sign in with Google, so they get no code.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Send a new code' })).toBeVisible()
+  })
+
   test('someone on no list sends a request, and once approved signs in', async ({ page, request }) => {
     const usn = await freeUSN('CS', BATCH)
     await signInWithCode(page, UNLISTED)

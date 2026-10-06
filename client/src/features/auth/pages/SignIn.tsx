@@ -4,7 +4,7 @@ import { buttonStyles } from '../../announcements/buttons'
 import { ApiRequestError } from '../../../shared/api/types'
 import { requestCode, sendAccessRequest, usePublicDepartments, verifyCode, googleSignIn } from '../api'
 import { useAuthStore } from '../store'
-import { codeState, isEmail, mailLinks, outcomeOf, readUSN, resendIn, type Outcome } from '../signIn'
+import { codeState, isEmail, limitText, mailLinks, outcomeOf, readUSN, resendIn, type Outcome } from '../signIn'
 import { SignInHeading, SignInLayout } from '../components/SignInLayout'
 import { Notice } from '../components/Notice'
 import { Steps } from '../components/Steps'
@@ -25,7 +25,7 @@ type Screen =
   | { name: 'sent'; sentAt: number; department: string; email: string }
   | { name: 'waiting' | 'declined' | 'suspended' }
 
-type StartNotice = { tone: 'danger' | 'ok' | 'info'; text: string }
+type StartNotice = { tone: 'danger' | 'ok' | 'info' | 'warn'; text: string }
 
 const field = 'block min-h-12 w-full rounded-lg border border-line bg-surface px-3.5 text-[15px] text-ink outline-none focus:border-rust focus:ring-2 focus:ring-rust/20'
 const smallPrint = 'text-[13px] leading-normal text-ink-3'
@@ -127,7 +127,9 @@ function StartScreen({ initial, onCode, onOutcome }: {
       const outcome = outcomeOf(error)
       if (outcome.kind === 'limit') {
         setLimited(true)
-        setNotice({ tone: 'danger', text: `Too many codes asked for this email. ${capitalise(outcome.message.split('; ')[1] ?? 'Try again later')}, or use Continue with Google.` })
+        // A whole campus on one network isn't the person's doing: a warning,
+        // not an error (#202).
+        setNotice({ tone: outcome.by === 'network' ? 'warn' : 'danger', text: limitText(outcome, { google: true }) })
       } else if (error instanceof ApiRequestError && error.status === 400) {
         setEmailError("That doesn't look like an email. Check for a missing .com or .in.")
       } else {
@@ -252,7 +254,7 @@ function CodeScreen({ screen, onChange, onBack, onOutcome }: {
       onChange({ ...screen, challengeId: challenge.challenge_id, sentAt: Date.now(), wrongTries: 0, resent: true })
     } catch (err) {
       const outcome = outcomeOf(err)
-      setError(outcome.kind === 'limit' ? `Too many codes asked for this email. ${capitalise(outcome.message.split('; ')[1] ?? 'Try again later')}.` : tryAgain)
+      setError(outcome.kind === 'limit' ? limitText(outcome, { google: false }) : tryAgain)
     } finally {
       setBusy(false)
     }
@@ -292,20 +294,19 @@ function CodeScreen({ screen, onChange, onBack, onOutcome }: {
         </form>
       )}
       <MailLinks email={screen.email} />
-      {!dead && (
-        <p className={smallPrint}>
-          Nothing yet? Check spam ·{' '}
-          {wait ? (
-            <>
-              new code in <span className="font-mono text-ink-2">{wait}</span>
-            </>
-          ) : (
-            <button type="button" onClick={resend} disabled={busy} className="font-semibold text-rust">
-              Send a new code
+      {!dead &&
+        (wait ? (
+          <p className={smallPrint}>
+            Nothing yet? Check spam · new code in <span className="font-mono text-ink-2">{wait}</span>
+          </p>
+        ) : (
+          <>
+            <NoCodeYet email={screen.email} />
+            <button type="button" onClick={resend} disabled={busy} className={buttonStyles.secondary + ' w-full'}>
+              {busy ? 'Sending…' : 'Send a new code'}
             </button>
-          )}
-        </p>
-      )}
+          </>
+        ))}
     </SignInLayout>
   )
 }
@@ -585,6 +586,28 @@ function StatusScreen({ name, onBack }: { name: 'waiting' | 'declined' | 'suspen
         Back to sign in
       </button>
     </SignInLayout>
+  )
+}
+
+// NoCodeYet lists every reason a code might not come, once the resend wait
+// is over (#202). It reads the same for every email, so it never says
+// whether this one has an account.
+function NoCodeYet({ email }: { email: string }) {
+  const id = useId()
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-2 rounded-[10px] border border-line bg-surface px-4 py-3.5">
+      <h2 id={id} className="text-sm font-semibold">
+        No code yet?
+      </h2>
+      <ul className="flex list-disc flex-col gap-1.5 pl-[18px] text-[13px] leading-normal text-ink-2">
+        <li>
+          Check spam, and that <b className="font-semibold text-ink">{email}</b> is spelled right.
+        </li>
+        <li>The principal and admins sign in with Google, so they get no code.</li>
+        <li>An email whose request was declined, or an account that is paused, gets no code. Ask your department office.</li>
+        <li>New to LINKS and not on a class list? On busy days codes for new emails can run out. Try again tomorrow, or ask your department office to add you.</li>
+      </ul>
+    </section>
   )
 }
 
