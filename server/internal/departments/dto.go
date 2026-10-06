@@ -46,8 +46,8 @@ type DepartmentListResponse struct {
 }
 
 // AdminDepartment is one row of the admin's Departments screen. Students and
-// Staff count active members the way Home's college panel does: students
-// with the student role, staff with the faculty role in the Department.
+// Staff are counted the way Home's college panel counts them (#213):
+// everyone on the lists, signed in or not yet; staff is every staff role.
 type AdminDepartment struct {
 	ID          string    `json:"id"`
 	Code        string    `json:"code"`

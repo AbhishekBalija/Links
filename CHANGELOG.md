@@ -35,6 +35,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Department counts on Home, the Department page and the admin's list now
+  include students and staff on the lists who haven't signed in yet (a class
+  of 120 read "12 students" for weeks), and "staff" counts the HOD and
+  placement officer too, not only faculty; "1 departments" reads right
+  (#213).
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends

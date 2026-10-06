@@ -24,6 +24,12 @@ const inEffect = `r.starts_at <= now() AND (r.ends_at IS NULL OR r.ends_at > now
 const listed = `u.status = 'active' AND u.is_verified AND p.public_profile_enabled
 	AND EXISTS (SELECT 1 FROM role_assignments r WHERE r.user_id = u.id AND ` + inEffect + `)`
 
+// onTheLists is who a count includes (#213): everyone signed in, and everyone
+// on a class list or added as staff who hasn't signed in yet (pending and
+// verified). Access requests waiting for a decision, and suspended or
+// rejected accounts, aren't counted.
+const onTheLists = `(u.status = 'active' OR (u.status = 'pending' AND u.is_verified))`
+
 const memberColumns = `u.id AS user_id, p.username, p.full_name, lower(p.full_name) AS sort_name,
 	p.headline, p.avatar_url, p.public_profile_enabled, p.show_email, p.show_phone, u.email, u.phone,
 	si.batch_year AS student_batch_year, sd.code AS student_department_code, sd.name AS student_department_name`
@@ -173,15 +179,15 @@ func (r *GormRepository) Staff(ctx context.Context, departmentID string) ([]Memb
 	return members, err
 }
 
-// StudentsByBatch counts active students of the Department per Batch, hidden
-// profiles included: a count reveals no one.
+// StudentsByBatch counts the Department's students per Batch, signed in or
+// not yet, hidden profiles included: a count reveals no one.
 func (r *GormRepository) StudentsByBatch(ctx context.Context, departmentID string) ([]BatchCount, error) {
 	var counts []BatchCount
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT si.batch_year, count(*) AS count
 		FROM student_identities si
 		JOIN users u ON u.id = si.user_id
-		WHERE si.department_id = ? AND u.status = 'active'
+		WHERE si.department_id = ? AND `+onTheLists+`
 		  AND EXISTS (SELECT 1 FROM role_assignments r WHERE r.user_id = u.id AND `+inEffect+` AND r.role = 'student')
 		GROUP BY si.batch_year
 		ORDER BY si.batch_year`, departmentID).
@@ -189,7 +195,7 @@ func (r *GormRepository) StudentsByBatch(ctx context.Context, departmentID strin
 	return counts, err
 }
 
-// FacultyCount counts active users teaching in the Department, hidden
+// FacultyCount counts the Department's faculty, signed in or not yet, hidden
 // profiles included.
 func (r *GormRepository) FacultyCount(ctx context.Context, departmentID string) (int, error) {
 	var count int
@@ -197,8 +203,22 @@ func (r *GormRepository) FacultyCount(ctx context.Context, departmentID string) 
 		SELECT count(DISTINCT u.id)
 		FROM users u
 		JOIN role_assignments r ON r.user_id = u.id
-		WHERE u.status = 'active' AND `+inEffect+`
+		WHERE `+onTheLists+` AND `+inEffect+`
 		  AND r.role = 'faculty' AND r.scope_type = 'department' AND r.scope_id = ?`, departmentID).
+		Scan(&count).Error
+	return count, err
+}
+
+// StaffCount counts everyone with a staff role in the Department (HOD,
+// placement officer, faculty), each once, signed in or not yet.
+func (r *GormRepository) StaffCount(ctx context.Context, departmentID string) (int, error) {
+	var count int
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT count(DISTINCT u.id)
+		FROM users u
+		JOIN role_assignments r ON r.user_id = u.id
+		WHERE `+onTheLists+` AND `+inEffect+`
+		  AND r.role IN ? AND r.scope_type = 'department' AND r.scope_id = ?`, staffRoles, departmentID).
 		Scan(&count).Error
 	return count, err
 }

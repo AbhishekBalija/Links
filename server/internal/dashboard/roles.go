@@ -90,7 +90,7 @@ func (s *Service) department(ctx context.Context, userID string, grants []announ
 		Code:            department.Code,
 		Name:            department.Name,
 		Students:        overview.Counts.Students,
-		Staff:           overview.Counts.Faculty,
+		Staff:           overview.Counts.Staff,
 		StudentsByBatch: overview.Counts.StudentsByBatch,
 		UpcomingEvents:  upcoming,
 	}, nil
@@ -112,7 +112,7 @@ func (s *Service) college(ctx context.Context, userID string, roles []string) (*
 		if err != nil {
 			return nil, fmt.Errorf("overview of %s: %w", d.Code, err)
 		}
-		row := CollegeDepartment{Code: d.Code, Name: d.Name, Students: overview.Counts.Students, Staff: overview.Counts.Faculty}
+		row := CollegeDepartment{Code: d.Code, Name: d.Name, Students: overview.Counts.Students, Staff: overview.Counts.Staff}
 		if overview.HOD != nil {
 			row.HOD = &HODName{FullName: overview.HOD.FullName, Username: overview.HOD.Username}
 		}
