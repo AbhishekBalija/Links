@@ -39,6 +39,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- Approving or changing the status of a user with a malformed ID now answers
+  404 instead of a server error, and approving checks the scope it is given:
+  an unknown type or a stray ID is a 400, and an HOD can no longer scope the
+  student role to another Department (#180).
 - A link opened while signed out (a job, event or notice shared on
   WhatsApp) now lands there after signing in, even through the first
   sign-in step, which a reload no longer loses (#212). A session that ends

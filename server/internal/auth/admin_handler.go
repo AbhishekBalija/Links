@@ -71,8 +71,8 @@ func (h *AdminHandler) VerifyUser(c *gin.Context) {
 	}
 
 	userID := c.Param("id")
-	if userID == "" {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "user id is required", nil)
+	if _, err := uuid.Parse(userID); err != nil {
+		response.Error(c, http.StatusNotFound, "NOT_FOUND", "user not found", nil)
 		return
 	}
 
@@ -98,8 +98,8 @@ func (h *AdminHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	userID := c.Param("id")
-	if userID == "" {
-		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "user id is required", nil)
+	if _, err := uuid.Parse(userID); err != nil {
+		response.Error(c, http.StatusNotFound, "NOT_FOUND", "user not found", nil)
 		return
 	}
 

@@ -104,6 +104,9 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 	if st == "" {
 		st = ScopeGlobal
 	}
+	if err := checkApprovalScope(st, scopeID, anywhere, departments); err != nil {
+		return err
+	}
 	// Approval leaves the account waiting for its first sign-in (spec #129).
 	// The person is emailed once it's saved (#206).
 	var approved *User
@@ -127,9 +130,6 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 		}
 
 		if st == ScopeDepartment {
-			if _, parseErr := uuid.Parse(scopeID); parseErr != nil {
-				return apperrors.NewValidation("invalid scope", map[string]string{"scope_id": "must be a department ID"})
-			}
 			exists, lockErr := repos.Users.LockDepartmentForShare(ctx, scopeID)
 			if lockErr != nil {
 				return fmt.Errorf("lock department: %w", lockErr)
@@ -203,6 +203,27 @@ func (s *authService) VerifyUser(ctx context.Context, actorID, userID, scopeType
 // UpdateUserStatus suspends, reactivates or rejects a user. The principal and
 // admins may do any of these; an HOD only rejects an Access request in their
 // Department (the handler lets nobody else through).
+// checkApprovalScope checks the scope an approval gives the student role:
+// global (no ID) or one Department. An HOD can only pick their own.
+func checkApprovalScope(st ScopeType, scopeID string, anywhere bool, departments map[string]bool) error {
+	switch st {
+	case ScopeGlobal:
+		if scopeID != "" {
+			return apperrors.NewValidation("invalid scope", map[string]string{"scope_id": "must be empty for a global scope"})
+		}
+	case ScopeDepartment:
+		if _, err := uuid.Parse(scopeID); err != nil {
+			return apperrors.NewValidation("invalid scope", map[string]string{"scope_id": "must be a department ID"})
+		}
+		if !anywhere && !departments[scopeID] {
+			return apperrors.NewValidation("invalid scope", map[string]string{"scope_id": "must be your own department"})
+		}
+	default:
+		return apperrors.NewValidation("invalid scope", map[string]string{"scope_type": "must be global or department"})
+	}
+	return nil
+}
+
 func (s *authService) UpdateUserStatus(ctx context.Context, actorID, userID, status, note string) error {
 	newStatus := UserStatus(status)
 	anywhere, departments, err := s.departmentScope(ctx, actorID, accessRefusal)
