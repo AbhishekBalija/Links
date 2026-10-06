@@ -241,6 +241,11 @@ func (c Config) Validate() error {
 	default:
 		return fmt.Errorf("MAIL_PROVIDER must be resend or smtp")
 	}
+	if c.AppEnv == "production" {
+		if err := c.validateSignInSettings(); err != nil {
+			return err
+		}
+	}
 	if c.CodesPerNetwork < 0 {
 		return fmt.Errorf("CODES_PER_NETWORK_PER_15_MIN must be a whole number above 0")
 	}
@@ -252,6 +257,33 @@ func (c Config) Validate() error {
 		return fmt.Errorf("EMAIL_CODE_FOR_EVERY_ROLE is not allowed with APP_ENV=production")
 	}
 
+	return nil
+}
+
+// validateSignInSettings makes a production copy refuse to start when people
+// couldn't sign in. The principal and admins use Google only, and everyone
+// else needs an emailed code, so a missing setting would start green and
+// lock people out.
+func (c Config) validateSignInSettings() error {
+	if strings.TrimSpace(c.Google.ClientID) == "" {
+		return fmt.Errorf("GOOGLE_CLIENT_ID is required with APP_ENV=production")
+	}
+	fromEmail := strings.TrimSpace(c.Mailer.FromEmail)
+	if fromEmail == "" {
+		return fmt.Errorf("FROM_EMAIL is required with APP_ENV=production")
+	}
+	if c.Mailer.Provider == "smtp" {
+		if c.Mailer.SMTPUsername == "" {
+			return fmt.Errorf("SMTP_USERNAME is required with MAIL_PROVIDER=smtp and APP_ENV=production")
+		}
+		if c.Mailer.SMTPPassword == "" {
+			return fmt.Errorf("SMTP_PASSWORD is required with MAIL_PROVIDER=smtp and APP_ENV=production")
+		}
+		return nil
+	}
+	if c.Mailer.ResendAPIKey == "" {
+		return fmt.Errorf("RESEND_API_KEY is required with APP_ENV=production")
+	}
 	return nil
 }
 

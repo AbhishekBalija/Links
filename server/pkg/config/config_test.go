@@ -66,6 +66,8 @@ func TestConfigValidate(t *testing.T) {
 	}
 	secureProduction := insecureProduction
 	secureProduction.Cookie.Secure = true
+	secureProduction.Google.ClientID = "client-id"
+	secureProduction.Mailer = MailerConfig{Provider: "resend", ResendAPIKey: "re_key", FromEmail: "noreply@college.example"}
 	if err := secureProduction.Validate(); err != nil {
 		t.Fatalf("expected a Secure Lax cookie in production to be valid, got %v", err)
 	}
@@ -222,5 +224,85 @@ func TestCodesPerNetworkIsASettingOfEachCopy(t *testing.T) {
 	}
 	if err := config.Validate(); err == nil || !strings.Contains(err.Error(), "CODES_PER_NETWORK_PER_15_MIN") {
 		t.Errorf("Validate() = %v, want a bad value refused", err)
+	}
+}
+
+// productionConfig is a complete production copy: Google sign-in and Resend
+// mail are both set up, so people can actually sign in.
+func productionConfig() Config {
+	return Config{
+		AppEnv:      "production",
+		DatabaseURL: "postgres://example",
+		GINMode:     "release",
+		Auth: AuthConfig{
+			JWTAccessSecret:  "access-secret",
+			JWTRefreshSecret: "refresh-secret",
+			AccessTokenTTL:   15 * time.Minute,
+			RefreshTokenTTL:  7 * 24 * time.Hour,
+		},
+		Cookie:           CookieConfig{Secure: true, SameSite: "lax"},
+		RequestBodyLimit: 1024,
+		DatabasePool:     DatabasePoolConfig{MaxOpenConns: 10, MaxIdleConns: 5, ConnMaxLifetime: time.Minute, ConnMaxIdleTime: time.Minute},
+		Google:           GoogleConfig{ClientID: "client-id.apps.googleusercontent.com"},
+		Mailer:           MailerConfig{Provider: "resend", ResendAPIKey: "re_key", FromEmail: "noreply@college.example"},
+	}
+}
+
+// A production copy that can't send codes or sign in with Google would start
+// green and lock people out, so it must refuse to start (#182).
+func TestProductionRefusesToStartWithoutSignInSettings(t *testing.T) {
+	t.Parallel()
+	if err := productionConfig().Validate(); err != nil {
+		t.Fatalf("complete production config refused: %v", err)
+	}
+
+	// The Resend sandbox sender only reaches the account owner, but a copy
+	// without a verified domain yet still has to start; the server warns.
+	sandbox := productionConfig()
+	sandbox.Mailer.FromEmail = "onboarding@resend.dev"
+	if err := sandbox.Validate(); err != nil {
+		t.Fatalf("the @resend.dev sender was refused: %v", err)
+	}
+
+	smtp := productionConfig()
+	smtp.Mailer = MailerConfig{Provider: "smtp", SMTPHost: "smtp.example", SMTPPort: "587", SMTPUsername: "user", SMTPPassword: "pass", FromEmail: "noreply@college.example"}
+	if err := smtp.Validate(); err != nil {
+		t.Fatalf("complete SMTP production config refused: %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		change func(*Config)
+		want   string
+	}{
+		{"no Google client ID", func(c *Config) { c.Google.ClientID = "" }, "GOOGLE_CLIENT_ID"},
+		{"blank Google client ID", func(c *Config) { c.Google.ClientID = "  " }, "GOOGLE_CLIENT_ID"},
+		{"no Resend key", func(c *Config) { c.Mailer.ResendAPIKey = "" }, "RESEND_API_KEY"},
+		{"no from email", func(c *Config) { c.Mailer.FromEmail = "" }, "FROM_EMAIL"},
+		{"default mail provider with no key", func(c *Config) { c.Mailer.Provider = ""; c.Mailer.ResendAPIKey = "" }, "RESEND_API_KEY"},
+		{"smtp without username", func(c *Config) { *c = smtp; c.Mailer.SMTPUsername = "" }, "SMTP_USERNAME"},
+		{"smtp without password", func(c *Config) { *c = smtp; c.Mailer.SMTPPassword = "" }, "SMTP_PASSWORD"},
+		{"smtp without from email", func(c *Config) { *c = smtp; c.Mailer.FromEmail = "" }, "FROM_EMAIL"},
+	}
+	for _, tc := range cases {
+		cfg := productionConfig()
+		tc.change(&cfg)
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: Validate() = %v, want an error naming %s", tc.name, err, tc.want)
+		}
+	}
+}
+
+// Local and preview copies stay easy to start: no Google, no mail key.
+func TestNonProductionStartsWithoutSignInSettings(t *testing.T) {
+	t.Parallel()
+	for _, env := range []string{"local", "preview"} {
+		cfg := productionConfig()
+		cfg.AppEnv = env
+		cfg.Google.ClientID = ""
+		cfg.Mailer = MailerConfig{}
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("APP_ENV=%s without sign-in settings: %v", env, err)
+		}
 	}
 }
