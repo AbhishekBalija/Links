@@ -10,8 +10,9 @@ interface AuthState {
   isLoading: boolean
   // firstSignIn is who a first sign-in signed in as, until they confirm it.
   firstSignIn: FirstSignIn | null
-  // leftBecause is why the last session ended, for the sign-in screen to say.
-  leftBecause: 'signed-out' | 'reported' | null
+  // leftBecause is why the last session ended, for the sign-in screen to say:
+  // signed out by hand, "Not you?", or the session ending on its own.
+  leftBecause: 'signed-out' | 'reported' | 'expired' | null
   signedIn: (response: SignInResponse) => Promise<void>
   confirmFirstSignIn: () => void
   signedOutAfterReport: () => void
@@ -21,7 +22,29 @@ interface AuthState {
   refreshUser: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+// The first sign-in step is kept for this tab, so reloading "You're signed
+// in as" doesn't lose it while "Not you?" still works (#212).
+const firstSignInKey = 'links.firstSignIn'
+
+function keepFirstSignIn(first: FirstSignIn | null) {
+  try {
+    if (first) sessionStorage.setItem(firstSignInKey, JSON.stringify(first))
+    else sessionStorage.removeItem(firstSignInKey)
+  } catch {
+    // Nothing to keep it in: a reload goes to Home, as before.
+  }
+}
+
+function keptFirstSignIn(): FirstSignIn | null {
+  try {
+    const kept = sessionStorage.getItem(firstSignInKey)
+    return kept ? (JSON.parse(kept) as FirstSignIn) : null
+  } catch {
+    return null
+  }
+}
+
+export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -30,12 +53,17 @@ export const useAuthStore = create<AuthState>()((set) => ({
   signedIn: async (response: SignInResponse) => {
     setAccessToken(response.access_token)
     const user = await fetchCurrentUser()
+    keepFirstSignIn(response.first_sign_in ?? null)
     set({ user, isAuthenticated: true, firstSignIn: response.first_sign_in ?? null, leftBecause: null })
   },
-  confirmFirstSignIn: () => set({ firstSignIn: null }),
+  confirmFirstSignIn: () => {
+    keepFirstSignIn(null)
+    set({ firstSignIn: null })
+  },
   // "Not you?" has already signed the account out everywhere on the server.
   signedOutAfterReport: () => {
     setAccessToken(null)
+    keepFirstSignIn(null)
     set({ user: null, isAuthenticated: false, firstSignIn: null, leftBecause: 'reported' })
   },
   forgetLeftBecause: () => set({ leftBecause: null }),
@@ -48,11 +76,16 @@ export const useAuthStore = create<AuthState>()((set) => ({
       }
     }
     setAccessToken(null)
+    keepFirstSignIn(null)
     set({ user: null, isAuthenticated: false, firstSignIn: null, leftBecause: 'signed-out' })
   },
+  // clearAuth runs when the session can't be refreshed: it ended on its own
+  // (a role ended, the account was paused, or days went by), so the sign-in
+  // screen says so instead of appearing out of nowhere.
   clearAuth: () => {
     setAccessToken(null)
-    set({ user: null, isAuthenticated: false, firstSignIn: null })
+    keepFirstSignIn(null)
+    set({ user: null, isAuthenticated: false, firstSignIn: null, leftBecause: get().isAuthenticated ? 'expired' : null })
   },
   refreshUser: async () => {
     const user = await fetchCurrentUser()
@@ -71,7 +104,7 @@ export async function initializeAuth() {
       return
     }
     const user = await fetchCurrentUser()
-    useAuthStore.setState({ user, isAuthenticated: true, isLoading: false })
+    useAuthStore.setState({ user, isAuthenticated: true, isLoading: false, firstSignIn: keptFirstSignIn() })
   } catch {
     useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: false })
   }

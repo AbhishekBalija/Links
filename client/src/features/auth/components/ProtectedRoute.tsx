@@ -1,27 +1,42 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store'
 import { PageLoading } from '../../../shared/ui/states'
+import { forgetReturn, peekReturn, rememberReturn } from '../returnTo'
 
+// ProtectedRoute is every signed-in page. A signed-out visit remembers the
+// page, so signing in comes back to it (#212).
 export function ProtectedRoute() {
   const user = useAuthStore((s) => s.user)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const isLoading = useAuthStore((s) => s.isLoading)
+  const location = useLocation()
+
+  // Once signed in and on a page, the remembered one has done its job. The
+  // first sign-in step still needs it, to go on to it afterwards.
+  useEffect(() => {
+    if (isAuthenticated && location.pathname !== '/welcome') forgetReturn()
+  }, [isAuthenticated, location.pathname])
 
   if (isLoading) return <PageLoading />
-  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (!isAuthenticated) {
+    rememberReturn(location.pathname + location.search)
+    return <Navigate to="/login" replace />
+  }
   if (user && user.roles.length === 0) return <Navigate to="/account-pending" replace />
   return <Outlet />
 }
 
 // GuestRoute is for the sign-in screens. Signing in moves on from them: to
-// "You're signed in as" on a first sign-in, to Home otherwise.
+// "You're signed in as" on a first sign-in, otherwise to the page they
+// were opening, or Home.
 export function GuestRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const isLoading = useAuthStore((s) => s.isLoading)
   const firstSignIn = useAuthStore((s) => s.firstSignIn)
 
   if (isLoading) return <PageLoading />
-  if (isAuthenticated) return <Navigate to={firstSignIn ? '/welcome' : '/'} replace />
+  if (isAuthenticated) return <Navigate to={firstSignIn ? '/welcome' : (peekReturn() ?? '/')} replace />
   return <Outlet />
 }
 

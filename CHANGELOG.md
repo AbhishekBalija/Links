@@ -39,6 +39,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A link opened while signed out (a job, event or notice shared on
+  WhatsApp) now lands there after signing in, even through the first
+  sign-in step, which a reload no longer loses (#212). A session that ends
+  on its own says so on the sign-in screen, and a pasted "Your code:
+  123456" fills the code boxes.
 - A campus on one Wi-Fi could ask for only 60 sign-in codes every 15
   minutes, so a class signing in together on day one got stuck. The default
   is now 600 and a setting, `CODES_PER_NETWORK_PER_15_MIN`; the deployment
