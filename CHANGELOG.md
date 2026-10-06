@@ -35,6 +35,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- The code screen promised a code that sometimes never comes (#202). After
+  the minute's wait, "No code yet?" lists every reason one might not, the
+  same for every email; "too many codes from this network" (a campus on one
+  Wi-Fi) is now a warning that points to mobile data, not "this email".
 - Dates and times followed the device's time zone (#211). Event times, job
   deadlines, notice expiry, date tiles and Home's date are now always the
   college's, so a phone set to another zone can't create an event at the
