@@ -122,3 +122,12 @@ func TestTooManyCodesSaysWhichLimit(t *testing.T) {
 		t.Errorf("a whole network's worth: limit = %q, want network", limit)
 	}
 }
+
+// A class signing in together on day one shares the campus address and has
+// no known browsers yet; they must all get codes.
+func TestAClassOnOneCampusNetworkAllGetCodes(t *testing.T) {
+	h := apitest.New(t)
+	for i := 0; i < 200; i++ {
+		challengeFrom(t, askForCodeFrom(t, h, campusIP, fmt.Sprintf("student%d@apitest.local", i)))
+	}
+}

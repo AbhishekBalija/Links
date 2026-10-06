@@ -60,7 +60,7 @@ JWT rules:
 - Stored only as `HMAC-SHA256(server secret, challenge ID + code)`, in
   `sign_in_codes`. A 6-digit code has too little entropy for a plain hash.
 - 5 wrong tries kill the code. At most 3 requests for one email from one IP
-  address in 15 minutes and 10 in a day, 60 requests from one IP address in
+  address in 15 minutes and 10 in a day, 600 requests from one IP address (`CODES_PER_NETWORK_PER_15_MIN`) in
   15 minutes, and 30 codes a day for one email from all addresses together.
   All counted in the database so every serverless instance sees them. Emails
   and IPs are stored as keyed hashes.

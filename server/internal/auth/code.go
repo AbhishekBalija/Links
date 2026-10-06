@@ -65,13 +65,16 @@ type CodeSettings struct {
 }
 
 // DefaultCodeSettings are the limits from spec #129. The per-IP limit is
-// high enough for a class signing in together behind one campus address.
+// high enough for a campus signing in together behind one address on day
+// one, when no browser is known yet: about 2,400 an hour. Each email still
+// has its own limits; this one only stops a single source mailing codes to
+// many people. CODES_PER_NETWORK_PER_15_MIN changes it per copy.
 func DefaultCodeSettings() CodeSettings {
 	return CodeSettings{
 		TTL:                 10 * time.Minute,
 		MaxAttempts:         5,
 		PerEmailLimit:       3,
-		PerIPLimit:          60,
+		PerIPLimit:          600,
 		Window:              15 * time.Minute,
 		PerEmailDailyLimit:  10,
 		EmailDailyCeiling:   30,
