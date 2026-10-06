@@ -39,6 +39,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- The `.env` example files now list every variable the server and web app
+  read (JWT secrets, token lifetimes, cookie, CORS, body limit, database
+  pool, Sentry), and a test fails when the server reads one that isn't listed
+  (#186).
 - SQL in the API logs no longer includes real values: slow queries and
   errors show `?` instead of emails, names, USNs and tokens (#181).
 - A production deploy now refuses to start, naming the variable, when

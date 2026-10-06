@@ -27,6 +27,12 @@ The full product will later need:
 APP_ENV
 APP_PORT
 DATABASE_URL
+DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
+                   # local alternative to DATABASE_URL
+FRONTEND_URL       # the web app's origin, for email links (optional on Vercel)
+RESEND_API_KEY     # Resend key for sign-in code emails (MAIL_PROVIDER=resend)
+FROM_EMAIL         # sender address; use a Resend-verified domain once there is one
+SENTRY_DSN         # server error reporting; off while empty
 JWT_ACCESS_SECRET
 JWT_REFRESH_SECRET
 ACCESS_TOKEN_TTL
@@ -53,6 +59,8 @@ NOT_ON_LIST_CODES_PER_DAY # sign-in codes a day to emails on no list, whole copy
                     # service's quota allows; must be above 0
 GOOGLE_CLIENT_ID   # Google sign-in's OAuth client ID (public); Google sign-in is off while empty
 VITE_GOOGLE_CLIENT_ID # the same client ID for the web app; the Google button is hidden while empty
+VITE_SENTRY_DSN    # web app error reporting; off while empty
+SENTRY_AUTH_TOKEN  # build-time secret to upload source maps to Sentry; set in Vercel only
 STORAGE_PROVIDER
 STORAGE_BUCKET
 STORAGE_API_KEY
