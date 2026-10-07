@@ -39,8 +39,10 @@ func NewGormRepository(db *gorm.DB) *GormRepository {
 
 func (r *GormRepository) List(ctx context.Context) ([]Department, error) {
 	var departments []Department
-	err := r.db.WithContext(ctx).Order("name ASC").Find(&departments).Error
-	return departments, err
+	if err := r.db.WithContext(ctx).Order("name ASC").Find(&departments).Error; err != nil {
+		return nil, err
+	}
+	return departments, r.fillHODs(ctx, departments)
 }
 
 func (r *GormRepository) FindByCode(ctx context.Context, code string) (*Department, error) {
@@ -49,7 +51,11 @@ func (r *GormRepository) FindByCode(ctx context.Context, code string) (*Departme
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
-	return &department, err
+	if err != nil {
+		return nil, err
+	}
+	found := []Department{department}
+	return &found[0], r.fillHODs(ctx, found)
 }
 
 // FindByCodeForUpdate locks the department row until the transaction ends.
@@ -64,7 +70,45 @@ func (r *GormRepository) FindByCodeForUpdate(ctx context.Context, code string) (
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
-	return &department, err
+	if err != nil {
+		return nil, err
+	}
+	found := []Department{department}
+	return &found[0], r.fillHODs(ctx, found)
+}
+
+// fillHODs sets each Department's HOD from the HOD Role assignment in
+// effect, the earliest started if there were ever two, as ListForAdmin picks.
+func (r *GormRepository) fillHODs(ctx context.Context, departments []Department) error {
+	if len(departments) == 0 {
+		return nil
+	}
+	ids := make([]string, len(departments))
+	for i := range departments {
+		ids[i] = departments[i].ID
+	}
+	var hods []struct {
+		ScopeID string
+		UserID  string
+	}
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT ON (r.scope_id) r.scope_id, r.user_id FROM role_assignments r
+		WHERE r.role = 'hod' AND r.scope_type = 'department' AND r.scope_id IN ? AND `+inEffect+`
+		ORDER BY r.scope_id, r.starts_at`, ids).Scan(&hods).Error
+	if err != nil {
+		return err
+	}
+	byDepartment := make(map[string]string, len(hods))
+	for _, hod := range hods {
+		byDepartment[hod.ScopeID] = hod.UserID
+	}
+	for i := range departments {
+		departments[i].HODUserID = nil
+		if userID, ok := byDepartment[departments[i].ID]; ok {
+			departments[i].HODUserID = &userID
+		}
+	}
+	return nil
 }
 
 func (r *GormRepository) Create(ctx context.Context, department *Department) error {
@@ -181,16 +225,4 @@ func (r *GormRepository) ListForAdmin(ctx context.Context) ([]AdminRow, error) {
 		) hod ON true
 		ORDER BY d.name`).Scan(&rows).Error
 	return rows, err
-}
-
-func (r *GormRepository) WithHOD(ctx context.Context) (map[string]bool, error) {
-	var ids []string
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT DISTINCT r.scope_id FROM role_assignments r
-		WHERE r.role = 'hod' AND r.scope_type = 'department' AND ` + inEffect).Scan(&ids).Error
-	found := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		found[id] = true
-	}
-	return found, err
 }

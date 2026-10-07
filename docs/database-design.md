@@ -185,6 +185,10 @@ departments (
 )
 ```
 
+`hod_user_id` is no longer read or written by the departments module: a
+Department's HOD is the `hod` Role assignment scoped to it (#179). The column
+stays until a forward-only migration drops it (ADR 0020).
+
 ### role_assignments
 
 ```sql
