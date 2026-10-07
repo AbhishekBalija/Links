@@ -9,13 +9,15 @@ import (
 
 // Department represents one academic department in LINKS.
 type Department struct {
-	ID          string    `gorm:"column:id;primaryKey"`
-	Code        string    `gorm:"column:code;uniqueIndex;not null"`
-	Name        string    `gorm:"column:name;not null"`
-	Description *string   `gorm:"column:description"`
-	HODUserID   *string   `gorm:"column:hod_user_id"`
-	CreatedAt   time.Time `gorm:"column:created_at"`
-	UpdatedAt   time.Time `gorm:"column:updated_at"`
+	ID          string  `gorm:"column:id;primaryKey"`
+	Code        string  `gorm:"column:code;uniqueIndex;not null"`
+	Name        string  `gorm:"column:name;not null"`
+	Description *string `gorm:"column:description"`
+	// HODUserID is whoever holds the HOD role scoped here, read from Role
+	// assignments when the Department is read. It is never stored (#179).
+	HODUserID *string   `gorm:"-"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
 func (Department) TableName() string { return "departments" }
@@ -30,8 +32,6 @@ type Repository interface {
 	IsReferenced(ctx context.Context, departmentID string) (bool, error)
 	CanAssignHOD(ctx context.Context, userID, departmentID string) (bool, error)
 	ListForAdmin(ctx context.Context) ([]AdminRow, error)
-	// WithHOD is the IDs of Departments with an HOD role in effect.
-	WithHOD(ctx context.Context) (map[string]bool, error)
 }
 
 // AdminRow is one Department as the admin's Departments screen shows it:

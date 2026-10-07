@@ -73,13 +73,9 @@ func (s *Service) ListPublic(ctx context.Context) ([]PublicDepartment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list departments: %w", err)
 	}
-	withHOD, err := s.repository.WithHOD(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("find HODs: %w", err)
-	}
 	response := make([]PublicDepartment, 0, len(departments))
 	for _, department := range departments {
-		response = append(response, PublicDepartment{Code: department.Code, Name: department.Name, HasHOD: withHOD[department.ID]})
+		response = append(response, PublicDepartment{Code: department.Code, Name: department.Name, HasHOD: department.HODUserID != nil})
 	}
 	return response, nil
 }
@@ -160,13 +156,14 @@ func (s *Service) Update(ctx context.Context, actorID, code string, input Update
 		if department == nil {
 			return apperrors.NewNotFound("department not found")
 		}
+		// hodUserId, when given, must name the Department's HOD. The HOD
+		// itself comes from the role, so saving never changes it (#179).
 		if assignErr := validateHODAssignment(ctx, repositories.Departments, hodUserID, department.ID); assignErr != nil {
 			return assignErr
 		}
 
 		department.Name = name
 		department.Description = description
-		department.HODUserID = hodUserID
 		if updateErr := repositories.Departments.Update(ctx, department); updateErr != nil {
 			return updateErr
 		}

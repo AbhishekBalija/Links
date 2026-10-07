@@ -1406,8 +1406,9 @@ nothing else (description and HOD stay):
 after trimming, `404` for an unknown code, `403` for anyone but an admin.
 Audited as `department.updated` with the old and new names.
 
-Update (`PUT`) replaces the editable fields for the department identified by
-`:code`, so a field left out is cleared:
+Update (`PUT`) replaces the name and description of the department
+identified by `:code`, so a description left out is cleared. It never changes
+the HOD (#179):
 
 ```json
 {
@@ -1455,8 +1456,12 @@ Department's page:
   officer or faculty role scoped to this Department, most senior role first,
   then by name. Entries have the same shape and privacy as the directory.
 
-Create the department before assigning its HOD. On update, `hodUserId` must
-identify a user with an existing HOD role scoped to that same department. Delete
+A Department's `hodUserId` is whoever holds the HOD role scoped to it, the
+same HOD the admin Departments list shows, or `null` when there is none. It is
+read from Role assignments, never stored, so it changes only when the role is
+assigned or ended (#179). Create the department before assigning its HOD. On
+update, `hodUserId` may be left out; when given it must identify a user with
+an HOD role scoped to that same department. Delete
 returns `409 CONFLICT` when student identities, scoped role assignments,
 Events or audience rules still reference the department.
 

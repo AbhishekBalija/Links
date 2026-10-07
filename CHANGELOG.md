@@ -39,6 +39,9 @@ and the project uses [Semantic Versioning](https://semver.org/).
   Migration 023 drops `users.password_hash` and `account_activation_tokens`.
 
 ### Fixed
+- A Department's HOD in `GET /departments` and `GET /departments/:code` is
+  now whoever holds the HOD role there, matching the admin Departments list,
+  and saving a Department with `PUT` no longer clears it (#179).
 - The `.env` example files now list every variable the server and web app
   read (JWT secrets, token lifetimes, cookie, CORS, body limit, database
   pool, Sentry), and a test fails when the server reads one that isn't listed

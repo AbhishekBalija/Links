@@ -70,10 +70,6 @@ func (r *fakeRepository) CanAssignHOD(_ context.Context, userID, departmentID st
 	return r.hodUsers[userID+":"+departmentID], nil
 }
 
-func (r *fakeRepository) WithHOD(context.Context) (map[string]bool, error) {
-	return map[string]bool{}, nil
-}
-
 func (r *fakeRepository) ListForAdmin(context.Context) ([]AdminRow, error) {
 	return nil, nil
 }
@@ -185,18 +181,17 @@ func TestServiceUpdateValidatesDepartmentScopedHODRole(t *testing.T) {
 	assertAppErrorCode(t, err, "VALIDATION_ERROR")
 
 	repository.hodUsers[hodUserID+":department-AI"] = true
-	updated, err := service.Update(context.Background(), "admin-1", "AI", UpdateDepartmentInput{
+	_, err = service.Update(context.Background(), "admin-1", "AI", UpdateDepartmentInput{
 		Name: "Computer Science and Engineering (AI and ML)", HODUserID: &hodUserID,
 	})
 	if err != nil {
 		t.Fatalf("Update() with scoped HOD role error = %v", err)
 	}
-	if updated.HODUserID == nil || *updated.HODUserID != hodUserID {
-		t.Fatalf("Update() HODUserID = %#v", updated.HODUserID)
-	}
 }
 
-func TestServiceUpdateReplacesOptionalFields(t *testing.T) {
+// Update replaces the description but keeps the HOD, which comes from the
+// HOD role rather than the request (#179).
+func TestServiceUpdateReplacesDescriptionAndKeepsHOD(t *testing.T) {
 	service, repository, audit := newTestService()
 	description := "Old description"
 	hodUserID := "a45ae319-0f64-42a3-b2c5-19b25891f861"
@@ -211,8 +206,11 @@ func TestServiceUpdateReplacesOptionalFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if updated.Description != nil || updated.HODUserID != nil {
-		t.Fatalf("Update() optional fields = %#v", updated)
+	if updated.Description != nil {
+		t.Fatalf("Update() description = %q, want cleared", *updated.Description)
+	}
+	if updated.HODUserID == nil || *updated.HODUserID != hodUserID {
+		t.Fatalf("Update() HODUserID = %#v, want the HOD kept", updated.HODUserID)
 	}
 	if len(audit.logs) != 1 || audit.logs[0].Action != "department.updated" {
 		t.Fatalf("Update() audit logs = %#v", audit.logs)
